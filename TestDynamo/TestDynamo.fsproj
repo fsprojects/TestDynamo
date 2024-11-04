@@ -44,14 +44,17 @@
     <Compile Include="Model\Stream.fs" />
     <Compile Include="Model\SynchronizationException.fs" />
     <Compile Include="Model\Database.fs" />
-    <Compile Include="Api\DebugTables.fs" />
+    <Compile Include="Api.FSharp\DebugTables.fs" />
+    <Compile Include="Api.FSharp\Database.fs" />
+    <Compile Include="Api.FSharp\GlobalDatabaseState.fs" />
+    <Compile Include="Api.FSharp\GlobalDatabase.fs" />
+    <Compile Include="Api\CSharpHelpers.fs" />
+    <Compile Include="Api\LambdaStreamSubscriber.fs" />
     <Compile Include="Api\Database.fs" />
-    <Compile Include="Api\DistributedDatabaseState.fs" />
-    <Compile Include="Api\DistributedDatabase.fs" />
+    <Compile Include="Api\GlobalDatabase.fs" />
     <Compile Include="Serialization\Converters.fs" />
     <Compile Include="Serialization\Data.Version1.fs" />
     <Compile Include="Serialization\DatabaseSerializer.fs" />
-    <Compile Include="Client\StreamSubscriber.fs" />
     <Compile Include="Client\ITestDynamoClient.fs" />
     <Compile Include="Client\ItemMapper.fs" />
     <Compile Include="Client\Shared.fs" />
@@ -70,7 +73,6 @@
     <Compile Include="Client\Scan.fs" />
     <Compile Include="Client\MultiClientOperations.fs" />
     <Compile Include="Client\TestDynamoClient.fs" />
-    <Content Include="TODO.txt" />
   </ItemGroup>
 
   <ItemGroup>

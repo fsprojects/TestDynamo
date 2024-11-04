@@ -7,6 +7,7 @@ open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
+open TestDynamo.Api
 open TestDynamo.Client
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -81,7 +82,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 | ValueNone, ValueNone -> false)
         |> Seq.collect asPutsAndDeletes
         |> Either.partition
-
+        
     let random = randomBuilder output
 
     [<Fact>]
@@ -89,8 +90,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData  (ValueSome output)
@@ -127,9 +127,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -170,7 +169,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 ItemBuilder.tableName item,
                 ItemBuilder.dynamoDbAttributes item)
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let struct (added, removed) = segregate record pkAttr
@@ -207,8 +206,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -231,21 +229,20 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             do! client.PutItemAsync(table.name, TableItem.asAttributes data1) |> Io.ignoreTask
             
             // act
-            use _ =
-                StreamSubscriber.build struct (SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-                <| asFunc2 (fun x _ ->
+            let func = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                |> client.SubscribeToStream table.name
+            let sub = LambdaStreamSubscriber.Build(func, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
+            use _ = client.CsDatabase.SubscribeToLambdaStream(table.name, "123", sub)
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let r = Assert.Single(record) |> sndT
             let t = Assert.Single(r.Records)
             
-            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data1, StreamSubscriber.itemFromDynamoDb t.Dynamodb.OldImage)
-            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data2, StreamSubscriber.itemFromDynamoDb t.Dynamodb.NewImage)
+            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data1, LambdaStreamSubscriber.itemFromDynamoDb t.Dynamodb.OldImage)
+            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data2, LambdaStreamSubscriber.itemFromDynamoDb t.Dynamodb.NewImage)
         }
 
     [<Theory>]
@@ -265,9 +262,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -307,7 +303,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 ItemBuilder.tableName item,
                 ItemBuilder.dynamoDbAttributes item)
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
             record.Clear()
 
             let item = item |> ItemBuilder.withAttribute "RandomData" "S" "more random data"
@@ -317,7 +313,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 ItemBuilder.tableName item,
                 ItemBuilder.dynamoDbAttributes item)
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let struct (added, removed) = segregate record pkAttr
@@ -371,9 +367,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -413,7 +408,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 ItemBuilder.tableName item,
                 ItemBuilder.dynamoDbAttributes item)
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
             record.Clear()
 
             let keys =
@@ -427,7 +422,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 ItemBuilder.tableName item,
                 keys)
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let struct (added, removed) = segregate record pkAttr
@@ -461,9 +456,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -501,7 +495,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     ItemBuilder.dynamoDbAttributes s))
                 |> Task.WhenAll
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
             removeSubscription.Dispose()
 
             // act
@@ -512,7 +506,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     ItemBuilder.dynamoDbAttributes s))
                 |> Task.WhenAll
 
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let testItems =
@@ -547,9 +541,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let streamSettings =
                 if ``add delay`` then { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -592,11 +585,11 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     ItemBuilder.dynamoDbAttributes s))
                 |> Task.WhenAll
 
-            let! exn = Assert.ThrowsAnyAsync<AggregateException>(fun () -> (host.AwaitAllSubscribers writer CancellationToken.None).AsTask())
+            let! exn = Assert.ThrowsAnyAsync<AggregateException>(fun () -> (host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None).AsTask())
             let myExceptions = exn.InnerExceptions |> Seq.filter _.ToString().Contains("####")
 
             Assert.Equal(3, Seq.length myExceptions)
-            do! host.AwaitAllSubscribers writer CancellationToken.None // assert all errors are consumed
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None // assert all errors are consumed
         }
 
     [<Theory>]
@@ -605,9 +598,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let streamSettings =
                 if ``add delay`` then { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -677,9 +669,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger |> Either1)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            
             // arrange
             let streamSettings =
                 { delay = RunSynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -730,8 +721,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -826,11 +816,12 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             
             // act
             use _ =
-                StreamSubscriber.build struct (SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-                <| asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                |> client.SubscribeToStream table.name
+                
+                let lSub = LambdaStreamSubscriber.Build (sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
+                client.CsDatabase.SubscribeToLambdaStream(table.name, "123", lSub)
                 
             do! invalidPut1()
             do! invalidPut2()
@@ -839,7 +830,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             do! invalidDelete3()
             do! invalidUpdate1()
             do! invalidUpdate2()
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             Assert.Empty(record)
@@ -850,8 +841,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-
+            
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -882,22 +872,23 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let recordNew = System.Collections.Generic.List<_>()
             let recordOld = System.Collections.Generic.List<_>()
             use _ =
-                StreamSubscriber.build struct (SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
-                <| asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun x _ ->
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                |> client.SubscribeToStream table.name
+                
+                let lSub = LambdaStreamSubscriber.Build(sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
+                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
                 
             use _ =
-                StreamSubscriber.build struct (SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
-                <| asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                |> client.SubscribeToStream table.name
+                let lSub = LambdaStreamSubscriber.Build (sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
+                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
                 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             Assert.Single(recordOld) |> ignore
@@ -908,8 +899,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
     let ``Subscriber packet ordering`` () =
 
         task {
-            use writer' = new TestLogger(output)
-            let writer = ValueSome (writer' :> Microsoft.Extensions.Logging.ILogger)
+            use writer = new TestLogger(output)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -936,17 +926,17 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // act
             let record = System.Collections.Generic.List<_>()
             use subscription =
-                StreamSubscriber.build struct (settings1, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-                <| asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                |> client.SubscribeToStream table.name
+                let lSub = LambdaStreamSubscriber.Build (sub, settings1, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
+                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
                 
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
-            host.SetStreamBehaviour writer table.name subscription.SubscriberId settings2
+            host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! put1 |> Io.ignoreTask
-            do! host.AwaitAllSubscribers writer CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             let adds =

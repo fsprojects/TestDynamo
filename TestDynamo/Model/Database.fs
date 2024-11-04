@@ -312,7 +312,7 @@ module Database =
     let print = function
         | NonFunctioning (Disposed (id, gId)) -> $"DB {id}/{gId}\n  DISPOSED"
         | NonFunctioning (SyncError struct (db, e)) -> $"DB {db.info.databaseId}/{db.info.databaseId}\n  SYNC ERROR FROM {e.FromDb}\n{print' db}"
-        | Db db -> $"DB {db.info.databaseId}/{db.info.databaseId}\n{print' db}"
+        | Db db -> $"DB {db.info.databaseId}/{db.info.uniqueIdentifier}\n{print' db}"
     
     let build =
         fun logger struct (databaseId, initialState, streamEnabledTables: string list) ->

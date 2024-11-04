@@ -1,4 +1,4 @@
-﻿namespace TestDynamo.Api
+﻿namespace TestDynamo.Api.FSharp
 
 open System.Runtime.InteropServices
 open TestDynamo.Utils

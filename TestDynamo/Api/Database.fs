@@ -1,228 +1,138 @@
 ﻿namespace TestDynamo.Api
 
 open System
-open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 open TestDynamo
-open TestDynamo.Data
-open TestDynamo.Utils
-open TestDynamo.Data.Monads.Operators
+open TestDynamo.Api.FSharp
 open TestDynamo.Model
+open TestDynamo.Data.Monads.Operators
+open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 
-type IStreamSubscriberDisposal =
-    inherit IDisposable
-
-    abstract member SubscriberId: IncrementingId
-
-[<Struct; IsReadOnly>]
-type private DatabaseState =
-    { tables: DatabaseTables
-      streams: TableStreams }
-
-type DatabaseCloneData =
-    { data: Model.DatabaseCloneData
-      databaseId: DatabaseId }
-    with
-    static member empty databaseId =
-        { data = Model.DatabaseCloneData.empty
-          databaseId = databaseId }
-        
-    static member emptyDefault =
-        DatabaseCloneData.empty DatabaseId.defaultId
+type FsDb = Api.FSharp.Database
 
 /// <summary>
 /// A mutable Database object containing Tables and Streams
 /// </summary>
-type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
-
-    let globalLogger = logger
-    let iLoggerOrLoggerInput = ValueOption.map Either1
-
-    let buildLogger localLogger =
-        match localLogger with
-        | ValueSome (Either1 w) -> DatabaseLogger.buildLogger globalLogger (ValueSome w)
-        | ValueSome (Either2 l) -> l
-        | ValueNone -> DatabaseLogger.buildLogger globalLogger ValueNone
-
-    let buildOperationLogger operationName localLogger =
-        let logger = buildLogger localLogger
-        Logger.debug1 "[Api.Database] %s" operationName logger
-        Logger.scope logger
-
-    let state =
-        let initialState = cloneData.data.initialState
-        let initialStreamConfig = cloneData.data.streamsEnabled
-        let databaseId = cloneData.databaseId
-
-        let inputs = struct (databaseId, initialState, initialStreamConfig)
-
-        MutableValue.create (Model.Database.build (buildLogger ValueNone) inputs)
-
-    let mutable debugTables = lazy(List.empty)
-
-    let buildDebugTable struct (name, table) =
-        let table = LazyDebugTable(name, table.table)
-        table.EagerLoad()
-
-    let buildDebugTables logger h =
-        Database.listTables struct (ValueNone, Int32.MaxValue) logger h
-        |> Seq.map buildDebugTable
-        |> List.ofSeq
-
-    static let describable = Logger.describable (fun struct (databaseId: DatabaseId, uniqueId: IncrementingId, lockId: IncrementingId, threadId: int) ->
-        $"{{databaseId = {databaseId}/{uniqueId.Value}, thread = {threadId}, lockId = {lockId.Value}}}") 
-
-    let mutate logger f state =
-        let lockId = IncrementingId.next()
-        let lck = describable (Database.databaseId state, Database.uniqueId state, lockId, Thread.CurrentThread.ManagedThreadId)
-        Logger.debug1 "Acquiring lock %O" lck logger
-
-        try
-            let struct (x, h) = f logger state
-            debugTables <- lazy(buildDebugTables logger h)
-            struct (x, h)
-        finally
-            Logger.debug1 "Releasing lock %i" lockId.Value logger
-
-    let lockedAndLogged operation localLogger f =
-        let struct (logger, d) = buildOperationLogger operation localLogger
-        use _ = d
-        
-        MutableValue.mutate (mutate logger f) state
-
-    let waitTooLong logger errorMessage iteration timespan =
-        if timespan > Settings.DatabaseLockWaitTime then sprintf "%s (%A)" errorMessage timespan |> serverError
-
-        Logger.debug2 "Acquire lock failed after %O, iteration %i. Trying again" timespan iteration logger
-        Task.Delay(iteration * 10)
-        |> ValueTask
-        |> Io.normalizeVt
-
-    let tryLockedAndLogged operation errorMessage localLogger f =
-        let struct (logger, d) = buildOperationLogger operation localLogger
-        use _ = d
-        
-        MutableValue.retryMutate (waitTooLong logger errorMessage) (mutate logger f) state
-
-    let loggedGet operation localLogger f =
-        let struct (logger, d) = buildOperationLogger operation localLogger
-        use _ = d
-        
-        MutableValue.get state |> f logger
+type Database private (db: FsDb, dispose: bool) =
     
-    let subscriberRemovalDisposable remove =
-        let remove' logger state = remove logger state |> tpl ()
-
-        { new IDisposable with
-            member _.Dispose() =
-                lockedAndLogged "REMOVE SUBSCRIBER" ValueNone remove' }
+    static let formatLogger = CSharp.toOption ??|> Either1
         
-    static let noSubscriberChange = ValueTask<_>(()).Preserve()
+    static let describeRequiredTable (db: Api.FSharp.Database) (name: string) =
+        db.TryDescribeTable ValueNone name |> ValueOption.defaultWith (fun _ -> clientError $"Table {name} not found on database {db.Id}")
     
-    static let createSubscriberDisposal struct (id: IncrementingId, disposer: IDisposable) =
-        { new IStreamSubscriberDisposal with
-            member _.Dispose() = disposer.Dispose()
-            override this.SubscriberId = id }
+    new(db: FsDb) = new Database(db, false)
+    new() = new Database(new FsDb(), true)
+    new(cloneData: Api.FSharp.DatabaseCloneData) = new Database(new FsDb(cloneData = cloneData), true)
+    new(logger: ILogger) = new Database(new FsDb(logger), true)
+    new(logger: ILogger, cloneData: Api.FSharp.DatabaseCloneData) = new Database(new FsDb(logger, cloneData), true)
+    new(databaseId: Model.DatabaseId) = new Database(new FsDb(databaseId), true)
+    new(databaseId: Model.DatabaseId, logger: ILogger) = new Database(new FsDb(databaseId, logger), true)
 
-    // trigger an update to set debug tables
-    do lockedAndLogged "INIT" ValueNone (asLazy (tpl ()))
+    override _.ToString() = db.ToString()
     
-    new(?logger: ILogger, ?cloneData: DatabaseCloneData) =
+    override _.GetHashCode() = db.GetHashCode()
+    
+    override _.Equals(obj) =
+        match obj with
+        | :? Database as other -> other.CoreDb = db
+        | :? FsDb as other -> other = db
+        | _ -> false
         
-        let cloneData =
-            Maybe.fromRef cloneData
-            ?|? DatabaseCloneData.emptyDefault
-            
-        new Database(Maybe.fromRef logger, cloneData)
-        
-    new(cloneData: DatabaseCloneData) =
-        new Database(ValueNone, cloneData)
+    static member (==) (x: Database, y: Database) = x.Equals(y)
     
-    new(databaseId: DatabaseId, ?logger: ILogger) =
-        let cloneData = DatabaseCloneData.empty databaseId
-        new Database(Maybe.fromRef logger, cloneData)
-
-    override this.ToString() = sprintf "Database %A" this.Id
-
     interface IDisposable with member this.Dispose() = this.Dispose()
 
-    member _.Dispose() =
-        lockedAndLogged "DISPOSE" ValueNone (fun logger db ->
-            let id = Database.databaseId db
-            Logger.log1 "Disposing database %O" id logger
-            (state :> IDisposable).Dispose()
-            Logger.log1 "Disposed database %O" id logger
-            Database.createDisposed db
-            |> tpl ())
+    member _.Dispose() = if dispose then db.Dispose()
     
     /// <summary>
     /// Get a list of DebugTables. All Tables, Indexes and Items will be enumerated  
     /// </summary>
-    member _.DebugTables = debugTables.Value
+    member _.DebugTables = db.DebugTables |> Seq.ofList
     
-    member _.DefaultLogger = globalLogger
+    /// <summary>Might be null</summary>
+    member _.DefaultLogger = db.DefaultLogger |> CSharp.fromOption
 
-    member _.Id = MutableValue.get state |> Database.databaseId
+    member _.Id = db.Id
+    
+    member internal _. CoreDb = db
 
-    /// <summary>
-    /// Synchronize with changes from another database
-    /// Try to ingest synchronously. If a lock cannot be found, defer to a different thread
-    /// </summary>
-    member internal _.Synchronize subscriberId change (c: CancellationToken) =
-        tryLockedAndLogged "SYNC" "Could not acquire lock for data replication" ValueNone (Database.Replication.synchronize struct (subscriberId, change))
-
-    member internal _.SubscribeToStream_Internal logger table struct (behaviour, dataType) deletionProtection (subscriber: SubscriberInputFn) =
-        Database.subscribeToStream struct (deletionProtection, table, behaviour, dataType, subscriber)
-        |> lockedAndLogged "SUBSCRIBE TO STREAM" logger
-        |> mapSnd subscriberRemovalDisposable
+    /// <inheritdoc />
+    member _.GetTable name =
+        LazyDebugTable(name, (describeRequiredTable db name).table)
+    
+    member _.TableBuilder(
+        name: string,
+        partitionKey: struct (string * string),
+        [<Optional; DefaultParameterValue(System.Nullable<struct (string * string)>())>] sortKey: System.Nullable<struct (string * string)>) =
+        
+        TableBuilder.Create(db, name, partitionKey, sortKey)
+    
+    member _.ItemBuilder(name) = ItemBuilder.Create(db, name)
 
     /// <summary>
     /// Add a callback which can subscribe to a Table Stream
     /// </summary>
-    member this.SubscribeToStream logger table streamConfig (subscriber: DatabaseSynchronizationPacket<TableCdcPacket> -> CancellationToken -> ValueTask<Unit>) =
-        let sub x c =
-            match x with
-            | { databaseChange = OnChange (SchemaChange _) }
-            | { databaseChange = OnChange (SubscriberChange _) }
-            | { databaseChange = TableDeleted _ } -> noSubscriberChange
-            | { databaseChange = OnChange (ChangeDataCapture x') } ->
-                subscriber x' c
-            
-        this.SubscribeToStream_Internal logger table streamConfig false sub
-        |> createSubscriberDisposal
+    member this.SubscribeToStream(table, streamConfig, subscriber: System.Func<DatabaseSynchronizationPacket<TableCdcPacket>, CancellationToken, ValueTask<Unit>>, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
+        db.SubscribeToStream (CSharp.toOption logger) table streamConfig (fun data c -> subscriber.Invoke(data, c))
 
+    /// <summary>
+    /// Add a callback which can subscribe to a Table Stream
+    /// </summary>
+    member this.SubscribeToStream(
+        table,
+        behaviour,
+        subscriber: System.Func<DatabaseSynchronizationPacket<TableCdcPacket>, CancellationToken, ValueTask>,
+        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
+        
+        let streamDataType =
+            streamViewType
+            |> CSharp.toOption
+            ?|> (_.Value >> StreamDataType.tryParse >> Maybe.expectSomeErr "Invalid stream view type%s" "")
+            ?|? StreamDataType.NewAndOldImages
+            
+        db.SubscribeToStream (CSharp.toOption logger) table (behaviour, streamDataType) (fun data c -> subscriber.Invoke(data, c) |> Io.normalizeVt)
+
+    /// <summary>
+    /// Add a callback which can subscribe to a Table Stream
+    /// </summary>
+    member this.SubscribeToStream(
+        table,
+        subscriber: System.Func<DatabaseSynchronizationPacket<TableCdcPacket>, CancellationToken, ValueTask>,
+        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        
+        this.SubscribeToStream(table, SubscriberBehaviour.defaultOptions, subscriber, streamViewType, logger)
+
+    /// <inheritdoc />
+    member _.SubscribeToLambdaStream (table, awsAccountId, subscriber: LambdaStreamSubscriber, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
+        let config = LambdaStreamSubscriber.getStreamConfig subscriber
+        let fn = LambdaStreamSubscriber.getStreamSubscriber awsAccountId db.Id.regionId subscriber
+        db.SubscribeToStream (CSharp.toOption logger) table config fn
+        
     /// <summary>
     /// PUT an Item into the Database  
     /// </summary>
-    member _.Put logger args =
-        lockedAndLogged "PUT" (iLoggerOrLoggerInput logger) (Database.put args)
+    member _.Put(args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Put (CSharp.toOption logger) args
 
     /// <summary>
     /// Update the behaviour of a stream subscriber or an entire stream  
     /// </summary>
-    member internal _.SetStreamBehaviour_Internal logger tableName subscriberId behaviour =
-        lockedAndLogged "SET STREAM BEHAVIOUR" logger (Database.setStreamBehaviour (tableName, subscriberId, behaviour) >>> tpl ())
-
-    /// <summary>
-    /// Update the behaviour of a stream subscriber or an entire stream  
-    /// </summary>
-    member this.SetStreamBehaviour logger tableName subscriberId behaviour =
-        // do not allow client to set behavior for subscribers that they do not have an id for
-        this.SetStreamBehaviour_Internal (iLoggerOrLoggerInput logger) tableName (ValueSome subscriberId) behaviour
-
-    /// <summary>
-    /// Delete a table  
-    /// </summary>
-    member _.DeleteTable logger name =
-        lockedAndLogged "DELETE TABLE" (iLoggerOrLoggerInput logger) (name |> Database.deleteTable)
-
+    member _.SetStreamBehaviour(tableName, subscriberId, behaviour, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
+        db.SetStreamBehaviour (CSharp.toOption logger) tableName subscriberId behaviour
+    
     /// <summary>
     /// Update a table
     /// </summary>
-    member _.UpdateTable logger name req =
-        lockedAndLogged "UPDATE TABLE" (iLoggerOrLoggerInput logger) (Database.updateTable struct (name, req))
+    member _.UpdateTable(name, req, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.UpdateTable (CSharp.toOption logger) name req
+    
+    /// <summary>
+    /// Delete a table  
+    /// </summary>
+    member _.DeleteTable(name, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.DeleteTable (CSharp.toOption logger) name
 
     /// <summary>
     /// Try to delete a table
@@ -230,109 +140,91 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// Returns a task which will resolve when all stream subscribers are finished processing
     /// The task will not throw errors. Call AwaitAllSubscribers to consume any errors
     /// </summary>
-    member _.TryDeleteTable logger name =
-        lockedAndLogged "TRY DELETE TABLE" (iLoggerOrLoggerInput logger) (name |> Database.tryDeleteTable)
-
+    member _.TryDeleteTable(name, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.TryDeleteTable (CSharp.toOption logger) name
+    
     /// <summary>
     /// Get the stream config for a table  
     /// </summary>
-    member _.StreamsEnabled tableName =
-        MutableValue.get state
-        |> Database.describeTable tableName Logger.empty
-        ?>>= _.streamSubscribers
-        |> ValueOption.isSome
+    member _.StreamsEnabled tableName = db.StreamsEnabled tableName
 
     /// <summary>
     /// DELETE an Item
     /// </summary>
-    member _.Delete logger (args: DeleteItemArgs<_>) =
-        lockedAndLogged "DELETE" (iLoggerOrLoggerInput logger) (Database.delete args)
-
+    member _.Delete(args: DeleteItemArgs<_>, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Delete (CSharp.toOption logger) args
+    
     /// <summary>
     /// UPDATE an Item  
     /// </summary>
-    member _.Update logger (args: UpdateItemArgs) =
-        lockedAndLogged "UPDATE" (iLoggerOrLoggerInput logger) (Database.update args)
-
+    member _.Update(args: UpdateItemArgs, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Update (CSharp.toOption logger) args
+    
     /// <summary>
     /// Execute transact writes  
     /// </summary>
-    member _.TransactWrite logger (args: Database.TransactWrite.TransactWrites) =
-        lockedAndLogged "TRANSACT WRITE" (iLoggerOrLoggerInput logger) (Database.TransactWrite.write args)
-
+    member _.TransactWrite(args: Database.TransactWrite.TransactWrites, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.TransactWrite (CSharp.toOption logger) args
+    
     /// <summary>
     /// GET an Item  
     /// </summary>
-    member _.Get logger (args: GetItemArgs) =
-        loggedGet "GET" (iLoggerOrLoggerInput logger) (Database.get args)
-
+    member _.Get(args: GetItemArgs, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Get (CSharp.toOption logger) args
+    
     /// <summary>
     /// Get table details
     /// </summary>
-    member _.TryDescribeTable logger name =
-        loggedGet "TRY DESCRIBE TABLE" (iLoggerOrLoggerInput logger) (Database.describeTable name)
-
+    member _.TryDescribeTable(name, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.TryDescribeTable (CSharp.toOption logger) name
+        
     /// <summary>
     /// Get table details
     /// </summary>
-    member this.DescribeTable logger name =
-        this.TryDescribeTable logger name |> Maybe.defaultWith (fun name -> clientError $"Table {name} not found") name
-
+    member _.DescribeTable(name, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.DescribeTable (CSharp.toOption logger) name
+    
     /// <summary>
     /// Get table details
     /// </summary>
-    member this.ListTables logger (struct (start, limit) & args) =
-        loggedGet "LIST TABLES" (iLoggerOrLoggerInput logger) (Database.listTables args)
-
-    // temp method. Can be changed
-    member internal _.DescribeTable_Internal logger name =
-        loggedGet "DESCRIBE TABLE" logger (Database.describeTable name)
-
+    member _.ListTables(args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.ListTables (CSharp.toOption logger) args
+    
     /// <summary>
     /// Execute multiple GET requests transactionally  
     /// </summary>
-    member _.Gets logger (args: GetItemArgs seq) =
-        let get logger db = Seq.map (Database.get >> apply logger >> apply db) args
-        loggedGet "GETS" (iLoggerOrLoggerInput logger) get
-
+    member _.Gets(args: GetItemArgs seq, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Gets (CSharp.toOption logger) args
+    
     /// <summary>
     /// GET Items from the database  
     /// </summary>
-    member _.Query logger (req: ExpressionExecutors.Fetch.FetchInput) =
-        loggedGet "QUERY" (iLoggerOrLoggerInput logger) (Database.query req)
-
+    member _.Query(req: ExpressionExecutors.Fetch.FetchInput, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Query (CSharp.toOption logger) req
+    
     /// <summary>
     /// Get an Index if it exists  
     /// </summary>
-    member _.TryGetStream tableName =
-        MutableValue.get state |> Database.tryGetStreamSubscribers tableName Logger.empty
-
+    member _.TryGetStream tableName = db.TryGetStream tableName
+    
     /// <summary>
     /// Add a new table  
     /// </summary>
-    member _.AddTable logger args =
-        Database.addTable args |> lockedAndLogged "ADD TABLE" (iLoggerOrLoggerInput logger)
-
-    member _.Print () =
-        loggedGet "PRINT" ValueNone (asLazy Database.print)
+    member _.AddTable(args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.AddTable (CSharp.toOption logger) args
+    
+    /// <summary>
+    /// Add a new table  
+    /// </summary>
+    member _.AddTable args = db.AddTable ValueNone args
+        
+    member _.Print () = db.Print ()
         
     /// <summary>
     /// Add a table clone from an existing table  
     /// </summary>
-    member this.AddClonedTable logger name table =
-        this.AddClonedTable_Internal (iLoggerOrLoggerInput logger) name table ValueNone
-
-    member internal _.AddClonedTable_Internal logger name table subscription =
-        Database.addClonedTable struct (name, table, subscription)
-        |> lockedAndLogged "ADD CLONED TABLE" logger
-        ?|> mapSnd subscriberRemovalDisposable
+    member _.AddClonedTable(name, table, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.AddClonedTable (CSharp.toOption logger) name table
 
     /// <summary>
     /// Build a clone of this Database which contains data and stream config
     /// Does not clone subscription callbacks to streams
     /// </summary>
-    member this.Clone (globalLogger: ILogger voption) =
-        new Database(globalLogger, this.BuildCloneData())
+    /// <param name="globalLogger">
+    /// The logger to use in the newly created database
+    /// </param>
+    member _.Clone([<Optional; DefaultParameterValue(null: ILogger)>] globalLogger: ILogger) =
+        CSharp.toOption globalLogger
+        ?|> db.Clone
+        ?|>? db.Clone
         
     /// <summary>
     /// Build some data which can be used to clone this Database at a later state.
@@ -340,20 +232,10 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// Any Database created from this clone data will contain the data and stream config from this Database
     /// It will not contain subscription callbacks to streams
     /// </summary>
-    member this.BuildCloneData () =
-        { databaseId = this.Id
-          data =  MutableValue.get state |> Database.buildCloneData Logger.empty }
+    member this.BuildCloneData () = db.BuildCloneData()
 
     /// <summary>
     /// Return a task that will be completed when all subscribers have been completed and the system is at rest
     /// The returned task will re-throw any errors thrown by Stream subscriber callbacks
     /// </summary>
-    member this.AwaitAllSubscribers logger c =
-        this.AwaitAllSubscribers_Internal (iLoggerOrLoggerInput logger) c
-        |%|> (function
-            | [] -> ()
-            | errs -> StreamException.streamExceptions errs |> raise)
-        |> Io.deNormalizeVt
-
-    member internal this.AwaitAllSubscribers_Internal logger c =
-        lockedAndLogged "AWAIT SUBSCRIBERS" logger (Database.awaitAllSubscribers c)
+    member _.AwaitAllSubscribers([<Optional; DefaultParameterValue(null: ILogger)>] logger, [<Optional; DefaultParameterValue(CancellationToken())>] c) = db.AwaitAllSubscribers (CSharp.toOption logger) c

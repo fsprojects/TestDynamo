@@ -48,7 +48,7 @@ module Local =
             | t when t = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes |> List.ofSeq |> ValueSome, false)
             | t -> clientError $"Invalid projection type {t}"
 
-        { keys = key; projection = projection; projectionsAreKeys = projectionsAreKeys  }
+        { keys = key; projectionCols = projection; projectionsAreKeys = projectionsAreKeys  }
 
     let private buildProjection (p: ProjectionType) keys =
         let prj = Projection()
@@ -158,7 +158,7 @@ module Local =
                 def.AttributeType <- x
                 def)
 
-    let getReplicas databaseId (cluster: Api.DistributedDatabase voption) (table: TableDetails) includeCurrent =
+    let getReplicas databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) includeCurrent =
         let hasIndex =
             flip Map.containsKey table.indexes
             |> flip (?|>)
@@ -184,7 +184,7 @@ module Local =
         |> Seq.map (uncurry buildReplica)
         |> Enumerable.ToList
 
-    let tableDescription awsAccountId databaseId (cluster: Api.DistributedDatabase voption) (table: TableDetails) status =
+    let tableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status =
 
         let description = TableDescription()
         description.CreationDateTime <- table.createdDate.UtcDateTime
@@ -246,7 +246,7 @@ module List =
         
 module Global =
 
-    let globalTableDescription awsAccountId databaseId (cluster: Api.DistributedDatabase voption) (table: TableDetails) status =
+    let globalTableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status =
 
         let hasIndex =
             flip Map.containsKey table.indexes
@@ -262,7 +262,7 @@ module Global =
 
         description
 
-    let output awsAccountId (cluster: Api.DistributedDatabase voption) status databaseId (table: TableDetails) =
+    let output awsAccountId (cluster: Api.FSharp.GlobalDatabase voption) status databaseId (table: TableDetails) =
 
         let output = Shared.amazonWebServiceResponse<DescribeGlobalTableResponse>()
         output.GlobalTableDescription <- globalTableDescription awsAccountId databaseId cluster table status

@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open Microsoft.Extensions.Logging
 
@@ -27,8 +27,10 @@ type ClientContainer(client: ITestDynamoClient, logger: ILogger) =
 
     interface ITestDynamoClient with
 
-        member this.Database = client.Database
-        member this.DistributedDatabase = client.DistributedDatabase
+        member this.FsDatabase = client.FsDatabase
+        member this.CsDatabase = client.CsDatabase
+        member this.FsGlobalDatabase = client.FsGlobalDatabase
+        member this.CsGlobalDatabase = client.CsGlobalDatabase
         member this.AwaitAllSubscribers(var0) = client.AwaitAllSubscribers(var0)
         member this.AwsAccountId = client.AwsAccountId
         member this.AwsAccountId with set value = client.AwsAccountId <- value
@@ -67,12 +69,12 @@ type ClientContainer(client: ITestDynamoClient, logger: ILogger) =
         member this.DescribeTimeToLiveAsync(request: DescribeTimeToLiveRequest, cancellationToken: Threading.CancellationToken): Task<DescribeTimeToLiveResponse> = client.DescribeTimeToLiveAsync(request, cancellationToken)
         member this.DetermineServiceOperationEndpoint(request) = client.DetermineServiceOperationEndpoint(request)
         member this.DisableKinesisStreamingDestinationAsync(request, cancellationToken) = client.DisableKinesisStreamingDestinationAsync(request, cancellationToken)
-        member this.DistributedDebugView = client.DistributedDebugView
+        member this.GlobalDebugView = client.GlobalDebugView
         member this.EnableKinesisStreamingDestinationAsync(request, cancellationToken) = client.EnableKinesisStreamingDestinationAsync(request, cancellationToken)
         member this.ExecuteStatementAsync(request, cancellationToken) = client.ExecuteStatementAsync(request, cancellationToken)
         member this.ExecuteTransactionAsync(request, cancellationToken) = client.ExecuteTransactionAsync(request, cancellationToken)
         member this.ExportTableToPointInTimeAsync(request, cancellationToken) = client.ExportTableToPointInTimeAsync(request, cancellationToken)
-        member this.GetDistributedTable databaseId tableName = client.GetDistributedTable databaseId tableName
+        member this.GetGlobalTable databaseId tableName = client.GetGlobalTable databaseId tableName
         member this.GetItemAsync(tableName, key, cancellationToken) = client.GetItemAsync(tableName, key, cancellationToken)
         member this.GetItemAsync(tableName, key, consistentRead, cancellationToken) = client.GetItemAsync(tableName, key, consistentRead, cancellationToken)
         member this.GetItemAsync(request, cancellationToken) = client.GetItemAsync(request, cancellationToken)
@@ -104,7 +106,6 @@ type ClientContainer(client: ITestDynamoClient, logger: ILogger) =
         member this.ScanAsync(tableName, attributesToGet, scanFilter, cancellationToken) = client.ScanAsync(tableName, attributesToGet, scanFilter, cancellationToken)
         member this.ScanAsync(request, cancellationToken) = client.ScanAsync(request, cancellationToken)
         member this.SetScanLimits(limits) = client.SetScanLimits(limits)
-        member this.SubscribeToStream tableName subscriber = client.SubscribeToStream tableName subscriber
         member this.TagResourceAsync(request, cancellationToken) = client.TagResourceAsync(request, cancellationToken)
         member this.TransactGetItemsAsync(request, cancellationToken) = client.TransactGetItemsAsync(request, cancellationToken)
         member this.TransactWriteItemsAsync(request, cancellationToken) = client.TransactWriteItemsAsync(request, cancellationToken)

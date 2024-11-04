@@ -12,7 +12,7 @@ open TestDynamo.Data.Monads.Operators
 open Tests.Table
 open Xunit
 open Xunit.Abstractions
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open Tests.ClientLoggerContainer
 open Tests.Loggers
 
@@ -216,9 +216,11 @@ let printFullMap xs =
 
 let cloneHost logger = commonHost.Clone logger
 
-let cloneDistributedHost () =
+let cloneHostUnlogged () = commonHost.Clone()
+
+let cloneGlobalHost () =
     let host = commonHost.BuildCloneData()
-    struct (new DistributedDatabase(host), commonHost.Id)
+    struct (new GlobalDatabase(host), commonHost.Id)
 
 let seededRandomBuilder seed (t: ITestOutputHelper) =
     t.WriteLine($"Seed {seed}")

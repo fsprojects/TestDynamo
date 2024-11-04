@@ -6,7 +6,7 @@ open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open Tests.Items
@@ -95,7 +95,6 @@ type GetItemTests(output: ITestOutputHelper) =
         else
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -144,7 +143,6 @@ type GetItemTests(output: ITestOutputHelper) =
         else
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -195,7 +193,6 @@ type GetItemTests(output: ITestOutputHelper) =
         task {
             // arrange
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -250,7 +247,6 @@ type GetItemTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let keys hasSk (table: TestDynamo.Tests.TableDescription) =
@@ -302,18 +298,17 @@ type GetItemTests(output: ITestOutputHelper) =
 
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
-    let ``Batch get item, invalid region, throws`` distributed ``invalid region``: Task<unit> =
+    let ``Batch get item, invalid region, throws`` ``global`` ``invalid region``: Task<unit> =
 
         task {
             // arrange
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            use dHost = new DistributedDatabase(host.BuildCloneData())
+            use dHost = new GlobalDatabase(host.BuildCloneData())
             let tableName = (Tables.get true true tables).name
             use client =
-                if distributed then TestDynamoClient.Create(dHost, host.Id)
+                if ``global`` then TestDynamoClient.Create(dHost, host.Id)
                 else
                     TestDynamoClient.Create(cloneHost writer)
             let req =
@@ -330,11 +325,11 @@ type GetItemTests(output: ITestOutputHelper) =
 
             // assert
             let! e = Assert.ThrowsAnyAsync(fun _ -> client.BatchGetItemAsync(req) |> Io.ignoreTask)
-            match struct (distributed, ``invalid region``) with
+            match struct (``global``, ``invalid region``) with
             | struct (true, false)
             | struct (false, false) -> "Invalid aws account id 999999 in ARN"
             | struct (true, true) -> "No resources have been created in DB region invalid-region"
-            | struct (false, true) -> "Some update table requests only work on DistributedDatabases"
+            | struct (false, true) -> "Some update table requests only work on GlobalDatabases"
             |> flip (assertError output) e
         }
 
@@ -343,11 +338,11 @@ type GetItemTests(output: ITestOutputHelper) =
 
         task {
             // arrange
-            use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            use writer' = new TestLogger(output)
+            let writer = ValueSome (writer' :> Microsoft.Extensions.Logging.ILogger)
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use host = cloneHost writer
-            use dHost = new DistributedDatabase(host.BuildCloneData())
+            use host = cloneHost writer'
+            use dHost = new GlobalDatabase(host.BuildCloneData())
             use client = TestDynamoClient.Create(dHost, host.Id)
             let table = Tables.get true true tables
             dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>
@@ -401,12 +396,12 @@ type GetItemTests(output: ITestOutputHelper) =
 
         task {
             // arrange
-            use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
+            use writer' = new TestLogger(output)
+            let writer = ValueSome (writer' :> Microsoft.Extensions.Logging.ILogger)
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let table = Tables.get false false tables
 
-            use host = cloneHost writer
+            use host = cloneHost writer'
 
             let bigBinary = Array.create 399_000 1uy |> AttributeValue.Binary
             let pks = [1..50] |> List.map (_.ToString() >> AttributeValue.String >> flip (Map.add "TablePk")  Map.empty) 
@@ -425,7 +420,7 @@ type GetItemTests(output: ITestOutputHelper) =
                 |> host.Put writer
                 |> ignoreTyped<Map<string,AttributeValue> voption>) ()
 
-            use dHost = new DistributedDatabase(host.BuildCloneData())
+            use dHost = new GlobalDatabase(host.BuildCloneData())
 
             use client = TestDynamoClient.Create(dHost, host.Id)
             dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>

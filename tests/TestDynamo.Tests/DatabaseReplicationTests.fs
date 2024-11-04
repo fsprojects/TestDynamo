@@ -18,7 +18,7 @@ open Xunit.Abstractions
 open RequestItemTestUtils
 open TestDynamo.Client.ItemMapper
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open Tests.Table
 open Tests.Loggers
 open Tests.Requests.Queries
@@ -52,17 +52,17 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! _ = sharedTestData ValueNone
             let hostData = commonHost.BuildCloneData()
 
-            let distributedData =
+            let globalData =
                 { data =
                       { databases = [{ hostData with databaseId = { regionId = "eu-west-1" }}]
-                        replicationKeys = [] } }: DistributedDatabaseCloneData
+                        replicationKeys = [] } }: GlobalDatabaseCloneData
 
-            return new DistributedDatabase(distributedData, logger = writer)
+            return new GlobalDatabase(globalData, logger = writer)
         }
 
     static let rec replicate' (output: ITestOutputHelper, random) (client: ITestDynamoClient) regionName tableName changeType =
         
-        output.WriteLine($"Replicating {tableName}: {client.Database.Id.regionId} => {regionName}")
+        output.WriteLine($"Replicating {tableName}: {client.FsDatabase.Id.regionId} => {regionName}")
         
         match changeType with
         | ValueNone ->
@@ -106,7 +106,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             client.UpdateGlobalTableAsync(req) |> Io.ignoreTask
         | x -> invalidOp $"{x}"
 
-    static let rec replicateWithLevel (output: ITestOutputHelper, random, logLevel) (host: DistributedDatabase, dbId) regionName tableName changeType changeFromDefaultBehaviour  =
+    static let rec replicateWithLevel (output: ITestOutputHelper, random, logLevel) (host: GlobalDatabase, dbId) regionName tableName changeType changeFromDefaultBehaviour  =
         
         task {
             let dbId = { regionId = dbId }
@@ -125,7 +125,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             ?|? ()
         } |> Io.ignoreTask
 
-    static let rec replicate (output: ITestOutputHelper, random) (host: DistributedDatabase, dbId) regionName tableName changeType changeFromDefaultBehaviour  =
+    static let rec replicate (output: ITestOutputHelper, random) (host: GlobalDatabase, dbId) regionName tableName changeType changeFromDefaultBehaviour  =
         replicateWithLevel (output, random, LogLevel.Debug) (host, dbId) regionName tableName changeType changeFromDefaultBehaviour
 
     let deReplicate (client: ITestDynamoClient) regionName tableName = function
@@ -201,7 +201,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         | ValueSome x -> assertItem tableName keys x
         | ValueNone -> assertNoItem tableName keys
 
-    let executePutSmokeTest direction item itemKeys struct (table: TestDynamo.Tests.TableDescription, host: DistributedDatabase, client1: ITestDynamoClient, client2: ITestDynamoClient, _) =
+    let executePutSmokeTest direction item itemKeys struct (table: TestDynamo.Tests.TableDescription, host: GlobalDatabase, client1: ITestDynamoClient, client2: ITestDynamoClient, _) =
 
         task {
             do!
@@ -621,7 +621,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]
-    let ``Distributed DB, some random disposal tests`` () =
+    let ``Global DB, some random disposal tests`` () =
 
         task {
 
@@ -652,7 +652,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             // act
             let! _ = client1.PutItemAsync("Tabbb1", data |> itemToDynamoDb)
-            client2.Database.Dispose()
+            client2.FsDatabase.Dispose()
 
             // assert
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
@@ -671,7 +671,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             // arrange
             use writer = new TestLogger(output)
-            use host = new DistributedDatabase(logger = writer)
+            use host = new GlobalDatabase(logger = writer)
             let region1 = "eu-west-1"
             let region2 = "eu-north-1"
             use client1 = TestDynamoClient.Create(host, { regionId = region1})
@@ -873,7 +873,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         task {
 
             // arrange
-            let host = new DistributedDatabase(logger = writer)
+            let host = new GlobalDatabase(logger = writer)
             use client1 = TestDynamoClient.Create(host, { regionId = region1})
             use client2 = TestDynamoClient.Create(host, { regionId = region2})
             let createTable (client: ITestDynamoClient) =
@@ -1191,7 +1191,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             writer.Record true
-            use host = new DistributedDatabase(logger = writer)
+            use host = new GlobalDatabase(logger = writer)
             let region1 = "eu-west-1"
             let region2 = "eu-north-1"
             use client1 = TestDynamoClient.Create(host, { regionId = region1})
@@ -1223,7 +1223,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
     let ``Create replication, then delete a table, replication is also deleted`` ``delete source`` =
 
         let tableName = "Tab1"
-        let dataCount (host: DistributedDatabase) =
+        let dataCount (host: GlobalDatabase) =
             host.DebugTables
             |> MapUtils.toSeq
             |> Seq.sumBy (sndT >> List.sumBy (_.Values >> Seq.length))
@@ -1244,7 +1244,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             writer.Record true
-            use host = new DistributedDatabase(logger = writer)
+            use host = new GlobalDatabase(logger = writer)
             let region1 = "eu-west-1"
             let region2 = "eu-north-1"
             use client1 = TestDynamoClient.Create(host, { regionId = region1})
@@ -1384,8 +1384,8 @@ type DatabaseReplicationTests2(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             writer.Record true
-            use host = new DistributedDatabase()
-          //  use host = new DistributedDatabase(writer) // There are a lot of logs
+            use host = new GlobalDatabase()
+          //  use host = new GlobalDatabase(writer) // There are a lot of logs
 
             let tableName = "Tab1"
             let createTable (client: ITestDynamoClient) =

@@ -6,7 +6,7 @@ open System.Linq
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open Tests.Items
 open Tests.Requests.Queries
@@ -460,9 +460,9 @@ type PutItemTests(output: ITestOutputHelper) =
             let struct (valid, putItemF, err) = 
                 match ``failure type`` with
                 | DataFailureType.None -> struct (true, id, "")
-                | DataFailureType.EmptyStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" [], "Empty set of String not supported")
-                | DataFailureType.EmptyNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" [], "Empty set of Number not supported")
-                | DataFailureType.EmptyBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" [], "Empty set of Binary not supported")
+                | DataFailureType.EmptyStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" [], "Empty set not supported")
+                | DataFailureType.EmptyNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" [], "Empty set not supported")
+                | DataFailureType.EmptyBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" [], "Empty set not supported")
                 | DataFailureType.DuplicateInStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" ["x";"x"], "Duplicate value in String set")
                 | DataFailureType.DuplicateInNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" ["1";"1"], "Duplicate value in Number set")
                 | DataFailureType.DuplicateInBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" ["x";"x"], "Duplicate value in Binary set")
@@ -767,7 +767,6 @@ type PutItemTests(output: ITestOutputHelper) =
         
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -831,18 +830,17 @@ type PutItemTests(output: ITestOutputHelper) =
     
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
-    let ``Batch write item, invalid region, throws`` distributed ``invalid region``: Task<unit> =
+    let ``Batch write item, invalid region, throws`` ``global`` ``invalid region``: Task<unit> =
 
         task {
             // arrange
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            use dHost = new DistributedDatabase(host.BuildCloneData())
+            use dHost = new GlobalDatabase(host.BuildCloneData())
             let tableName = (Tables.get true true tables).name
             use client =
-                if distributed then TestDynamoClient.Create(dHost, host.Id)
+                if ``global`` then TestDynamoClient.Create(dHost, host.Id)
                 else
                     TestDynamoClient.Create(cloneHost writer)
             let req =
@@ -860,11 +858,11 @@ type PutItemTests(output: ITestOutputHelper) =
 
             // assert
             let! e = Assert.ThrowsAnyAsync(fun _ -> client.BatchWriteItemAsync(req) |> Io.ignoreTask)
-            match struct (distributed, ``invalid region``) with
+            match struct (``global``, ``invalid region``) with
             | struct (true, false)
             | struct (false, false) -> "Invalid aws account id 999999 in ARN"
             | struct (true, true) -> "No resources have been created in DB region invalid-region"
-            | struct (false, true) -> "Some update table requests only work on DistributedDatabases"
+            | struct (false, true) -> "Some update table requests only work on GlobalDatabases"
             |> flip (assertError output) e
         }
 
@@ -874,7 +872,6 @@ type PutItemTests(output: ITestOutputHelper) =
         task {
             // arrange
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
             use client = TestDynamoClient.Create(host)

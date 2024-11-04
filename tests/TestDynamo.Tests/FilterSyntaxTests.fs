@@ -591,7 +591,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use h = cloneHost ValueNone
+            use h = cloneHostUnlogged()
             use client = TestDynamoClient.Create(h)
             let tab = Tables.get true true tables
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
@@ -683,7 +683,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use h = cloneHost ValueNone
+            use h = cloneHostUnlogged()
             use client = TestDynamoClient.Create(h)
             let tab = Tables.get true true tables
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random

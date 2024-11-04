@@ -18,6 +18,11 @@ type AttributeType =
     | HashSet of AttributeType
     | AttributeList
     | Null
+    
+    static member describeHashSet =
+        let desc = AttributeType.describe >> sprintf "%sS"
+        let inline k (t: AttributeType) = t 
+        memoize (ValueSome (100, 200)) k desc >> sndT
 
     static member describe = function
         | String -> "S"
@@ -30,7 +35,7 @@ type AttributeType =
         | HashSet String -> "SS"
         | HashSet Number -> "NS"
         | HashSet Binary -> "BS"
-        | HashSet x -> $"{AttributeType.describe x}S"
+        | HashSet x -> AttributeType.describeHashSet x
 
     static member tryParse value =
         match value with
@@ -46,6 +51,20 @@ type AttributeType =
         | "NULL" -> AttributeType.Null |> ValueSome
         | _ -> ValueNone
 
+    static member parse value =
+        match value with
+        | "S" -> AttributeType.String
+        | "N" -> AttributeType.Number
+        | "BOOL" -> AttributeType.Boolean
+        | "B" -> AttributeType.Binary
+        | "M" -> AttributeType.HashMap
+        | "SS" -> AttributeType.HashSet AttributeType.String
+        | "NS" -> AttributeType.HashSet AttributeType.Number
+        | "BS" -> AttributeType.HashSet AttributeType.Binary
+        | "L" -> AttributeType.AttributeList
+        | "NULL" -> AttributeType.Null
+        | x -> invalidOp $"Invalid AttributeType {x}"
+
 /// <summary>
 /// A set of attribute values which have a specified type
 /// </summary>
@@ -55,23 +74,27 @@ type AttributeSet =
     | As of struct (AttributeType * Set<AttributeValue>)
 
     with
-    static member private fromTyped ``type`` strs =
-        Seq.fold (fun s x ->
+    static member create strs =
+        Seq.fold (fun struct (t, s) x ->
+            let ``type`` = t ?|? AttributeValue.getType x
+            
             match AttributeValue.asType ``type`` x with
             | ValueNone -> clientError "Found multiple types in single set"
             | ValueSome x ->
                 match SetUtils.add x s with
                 | false, _ -> clientError $"Duplicate value in {``type``} set"
-                | true, s -> s) Set.empty strs
-        |> function | xs when xs = Set.empty -> clientError $"Empty set of {``type``} not supported" | xs -> xs 
-        |> tpl ``type``
+                | true, s -> struct (ValueSome ``type``, s)) struct (ValueNone, Set.empty) strs
+        |> function
+            | _, xs when xs = Set.empty -> clientError $"Empty set not supported"
+            | ValueNone, _ -> clientError $"Empty set not supported"
+            | ValueSome t, xs -> struct (t, xs)
         |> As
 
     static member asSet (As x) = sndT x
     static member getSetType (As x) = fstT x
-    static member fromStrings = AttributeSet.fromTyped AttributeType.String
-    static member fromNumbers = AttributeSet.fromTyped AttributeType.Number
-    static member fromBinary = AttributeSet.fromTyped AttributeType.Binary
+    // static member fromStrings = AttributeSet.fromTyped AttributeType.String
+    // static member fromNumbers = AttributeSet.fromTyped AttributeType.Number
+    // static member fromBinary = AttributeSet.fromTyped AttributeType.Binary
     static member asBinarySeq = function
         | As struct (t, x) when t <> AttributeType.Binary ->
             clientError $"Set has type {t}, not {AttributeType.Binary}"
@@ -398,68 +421,68 @@ and
         | _ -> false
 
     /// <summary>Return this as a string or throw an exception</summary>
-    member this.AsString =
+    member this.S =
         let mutable x = Unchecked.defaultof<_>
         match this.TryString(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a string"
 
     /// <summary>Return this as a number or throw an exception</summary>
-    member this.AsNumber =
+    member this.N =
         let mutable x = Unchecked.defaultof<_>
         match this.TryNumber(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a number"
 
     /// <summary>Return this as binary data or throw an exception</summary>
-    member this.AsBinary =
+    member this.B =
         let mutable x = Unchecked.defaultof<IReadOnlyList<byte>>
         match this.TryBinary(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not binary data"
 
     /// <summary>Return this as a boolean or throw an exception</summary>
-    member this.AsBoolean =
+    member this.BOOL =
         let mutable x = Unchecked.defaultof<_>
         match this.TryBoolean(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a boolean"
 
     /// <summary>Return this as a map or throw an exception</summary>
-    member this.AsMap =
+    member this.M =
         let mutable x = Unchecked.defaultof<_>
         match this.TryMap(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a map"
 
     /// <summary>Return this as a set or throw an exception. All of the values in the set will be strings</summary>
-    member this.AsStringSet =
+    member this.SS =
         let mutable x = Unchecked.defaultof<_>
         match this.TryStringSet(&x) with
         | true -> x
         | x -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a string set"
 
     /// <summary>Return this as a set or throw an exception. All of the values in the set will be numbers</summary>
-    member this.AsNumberSet =
+    member this.NS =
         let mutable x = Unchecked.defaultof<_>
         match this.TryNumberSet(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a number set"
 
     /// <summary>Return this as a set or throw an exception. All of the values in the set will be binary data</summary>
-    member this.AsBinarySet =
+    member this.BS =
         let mutable x = Unchecked.defaultof<_>
         match this.TryBinarySet(&x) with
         | true -> x
         | x -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a binary set"
 
     /// <summary>Return this as a list or throw an exception</summary>
-    member this.AsList =
+    member this.L =
         let mutable x = Unchecked.defaultof<_>
         match this.TryList(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a list"
-
+                
     interface IComparable with
         member this.CompareTo obj =
             match obj with
@@ -526,7 +549,7 @@ and
         let inline keySelector (x: AttributeType) = x
         memoize ValueNone keySelector AttributeType.HashSet >> sndT
 
-    static member getType value =
+    static member getType (value: AttributeValue) =
         match value with
         | Null -> AttributeType.Null
         | String _ -> AttributeType.String

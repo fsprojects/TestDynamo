@@ -155,7 +155,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression "SET ((SetMe) = (:set)) REMOVE (RemoveMe) ADD (AddMe) (:add) DELETE (DeleteMe) (:del)"
                 |> QueryBuilder.setExpressionAttrValues ":set" xVal
                 |> QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.Number 1M)
-                |> QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.fromStrings [AttributeValue.String "Y"] |> AttributeValue.HashSet)
+                |> QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet)
                 |> flip update client
 
             // assert
@@ -164,7 +164,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
                 |> Map.add "SetMe" xVal
                 |> Map.add "AddMe" (AttributeValue.Number 6M) 
-                |> Map.add "DeleteMe" (AttributeSet.fromStrings [AttributeValue.String "X"] |> AttributeValue.HashSet)
+                |> Map.add "DeleteMe" (AttributeSet.create [AttributeValue.String "X"] |> AttributeValue.HashSet)
 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
         }
@@ -222,7 +222,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let setVal = AttributeValue.String "1234"
             let addVal = AttributeValue.Number 1M
-            let deleteVal = AttributeSet.fromStrings [AttributeValue.String "Y"] |> AttributeValue.HashSet
+            let deleteVal = AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet
             let! updateBase = put req client
 
             let updateReq =
@@ -251,7 +251,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
                 |> Map.add "SetMe" setVal
                 |> Map.add "AddMe" (AttributeValue.Number 6M) 
-                |> Map.add "DeleteMe" (AttributeSet.fromStrings [AttributeValue.String "X"] |> AttributeValue.HashSet)
+                |> Map.add "DeleteMe" (AttributeSet.create [AttributeValue.String "X"] |> AttributeValue.HashSet)
 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
         }
@@ -297,7 +297,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression expression
                 |> if ``set missing`` then id else QueryBuilder.setExpressionAttrValues ":set" xVal
                 |> if ``add missing`` then id else QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.Number 1M)
-                |> if ``delete missing`` then id else QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.fromStrings [AttributeValue.String "Y"] |> AttributeValue.HashSet)
+                |> if ``delete missing`` then id else QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet)
                 |> flip updateExpectErrorAndAssertNotModified client
 
             assertError output "Error compiling expression" err
@@ -618,7 +618,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
             let xVal = AttributeValue.Number 100M
-            let yVal = AttributeValue.HashSet (AttributeSet.fromNumbers [AttributeValue.Number 20M])
+            let yVal = AttributeValue.HashSet (AttributeSet.create [AttributeValue.Number 20M])
 
             let req =
                 ItemBuilder.empty
@@ -803,9 +803,9 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let aBin = Encoding.UTF8.GetBytes("a")
             let bBin = Encoding.UTF8.GetBytes("b")
-            let bsSet = AttributeSet.fromBinary [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
-            let ssSet = AttributeSet.fromStrings [AttributeValue.String "a"; AttributeValue.String "c"]
-            let nsSet = AttributeSet.fromNumbers [AttributeValue.Number 1M; AttributeValue.Number 3M]
+            let bsSet = AttributeSet.create [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
+            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
+            let nsSet = AttributeSet.create [AttributeValue.Number 1M; AttributeValue.Number 3M]
 
             let bs = bsSet |> HashSet
             let ss = ssSet |> HashSet
@@ -813,21 +813,21 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let ssExpected =
                 ssSet
-                |> tpl (AttributeSet.fromStrings [AttributeValue.String "b"])
+                |> tpl (AttributeSet.create [AttributeValue.String "b"])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
                 |> HashSet
 
             let nsExpected =
                 nsSet
-                |> tpl (AttributeSet.fromNumbers [AttributeValue.Number 2M])
+                |> tpl (AttributeSet.create [AttributeValue.Number 2M])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
                 |> HashSet
 
             let bsExpected =
                 bsSet
-                |> tpl (AttributeSet.fromBinary [AttributeValue.Binary bBin])
+                |> tpl (AttributeSet.create [AttributeValue.Binary bBin])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
                 |> HashSet
@@ -893,7 +893,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let ssSet = AttributeSet.fromStrings [AttributeValue.String "a"; AttributeValue.String "c"]
+            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
             let ss = ssSet |> HashSet
 
             let req =
@@ -973,7 +973,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let ssSet = AttributeSet.fromStrings [AttributeValue.String "a"; AttributeValue.String "c"]
+            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
             let ss = ssSet |> HashSet
 
             let req =
@@ -1013,20 +1013,20 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let aBin = Encoding.UTF8.GetBytes("a")
             let bBin = Encoding.UTF8.GetBytes("b")
-            let bsSet = AttributeSet.fromBinary [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
-            let ssSet = AttributeSet.fromStrings [AttributeValue.String "a"; AttributeValue.String "c"]
-            let nsSet = AttributeSet.fromNumbers [AttributeValue.Number 1M; AttributeValue.Number 3M]
+            let bsSet = AttributeSet.create [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
+            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
+            let nsSet = AttributeSet.create [AttributeValue.Number 1M; AttributeValue.Number 3M]
 
             let bs = bsSet |> HashSet
             let ss = ssSet |> HashSet
             let ns = nsSet |> HashSet
 
             let ssExpected =
-                AttributeSet.fromStrings [AttributeValue.String "b"] |> HashSet
+                AttributeSet.create [AttributeValue.String "b"] |> HashSet
             let nsExpected =
-                AttributeSet.fromNumbers [AttributeValue.Number 2M] |> HashSet
+                AttributeSet.create [AttributeValue.Number 2M] |> HashSet
             let bsExpected =
-                AttributeSet.fromBinary [AttributeValue.Binary bBin] |> HashSet
+                AttributeSet.create [AttributeValue.Binary bBin] |> HashSet
 
             let req =
                 ItemBuilder.empty
@@ -1110,7 +1110,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Str.join " "
 
             let ss =
-                AttributeSet.fromStrings [AttributeValue.String "a"; AttributeValue.String "c"]
+                AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
                 |> HashSet
 
             let req =
@@ -1236,11 +1236,11 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             if ``nested list``
             then
-                Assert.Equal<AttributeValue>(x, result["TheList"].AsList[0].AsMap["V1"].AsList[0].AsMap["V2"])
-                Assert.Equal(1, result["TheList"].AsList[0].AsMap["V1"].AsList.Count)
+                Assert.Equal<AttributeValue>(x, result["TheList"].L[0].M["V1"].L[0].M["V2"])
+                Assert.Equal(1, result["TheList"].L[0].M["V1"].L.Count)
             else
-                Assert.Equal<AttributeValue>(x, result["TheMap"].AsMap["V0"].AsList[0].AsMap["V1"].AsList[1])
-                Assert.Equal(1, result["TheMap"].AsMap["V0"].AsList[0].AsMap.Count)
+                Assert.Equal<AttributeValue>(x, result["TheMap"].M["V0"].L[0].M["V1"].L[1])
+                Assert.Equal(1, result["TheMap"].M["V0"].L[0].M.Count)
         }
 
     [<Theory>]
@@ -1418,7 +1418,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
-                |> ItemBuilder.withAttribute "#prop" "S" oldValue.AsString
+                |> ItemBuilder.withAttribute "#prop" "S" oldValue.S
 
             let! updateBase = put req client
 
@@ -1455,7 +1455,6 @@ type UpdateItemTests(output: ITestOutputHelper) =
         
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -1544,7 +1543,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! actual =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "DELETE ASet :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeSet.fromStrings [AttributeValue.String "v1"] |> AttributeValue.HashSet)
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeSet.create [AttributeValue.String "v1"] |> AttributeValue.HashSet)
                 |> flip update client
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)

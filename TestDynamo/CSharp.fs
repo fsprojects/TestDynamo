@@ -42,6 +42,10 @@ let list name = function
 let toOption = function
     | null -> ValueNone
     | x -> ValueSome x
+
+let valToOption (x: System.Nullable<_>) =
+    if x.HasValue then ValueSome x.Value
+    else ValueNone
     
 let toNullOrEmptyOption = function
     | ""

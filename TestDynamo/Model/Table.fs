@@ -1,5 +1,6 @@
 ﻿namespace TestDynamo.Model
 
+open System.Collections.Generic
 open System.Runtime.CompilerServices
 open TestDynamo.Utils
 open TestDynamo
@@ -23,12 +24,15 @@ type UpdateTableData =
           attributes = List.empty
           deletionProtection = ValueNone }
 
-type IsLocal = bool
+[<Struct; IsReadOnly>]
+type IndexConfigInput =
+    { data: CreateIndexData
+      isLocal: bool }
 
 type TableConfig =
     { name: string
       primaryIndex: IndexKeys
-      indexes: Map<string, struct (IsLocal * CreateIndexData)>
+      indexes: Map<string, IndexConfigInput>
       attributes: struct (string * AttributeType) list
       addDeletionProtection: bool }
 
@@ -87,6 +91,7 @@ module Table =
     let internal arnBuilder (Tbl t) = t.info.arn
 
     let private validateAttributeNames inputAttributes table =
+        
         let attrNotOnTable =
             attributeNames' table
             |> flip TableKeyAttributeList.contains
@@ -243,7 +248,7 @@ module Table =
         let indexData =
             { keys = data.primaryIndex
               projectionsAreKeys = false
-              projection = ValueNone }
+              projectionCols = ValueNone }
 
         let primaryIndex =
             buildIndex
@@ -266,11 +271,11 @@ module Table =
                     indexes = Map.empty } }
 
         data.indexes
-        |> Map.fold (fun s k struct (isLocal, v) ->
+        |> Seq.fold (fun s x ->
             { logger = logger
-              indexName = k
-              local = isLocal
-              data = v
+              indexName = x.Key
+              local = x.Value.isLocal
+              data = x.Value.data
               allAttributes = data.attributes
               tableKeyConfig = data.primaryIndex
               table = s } |> addIndex) table

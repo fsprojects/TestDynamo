@@ -15,7 +15,7 @@ open Xunit
 open Xunit.Abstractions
 open RequestItemTestUtils
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open Tests.Loggers
 open Tests.Requests.Queries
 open TestDynamo.Serialization
@@ -44,12 +44,12 @@ type SerializationTests(output: ITestOutputHelper) =
             let! _ = sharedTestData ValueNone
             let hostData = commonHost.BuildCloneData()
 
-            let distributedData =
+            let globalData =
                 { data =
                       { databases = [{ hostData with databaseId = { regionId = "eu-west-1"}}]
-                        replicationKeys = [] } }: DistributedDatabaseCloneData
+                        replicationKeys = [] } }: GlobalDatabaseCloneData
 
-            return new DistributedDatabase(distributedData, logger = writer)
+            return new GlobalDatabase(globalData, logger = writer)
         }
 
     static let replicate (client: ITestDynamoClient) regionName tableName = function
@@ -123,9 +123,9 @@ type SerializationTests(output: ITestOutputHelper) =
             Assert.True(ser1.Length > if ``omit data`` then 200 else 10_000)
             Assert.Equal(ser1, ser2)
                         
-            let tableCount (db: Api.Database) = List.length db.DebugTables
-            let indexCount (db: Api.Database) = db.DebugTables |> Seq.collect _.Indexes |> Seq.length
-            let itemCount (db: Api.Database) = db.DebugTables |> Seq.collect _.Values |> Seq.length 
+            let tableCount (db: Api.FSharp.Database) = List.length db.DebugTables
+            let indexCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Indexes |> Seq.length
+            let itemCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Values |> Seq.length 
             
             Assert.Equal(tableCount db1, tableCount db2)
             Assert.Equal(indexCount db1, indexCount db2)
@@ -134,7 +134,7 @@ type SerializationTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]
-    let ``Serialize distributed database`` () =
+    let ``Serialize global database`` () =
 
         task {
             // arrange
@@ -142,15 +142,15 @@ type SerializationTests(output: ITestOutputHelper) =
             let! struct (_, db1, _, _, _) = setUp2Regions logger true
 
             // act
-            let ser1 = DatabaseSerializer.DistributedDatabase.ToString(db1)
-            let db2 = DatabaseSerializer.DistributedDatabase.FromString(ser1)
-            let ser2 = DatabaseSerializer.DistributedDatabase.ToString(db2)
+            let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1)
+            let db2 = DatabaseSerializer.GlobalDatabase.FromString(ser1)
+            let ser2 = DatabaseSerializer.GlobalDatabase.ToString(db2)
             
             // assert
             Assert.True(ser1.Length > 10_000)
             Assert.Equal(ser1, ser2)
                         
-            let databases (db: DistributedDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
+            let databases (db: GlobalDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
             let dbCount = databases >> Seq.length
             let tableCount = databases >> Seq.sumBy (_.DebugTables >> List.length)
             let indexCount =  databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Indexes >> Seq.length)
@@ -166,19 +166,19 @@ type SerializationTests(output: ITestOutputHelper) =
 
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
-    let ``DeSerialize distributed database, preserves replication`` ``insert new replicat at top`` =
+    let ``DeSerialize global database, preserves replication`` ``insert new replicat at top`` =
 
         task {
             // arrange
             use logger = new TestLogger(output, LogLevel.Debug) 
             let! struct (table, preSerialization, _, toDb, _) = setUp2Regions logger true
 
-            let dbString = DatabaseSerializer.DistributedDatabase.ToString(preSerialization)
+            let dbString = DatabaseSerializer.GlobalDatabase.ToString(preSerialization)
             let dbJson = JsonObject.Parse(dbString)
             
             // add a new db via json
             let newReplica = JsonObject.Parse(System.Text.Json.JsonSerializer.Serialize(
-                    {| from = toDb.Database.Id.regionId
+                    {| from = toDb.FsDatabase.Id.regionId
                        ``to`` = "somewhere-else"
                        tableName = table.name |}))
             
@@ -188,7 +188,7 @@ type SerializationTests(output: ITestOutputHelper) =
             then replicas.Insert(0, newReplica)
             else replicas.Add(newReplica)
             
-            let db = DatabaseSerializer.DistributedDatabase.FromString(dbJson.ToString())
+            let db = DatabaseSerializer.GlobalDatabase.FromString(dbJson.ToString())
             use client1 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
             use client2 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)
             use client3 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "somewhere-else" }, logger)

@@ -2,6 +2,7 @@
 
 open System
 open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 open TestDynamo.Data
@@ -88,7 +89,7 @@ type SubscriberMessage =
 /// <summary>
 /// Settings for synchronous/asynchronous propagation and error handling
 /// </summary>
-type DistributedDataPropagationBehaviour =
+type GlobalDataPropagationBehaviour =
     /// <summary>
     ///  1) Code propagates synchronously if possible. May propagate async if thread lock cannot be found on the current thread
     ///  2) Errors in subscribers are cached and propagated when awaited
@@ -117,13 +118,37 @@ type DistributedDataPropagationBehaviour =
         | RunAsynchronously delay -> $"{nameof RunAsynchronously} after {delay}"
 
 type SubscriberBehaviour =
-    { delay: DistributedDataPropagationBehaviour
+    { delay: GlobalDataPropagationBehaviour
       subscriberTimeout: TimeSpan }
 
     with
     static member defaultOptions =
         { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously
           subscriberTimeout = TimeSpan.FromSeconds(30) }
+        
+    /// <summary>
+    ///  1) Code propagates asynchronously
+    ///  2) Errors in subscribers are cached and propagated when awaited
+    ///  3) Errors in subscribers are isolated.
+    /// </summary>
+    static member RunSynchronously(timeout) =
+        { subscriberTimeout = timeout; delay = RunSynchronously }
+        
+    /// <summary>
+    ///  1) Code propagates synchronously if possible. May propagate async if thread lock cannot be found on the current thread
+    ///  2) Errors in subscribers propagate back to the DynamoDb client which executed the request 
+    ///  3) Errors in subscribers are not isolated. An error in 1 subscriber might prevent another subscriber from operating
+    /// </summary>
+    static member RunSynchronouslyAndPropagateToEventTrigger(timeout) =
+        { subscriberTimeout = timeout; delay = RunSynchronouslyAndPropagateToEventTrigger }
+        
+    /// <summary>
+    ///  1) Code propagates synchronously if possible. May propagate async if thread lock cannot be found on the current thread
+    ///  2) Errors in subscribers are cached and propagated when awaited
+    ///  3) Errors in subscribers are isolated.
+    /// </summary>
+    static member RunAsynchronously(timeout, [<Optional; DefaultParameterValue(TimeSpan())>] delay) =
+        { subscriberTimeout = timeout; delay = RunAsynchronously delay }
 
 [<IsReadOnly; Struct>]
 type UpdateStreamArgs =

@@ -1,8 +1,9 @@
 namespace TestDynamo.Serialization
 
+open System.Runtime.InteropServices
 open System.Text.RegularExpressions
 open System.Threading.Tasks
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Data
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
@@ -87,27 +88,17 @@ module private BaseSerializer =
                 ms
 
 module DatabaseSerializer =
-    
-    let private defaultIndent = Option.defaultValue false
-    let private defaultCancellation = Option.defaultValue CancellationToken.None
-    
-    let private toString indent =
-        defaultIndent indent
-        |> BaseSerializer.Strings.write
         
-    let private toStream indent =
-        defaultIndent indent
-        |> BaseSerializer.Streams.write
+    let private toString = BaseSerializer.Strings.write
+        
+    let private toStream = BaseSerializer.Streams.write
         
     let private toStreamAsync indent c =
-        let indent = defaultIndent indent
-        let c = defaultCancellation c
         flip (BaseSerializer.StreamsAsync.write indent) c
         >>> ValueTask
         
     let private toFile indent file data =
         use file = File.OpenWrite file
-        let indent = defaultIndent indent
         BaseSerializer.Streams.write indent file data
         
     let private toFileAsync indent c file data =
@@ -116,21 +107,16 @@ module DatabaseSerializer =
             return! toStreamAsync indent c file data
         })
         
-    let private createStream indent =
-        defaultIndent indent
-        |> BaseSerializer.Streams.create
+    let private createStream = BaseSerializer.Streams.create
         
-    let private createStreamAsync indent c =
-        let indent = defaultIndent indent
-        let c = defaultCancellation c
-        BaseSerializer.StreamsAsync.create indent c
+    let private createStreamAsync =
+        BaseSerializer.StreamsAsync.create
     
     let private fromString = BaseSerializer.Strings.read
         
     let private fromStream = BaseSerializer.Streams.read
         
     let private fromStreamAsync c str =
-        let c = defaultCancellation c
         BaseSerializer.StreamsAsync.read str c
         
     let private fromFile file =
@@ -144,25 +130,57 @@ module DatabaseSerializer =
         })
     
     type Serializer<'a, 'ser>(toSerializable: bool -> 'a -> 'ser, fromSerializable: ILogger voption -> 'ser -> 'a) =
+                
+        member _.ToString(
+            data,
+            [<Optional; DefaultParameterValue(false)>] schemaOnly,
+            [<Optional; DefaultParameterValue(false)>] indent) = toSerializable schemaOnly data |> toString indent
+        member _.FromString(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromString json |> fromSerializable (CSharp.toOption logger)
         
-        let toSerializable = Option.defaultValue false >> toSerializable
+        member _.ToStream(
+            data,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent) = toSerializable schemaOnly data |> createStream indent
+        member _.ToStreamAsync(
+            data,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent,
+            [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> createStreamAsync indent c
         
-        member _.ToString(data, ?schemaOnly, ?indent) = toSerializable schemaOnly data |> toString indent
-        member _.FromString(json, ?logger) = fromString json |> fromSerializable (Maybe.fromRef logger)
+        member _.WriteToStream(
+            data,
+            stream,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent) = toSerializable schemaOnly data |> toStream indent stream
+        member _.WriteToStreamAsync(
+            data,
+            stream,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent,
+            [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> toStreamAsync indent c stream
+        member _.ToFile(
+            data,
+            file,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent) = toSerializable schemaOnly data |> toFile indent file
+        member _.ToFileAsync(
+            data,
+            file,
+            [<Optional; DefaultParameterValue(false)>]schemaOnly,
+            [<Optional; DefaultParameterValue(false)>]indent,
+            [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> toFileAsync indent c file
         
-        member _.ToStream(data, ?schemaOnly, ?indent) = toSerializable schemaOnly data |> createStream indent
-        member _.ToStreamAsync(data, ?schemaOnly, ?indent, ?c) = toSerializable schemaOnly data |> createStreamAsync indent c
+        member _.FromStream(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromStream json |> fromSerializable (CSharp.toOption logger)
+        member _.FromStreamAsync(
+            json,
+            [<Optional; DefaultParameterValue(null: ILogger)>] logger,
+            [<Optional; DefaultParameterValue(CancellationToken())>] c) = fromStreamAsync c json |%|> fromSerializable (CSharp.toOption logger)
         
-        member _.WriteToStream(data, stream, ?schemaOnly, ?indent) = toSerializable schemaOnly data |> toStream indent stream
-        member _.WriteToStreamAsync(data, stream, ?schemaOnly, ?indent, ?c) = toSerializable schemaOnly data |> toStreamAsync indent c stream
-        member _.ToFile(data, file, ?schemaOnly, ?indent) = toSerializable schemaOnly data |> toFile indent file
-        member _.ToFileAsync(data, file, ?schemaOnly, ?indent, ?c) = toSerializable schemaOnly data |> toFileAsync indent c file
-        
-        member _.FromStream(json, ?logger) = fromStream json |> fromSerializable (Maybe.fromRef logger)
-        member _.FromStreamAsync(json, ?logger, ?c) = fromStreamAsync c json |%|> fromSerializable (Maybe.fromRef logger)
-        
-        member _.FromFile(file, ?logger) = fromFile file |> fromSerializable (Maybe.fromRef logger)
-        member _.FromFileAsync(file, ?logger, ?c) = fromFileAsync c file |%|> fromSerializable (Maybe.fromRef logger)
+        member _.FromFile(file, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromFile file |> fromSerializable (CSharp.toOption logger)
+        member _.FromFileAsync(
+            file,
+            [<Optional; DefaultParameterValue(null: ILogger)>] logger,
+            [<Optional; DefaultParameterValue(CancellationToken())>] c) = fromFileAsync c file |%|> fromSerializable (CSharp.toOption logger)
     
-    let Database = Serializer<Api.Database, Version1.SerializableDatabase>(Version1.ToSerializable.Database.toSerializable [||], Version1.FromSerializable.Database.fromSerializable)
-    let DistributedDatabase = Serializer<Api.DistributedDatabase, Version1.SerializableDistributedDatabase>(Version1.ToSerializable.DistributedDatabase.toSerializable, Version1.FromSerializable.DistributedDatabase.fromSerializable)
+    let Database = Serializer<Api.FSharp.Database, Version1.SerializableDatabase>(Version1.ToSerializable.Database.toSerializable [||], Version1.FromSerializable.Database.fromSerializable)
+    let GlobalDatabase = Serializer<Api.FSharp.GlobalDatabase, Version1.SerializableGlobalDatabase>(Version1.ToSerializable.GlobalDatabase.toSerializable, Version1.FromSerializable.GlobalDatabase.fromSerializable)

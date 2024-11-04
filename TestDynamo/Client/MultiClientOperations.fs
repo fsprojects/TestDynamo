@@ -3,7 +3,7 @@
 open System.Runtime.CompilerServices
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Client.GetItem.Batch
 open TestDynamo.Model
@@ -14,12 +14,12 @@ open Utils
 
 module MultiClientOperations =
 
-    let private distributedOnly = "Some update table requests only work on DistributedDatabases. Please ensure that this TestDynamoClient was initiated with the correct args"
+    let private globalOnly = "Some update table requests only work on GlobalDatabases. Please ensure that this TestDynamoClient was initiated with the correct args"
 
-    type ApiDb = TestDynamo.Api.Database
+    type ApiDb = TestDynamo.Api.FSharp.Database
 
     let private chooseDatabase databaseId =
-        Either.map2Of2 (fun struct (db: DistributedDatabase, _) ->
+        Either.map2Of2 (fun struct (db: GlobalDatabase, _) ->
             match db.TryGetDatabase databaseId with
             | ValueNone -> clientError $"No resources have been created in DB region {databaseId.regionId}"
             | ValueSome db -> db)
@@ -57,7 +57,7 @@ module MultiClientOperations =
             struct (state, result: ResponseAggregator<_, _>)
             (struct (k: GetItem.Batch.BatchItemKey, v) & kv) =
 
-            if database.Id <> k.databaseId then notSupported distributedOnly
+            if database.Id <> k.databaseId then notSupported globalOnly
 
             operation database state kv
             |> mapSnd (addResults k result)
@@ -69,7 +69,7 @@ module MultiClientOperations =
             <| acc
             <| inputs
 
-        let executeBatch operation initialState (database: Either<ApiDb, struct (DistributedDatabase * DatabaseId)>) (batchRequests: struct (BatchItemKey * _) seq) =
+        let executeBatch operation initialState (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) (batchRequests: struct (BatchItemKey * _) seq) =
             batchRequests
             |> Seq.fold (execute operation database) struct (initialState, { notProcessed = Map.empty; found = Map.empty })
             |> sndT
@@ -117,7 +117,7 @@ module MultiClientOperations =
               projectionExpression = ValueNone
               expressionAttrNames = Map.empty } : BatchGetValue
 
-        let batchGetItem (database: Either<ApiDb, struct (DistributedDatabase * DatabaseId)>) logger (req: GetItem.Batch.BatchGetRequest) =
+        let batchGetItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: GetItem.Batch.BatchGetRequest) =
 
             let requests =
                 req.requests
@@ -189,7 +189,7 @@ module MultiClientOperations =
               projectionExpression = ValueNone
               expressionAttrNames = Map.empty } : BatchGetValue
 
-        let batchPutItem (database: Either<ApiDb, struct (DistributedDatabase * DatabaseId)>) logger (req: PutItem.BatchWrite.BatchWriteRequest) =
+        let batchPutItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: PutItem.BatchWrite.BatchWriteRequest) =
 
             let requests =
                 req.requests
@@ -206,14 +206,14 @@ module MultiClientOperations =
 
     module UpdateTable =
 
-        let private updateTable' databaseOp distributedOp request =
+        let private updateTable' databaseOp globalOp request =
 
-            let updateDistributed =
-                match struct (request.distributedTableData.replicaInstructions, distributedOp) with
+            let updateGlobal =
+                match struct (request.globalTableData.replicaInstructions, globalOp) with
                 | [], _ -> ValueNone
-                | xs, ValueNone -> notSupported distributedOnly
-                | xs, ValueSome distributedDb ->
-                    fun () -> distributedDb request.tableName request.distributedTableData
+                | xs, ValueNone -> notSupported globalOnly
+                | xs, ValueSome globalDb ->
+                    fun () -> globalDb request.tableName request.globalTableData
                     |> ValueSome
 
             // do not run local table part if there is nothing to update
@@ -224,21 +224,21 @@ module MultiClientOperations =
                 else request.tableData |> ValueSome
                 |> databaseOp request.tableName
 
-            updateDistributed
+            updateGlobal
             ?|> (apply ())
             |> ValueOption.defaultValue eagerTableResult
 
-        let updateTable awsAccountId ddb databaseId databaseOp distributedOp (req: UpdateTableRequest) =            
+        let updateTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateTableRequest) =            
             UpdateTable.inputs1 req
-            |> updateTable' databaseOp distributedOp
+            |> updateTable' databaseOp globalOp
             |> UpdateTable.output awsAccountId ddb databaseId
 
-        let createGlobalTable awsAccountId ddb databaseId databaseOp distributedOp (req: CreateGlobalTableRequest) =            
+        let createGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: CreateGlobalTableRequest) =            
             CreateGlobalTable.inputs1 req
-            |> updateTable' databaseOp distributedOp
+            |> updateTable' databaseOp globalOp
             |> CreateGlobalTable.output awsAccountId ddb databaseId
 
-        let updateGlobalTable awsAccountId ddb databaseId databaseOp distributedOp (req: UpdateGlobalTableRequest) =            
+        let updateGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateGlobalTableRequest) =            
             UpdateGlobalTable.inputs1 req
-            |> updateTable' databaseOp distributedOp
+            |> updateTable' databaseOp globalOp
             |> UpdateGlobalTable.output awsAccountId ddb databaseId

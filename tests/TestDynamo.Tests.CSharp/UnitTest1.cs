@@ -1,9 +1,12 @@
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
+using Microsoft.FSharp.Collections;
+using Microsoft.FSharp.Core;
+using TestDynamo.Api;
 using TestDynamo.Client;
 using TestDynamo.Model;
-using Microsoft.Extensions.Logging;
-using Microsoft.FSharp.Core;
+using AttributeValue = Amazon.DynamoDBv2.Model.AttributeValue;
 using ILogger = Amazon.Runtime.Internal.Util.ILogger;
 
 namespace TestDynamo.Tests.CSharp;
@@ -11,38 +14,35 @@ namespace TestDynamo.Tests.CSharp;
 public class UnitTest1
 {
     [Fact]
-    public void Test1()
+    public void SomeCSharpSmokeTests()
     {
-        using var client = TestDynamoClient.Create();
-        //client.Database.SubscribeToStream()
-        // var tt = client.GetTable("").GetValues().Select(x => x[""]).Single();
-        //tt.IsNull
-        //tt.
+        using var client11 = TestDynamoClient.Create();
 
-    }
+        using var database = new Api.Database(new DatabaseId("us-west-1"));
 
-    public class Handler : IPipelineHandler
-    {
-        public void InvokeSync(IExecutionContext executionContext)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<T> InvokeAsync<T>(IExecutionContext executionContext) where T : AmazonWebServiceResponse, new()
-        {
-            throw new NotImplementedException();
-        }
-
-        public ILogger Logger { get; set; }
-        public IPipelineHandler InnerHandler { get; set; }
-        public IPipelineHandler OuterHandler { get; set; }
-    }
-
-    public class X : AmazonDynamoDBClient
-    {
-        public X()
-        {
-            base.RuntimePipeline.AddHandler(new Handler());
-        }
+        database
+            .TableBuilder("Beatles", ("FirstName", "S"))
+            .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
+            .AddTable();
+        
+        database
+            .ItemBuilder("Beatles")
+            .Attribute("FirstName", "Ringo")
+            .Attribute("SecondName", "Starr")
+            .Attribute("Attr2", new byte[]{1})
+            .Attribute("Attr3", true)
+            .Attribute("Attr4", new []{ "v"})
+            .Attribute("Attr5", new []{ 5m })
+            .Attribute("Attr6", new []{ (byte)1 })
+            .Attribute("Attr7", new MapBuilder().Attribute("Attr", "x"))
+            .Attribute("Attr7", new ListBuilder().Append("x"))
+            .AddItem();
+        
+        var x = database
+            .GetTable("Beatles")
+            .GetValues()
+            .Single(v => v["FirstName"].S == "Ringo");
+        
+        Assert.Equal("Starr", x["SecondName"].S);
     }
 }

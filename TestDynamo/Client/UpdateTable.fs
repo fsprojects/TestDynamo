@@ -8,7 +8,7 @@ open TestDynamo.Data.Monads.Operators
 open TestDynamo.Client
 open TestDynamo.Model
 open TestDynamo.Data.BasicStructures
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client.CreateTable
 open TestDynamo.Client.DescribeTable.Local
 open Shared
@@ -65,7 +65,7 @@ let inputs1 (req: UpdateTableRequest) =
     if List.length gsiCreate + List.length gsiDelete > 1 then clientError "You can only create or delete one global secondary index per UpdateTable operation."
 
     { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
-      distributedTableData =
+      globalTableData =
           { replicaInstructions = replicaInstructions
             createStreamsForReplication = false }
       tableData =

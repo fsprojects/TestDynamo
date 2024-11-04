@@ -8,7 +8,7 @@ open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Client
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client.DescribeTable.Global
 
 type MList<'a> = System.Collections.Generic.List<'a>
@@ -33,7 +33,7 @@ let inputs1 (req: UpdateGlobalTableRequest) =
         |> List.ofSeq
 
     { tableName = req.GlobalTableName
-      distributedTableData =
+      globalTableData =
           { replicaInstructions = replicaInstructions
             createStreamsForReplication = false }
       tableData =

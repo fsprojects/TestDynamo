@@ -19,7 +19,7 @@ open Utils
 open TestDynamo.Client.ItemMapper
 open RequestItemTestUtils
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open Tests.Loggers
 
 type ReqWrapper =
@@ -82,10 +82,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 client
                 |> ValueOption.defaultWith (fun _ ->
                     let writer = new TestLogger(output, logLevel)
-                    let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
                     output.WriteLine("Cloning host")
-                    let host = cloneHost writer'
+                    let host = cloneHost writer
                     TestDynamoClient.Create(host, writer))
             
             return struct (client, table.name)
@@ -98,10 +97,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 client
                 |> ValueOption.defaultWith (fun _ ->
                     let writer = new TestLogger(output, logLevel)
-                    let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
                     output.WriteLine("Cloning host")
-                    let host = cloneHost writer'
+                    let host = cloneHost writer
                     TestDynamoClient.Create(host, writer))
                 
             output.WriteLine("Getting table")
@@ -558,7 +556,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
-            let struct (host, fromRegion) = cloneDistributedHost()
+            let struct (host, fromRegion) = cloneGlobalHost()
             let toRegion = {regionId = "to-region" }
             
             let _ = host

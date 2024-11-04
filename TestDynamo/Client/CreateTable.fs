@@ -48,12 +48,12 @@ let addLsi key oldV newV =
 let inputs1 (req: CreateTableRequest) =
 
     let indexes =
-        Seq.map (fun x -> buildGsiSchema' x |> tpl false |> tpl x.IndexName) req.GlobalSecondaryIndexes
+        Seq.map (fun x -> { isLocal = false; data = buildGsiSchema' x } |> tpl x.IndexName) req.GlobalSecondaryIndexes
         |> MapUtils.fromTuple
 
     let (struct (pk, _) & primaryIndex) = fromKeySchema (req.KeySchema |> List.ofSeq)
     let indexes =
-        Seq.fold (fun s x -> buildLsiSchema' pk x |> tpl true |> flip (MapUtils.change addLsi x.IndexName) s) indexes req.LocalSecondaryIndexes
+        Seq.fold (fun s x -> { isLocal = true; data = buildLsiSchema' pk x } |> flip (MapUtils.change addLsi x.IndexName) s) indexes req.LocalSecondaryIndexes
 
     let tableConfig =
         { name = req.TableName |> CSharp.mandatory "TableName is mandatory"

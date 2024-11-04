@@ -3,7 +3,7 @@ namespace TestDynamo.Tests
 
 open System.Threading
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -25,10 +25,10 @@ type Exploration(output: ITestOutputHelper) =
             let dbTo = { regionId = "to-region" }
             use writer = new TestLogger(output)
             let subscriberBehaviour =
-                { delay = DistributedDataPropagationBehaviour.RunAsynchronously (System.TimeSpan.FromSeconds(0.1))
+                { delay = GlobalDataPropagationBehaviour.RunAsynchronously (System.TimeSpan.FromSeconds(0.1))
                   subscriberTimeout = System.TimeSpan.FromSeconds(2) }
 
-            use host = new DistributedDatabase(logger = writer)
+            use host = new GlobalDatabase(logger = writer)
             use clientFrom = TestDynamoClient.Create(host, dbFrom, writer)
             use clientTo = TestDynamoClient.Create(host, dbTo, writer)
             clientFrom.ProcessingDelay <- System.TimeSpan.Zero

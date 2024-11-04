@@ -39,19 +39,19 @@ let rec attributeFromDynamodb name (attr: DynamoAttributeValue) =
     | false, null, null, null, false, false, false, true, false, false ->
         CSharp.sanitizeSeq attr.SS
         |> Seq.map String
-        |> AttributeSet.fromStrings
+        |> AttributeSet.create
         |> HashSet
     | false, null, null, null, false, false, false, false, true, false ->
 
         CSharp.sanitizeSeq attr.NS
         |> Seq.map (Decimal.Parse >> Number)
-        |> AttributeSet.fromNumbers
+        |> AttributeSet.create
         |> HashSet
     | false, null, null, null, false, false, false, false, false, true ->
 
         CSharp.sanitizeSeq attr.BS
         |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
-        |> AttributeSet.fromBinary
+        |> AttributeSet.create
         |> HashSet
     | pp -> clientError $"Unknown attribute type for \"{name}\""
 

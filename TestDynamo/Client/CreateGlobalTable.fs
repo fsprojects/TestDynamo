@@ -6,7 +6,7 @@ open TestDynamo
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Client
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 
 type MList<'a> = System.Collections.Generic.List<'a>
 
@@ -22,7 +22,7 @@ let inputs1 (req: CreateGlobalTableRequest) =
         |> List.ofSeq
 
     { tableName = req.GlobalTableName
-      distributedTableData =
+      globalTableData =
           { replicaInstructions = replicaInstructions
             createStreamsForReplication = false }
       tableData =

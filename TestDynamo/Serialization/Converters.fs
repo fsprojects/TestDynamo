@@ -280,9 +280,9 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
             | "N" -> reader.GetDecimal() |> AttributeValue.Number
             | "B" -> reader.GetString() |> Convert.FromBase64String |> AttributeValue.Binary
             | "BOOL" -> reader.GetBoolean() |> AttributeValue.Boolean
-            | "SS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.fromStrings |> AttributeValue.HashSet
-            | "NS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.fromNumbers |> AttributeValue.HashSet
-            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.fromBinary |> AttributeValue.HashSet
+            | "SS"
+            | "NS"
+            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.create |> AttributeValue.HashSet
             | "M" -> mapWriter.Read(&reader, typeof<Map<string, AttributeValue>>, opts) |> AttributeValue.HashMap
             | "L" -> arrayWriter.Read(&reader, typeof<AttributeValue array>, opts) |> AttributeListType.CompressedList |> AttributeValue.AttributeList
             | x -> JsonException $"Unknown attribute data type {x}" |> raise

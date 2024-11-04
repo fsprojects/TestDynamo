@@ -1,4 +1,4 @@
-﻿namespace TestDynamo.Api
+﻿namespace TestDynamo.Api.FSharp
 
 open System
 open System.Runtime.CompilerServices
@@ -16,9 +16,9 @@ type StreamViewType = Amazon.DynamoDBv2.StreamViewType
 
 [<Struct; IsReadOnly>]
 type DbReplicationKey =
-    { fromDb: DatabaseId
-      toDb: DatabaseId
-      tableName: string }
+    { tableName: string
+      fromDb: DatabaseId
+      toDb: DatabaseId }
     with
     static member rev x = { x with fromDb = x.toDb; toDb = x.fromDb }
 
@@ -90,8 +90,8 @@ type GlobalTableTree =
         | [] when Map.isEmpty nodeChildren -> ValueNone    
         | _ -> serverError "Unable to find global table"
 
-type DistributedDatabaseClone =
-    { databases: Api.DatabaseCloneData list
+type GlobalDatabaseClone =
+    { databases: Api.FSharp.DatabaseCloneData list
       replicationKeys: DbReplicationKey list }
     with
     
@@ -106,8 +106,8 @@ type private Replication =
     member this.isPrimary = this.secondaryReplication |> ValueOption.isSome
     interface IDisposable with member this.Dispose() = this.dispose.Dispose()
 
-type private DistributedDatabaseData =
-    { databases: Map<DatabaseId, TestDynamo.Api.Database>
+type private GlobalDatabaseData =
+    { databases: Map<DatabaseId, TestDynamo.Api.FSharp.Database>
       replications: Map<DbReplicationKey, Replication> }
 
     interface IDisposable with
@@ -132,9 +132,9 @@ type private DistributedDatabaseData =
 /// 
 /// This construct contains both mutable and immutable data
 /// </summary>
-type DistributedDatabaseState =
+type GlobalDatabaseState =
     private
-    | Dbs of DistributedDatabaseData
+    | Dbs of GlobalDatabaseData
     | Disposed
 
     interface IDisposable with
@@ -143,17 +143,17 @@ type DistributedDatabaseState =
             | Dbs x -> (x :> IDisposable).Dispose()
             | Disposed -> ()
 
-type ReplicationDisposalFactory = (Logger -> DistributedDatabaseState -> DistributedDatabaseState) -> IDisposable
+type ReplicationDisposalFactory = (Logger -> GlobalDatabaseState -> GlobalDatabaseState) -> IDisposable
 type ReplicationDisposalBuilder = ReplicationDisposalFactory -> IDisposable
 module private CreateReplication =
 
-    type ApiDb = TestDynamo.Api.Database
+    type ApiDb = TestDynamo.Api.FSharp.Database
 
     let private noTask = ValueTask<unit>(()).Preserve()
 
     let private unwrap = function
         | Dbs x -> x
-        | Disposed -> invalidOp "Distributed database has been disposed"
+        | Disposed -> invalidOp "Global database has been disposed"
 
     module private DisposeOnTableDeletion =
         let create () = MutableValue.create struct (false, ValueNone)
@@ -190,7 +190,7 @@ module private CreateReplication =
             >> ValueOption.defaultValue ())
 
     // process the queue and return a function that can process items on demand
-    let processItemBuffer tableName handleError (destinationDb: TestDynamo.Api.Database) disposer clonedDbVersion =
+    let processItemBuffer tableName handleError (destinationDb: TestDynamo.Api.FSharp.Database) disposer clonedDbVersion =
         let ingest = ingestChange disposer destinationDb tableName |> flip
 
         let rec processItemBuffer (queue: Queue<SubscriberMessage>) =
@@ -211,7 +211,7 @@ module private CreateReplication =
             | _ -> ValueNone)
         |> ValueOption.defaultValue replicationKeys
 
-    let private recordReplication primaryId struct (primarySubId, primarySub: IDisposable) secondaryId struct (secondarySubId, secondarySub: IDisposable) (state: DistributedDatabaseData) =
+    let private recordReplication primaryId struct (primarySubId, primarySub: IDisposable) secondaryId struct (secondarySubId, secondarySub: IDisposable) (state: GlobalDatabaseData) =
 
         let pRepId = IncrementingId.next()
         let sRepId = IncrementingId.next()
@@ -301,7 +301,7 @@ module private CreateReplication =
         newDbDefaultLogger
         logger
         ({ tableName = tableName; fromDb = leftId; toDb = rightId } & subscriptionId)
-        struct (left: TestDynamo.Api.Database, struct (right: TestDynamo.Api.Database, dbs)): struct (ReplicationDisposalBuilder * DistributedDatabaseState) =
+        struct (left: TestDynamo.Api.FSharp.Database, struct (right: TestDynamo.Api.FSharp.Database, dbs)): struct (ReplicationDisposalBuilder * GlobalDatabaseState) =
 
         if leftId = rightId then clientError $"Cannot add replication from {leftId} => {rightId}"
         left.TryDescribeTable newDbDefaultLogger tableName
@@ -432,15 +432,15 @@ module private CreateReplication =
             Logger.log0 "Clearing registrations" logger
             { dbs with replications = dbs.replications |> Map.remove subscriptionId |> Map.remove secondary } |> Dbs
 
-module DistributedDatabaseState =
-    let logOperation x = DatabaseLogger.logOperation "DistributedDatabase" x
-    let logOperationAsync x = DatabaseLogger.logOperationAsync "DistributedDatabase" x
+module GlobalDatabaseState =
+    let logOperation x = DatabaseLogger.logOperation "GlobalDatabase" x
+    let logOperationAsync x = DatabaseLogger.logOperationAsync "GlobalDatabase" x
 
-    let newDatabase id _ = new TestDynamo.Api.Database(databaseId = id)
+    let newDatabase id _ = new TestDynamo.Api.FSharp.Database(databaseId = id)
 
     let private unwrap = function
         | Dbs x -> x
-        | Disposed -> invalidOp "Distributed database has been disposed"
+        | Disposed -> invalidOp "Global database has been disposed"
 
     let databases = unwrap >> _.databases
     
@@ -476,14 +476,14 @@ module DistributedDatabaseState =
 
     let getCloneData =
         fun logger -> unwrap >> fun state ->
-            let dbs = Seq.map (fun (v: TestDynamo.Api.Database) -> v.BuildCloneData()) state.databases.Values
+            let dbs = Seq.map (fun (v: TestDynamo.Api.FSharp.Database) -> v.BuildCloneData()) state.databases.Values
             let repKeys =
                 MapUtils.toSeq state.replications
                 |> Seq.filter (fun struct (_, x) -> x.isPrimary)
                 |> Seq.map (fun struct (k, _) -> k)
 
             { databases = List.ofSeq dbs
-              replicationKeys = repKeys |> List.ofSeq } : DistributedDatabaseClone
+              replicationKeys = repKeys |> List.ofSeq } : GlobalDatabaseClone
         |> logOperation "CLONING"
 
     let tryDatabase databaseId =
@@ -498,7 +498,7 @@ module DistributedDatabaseState =
             | ValueNone ->
                 Logger.log1 "Not found %O, Creating" databaseId logger
                 let db =
-                    ValueOption.map (fun x -> new TestDynamo.Api.Database(
+                    ValueOption.map (fun x -> new TestDynamo.Api.FSharp.Database(
                         logger = x, databaseId = databaseId)) defaultLogger
                     |> ValueOption.defaultWith (newDatabase databaseId)
 
@@ -631,15 +631,15 @@ module DistributedDatabaseState =
     let private combineDisposeBuilders d1F d2F factory =
         Disposable.combine (d1F factory) (d2F factory)
 
-    let build iLogger (initialDatabases: Api.DatabaseCloneData list) =
+    let build iLogger (initialDatabases: Api.FSharp.DatabaseCloneData list) =
 
         let logger = DatabaseLogger.buildLogger ValueNone iLogger
             
         let buildDb c =
             Logger.log1 "Creating database %A" c.databaseId logger
             match iLogger with
-            | ValueSome l -> new TestDynamo.Api.Database(l, c)
-            | ValueNone -> new TestDynamo.Api.Database(cloneData = c)
+            | ValueSome l -> new TestDynamo.Api.FSharp.Database(l, c)
+            | ValueNone -> new TestDynamo.Api.FSharp.Database(cloneData = c)
 
         let dbs =
             initialDatabases

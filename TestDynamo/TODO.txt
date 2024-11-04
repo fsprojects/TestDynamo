@@ -7,13 +7,14 @@ Features
  * When building a DynamoDBEvent.DynamodbStreamRecord
     * EventVersion is not set
     * If TTL is ever set, the UserIdentity property must be set. It has comments on how
+ * Object store
 
 Tests
  * Do a giant fuzz tester of all expressions
 
 Interface
  * Audit every public facing type/record + document
- * Replicated/distributed/global/synchronized all mean the same thing
+ * Replicated/global/global/synchronized all mean the same thing
  * Audit of C# F# interop
 	* + clean up CSharp code
  * full audit of dependencies and dotnet versions
@@ -27,7 +28,6 @@ Documentation
  * Everything in Settings.fs
  * SubscriberBehaviour
  * Document model
- * TransactGetItemsAsync, DescribeGlobalTable, ListGlobalTables
  * Docs on locking
     * locking is done at db level (tables and indexes on the same DB are atomic)
     * document locking settings
@@ -45,7 +45,7 @@ Optimisations/refactoring
 	* List index projections. Allocates a new array for each add (search for AttributeList)
  * Str: asContexted, indentComplex, indent methods. These seem inefficient
  * clean up of test host helpers
- * DistributedDatabaseState.fs: messy needs cleanup
+ * GlobalDatabaseState.fs: messy needs cleanup
  * AstCompiler
     * Recursion limit still exists: search for ExpressionCompilerRecursionlimit
     * Removed all of the todos about non cached and lazily constructructed things. There are more efficiencies to be found there but they need to be discovered with more logging

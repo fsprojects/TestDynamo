@@ -1,7 +1,7 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Serialization.Data.Version1
 
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -73,7 +73,7 @@ type SerializableReplication(
     member _.``to`` = ``to``
     member _.tableName = tableName
     
-type SerializableDistributedDatabase(
+type SerializableGlobalDatabase(
     databases: SerializableDatabase list,
     replications: SerializableReplication list) =
     
@@ -145,7 +145,7 @@ module ToSerializable =
                 |> Seq.map (sndT >> serializeableIndexMetadata)
                 |> List.ofSeq)
         
-        let toSerializable omitTables schemaOnly (db: Api.Database) =
+        let toSerializable omitTables schemaOnly (db: Api.FSharp.Database) =
             let streamsEnabled = db.StreamsEnabled
             SerializableDatabase(
                 db.Id,
@@ -155,9 +155,9 @@ module ToSerializable =
                     sndT >> _.table >> serializableTable schemaOnly streamsEnabled)
                 |> List.ofSeq)
         
-    module DistributedDatabase =
+    module GlobalDatabase =
         
-        let toSerializable schemaOnly (db: DistributedDatabase) =
+        let toSerializable schemaOnly (db: GlobalDatabase) =
             
             let replications =
                 db.ListReplications ValueNone true
@@ -176,7 +176,7 @@ module ToSerializable =
                 |> Seq.map (fun db -> Database.toSerializable (tableOmissions db.Id) schemaOnly db)
                 |> List.ofSeq
                 
-            SerializableDistributedDatabase(databases, replications)
+            SerializableGlobalDatabase(databases, replications)
 
 module FromSerializable =
     
@@ -200,16 +200,16 @@ module FromSerializable =
                 t.secondaryIndexes
                 |> Seq.map (fun i -> struct (
                     i.indexName |> Maybe.expectSomeErr "Expected index to have a name%s" "",
-                    struct (
-                        indexIsLocal i,
+                    { isLocal = indexIsLocal i
+                      data =
                         { keys = indexCols i
                           projectionsAreKeys = i.projection = SerializableProjectionType.Keys
-                          projection =
+                          projectionCols =
                             match struct (i.projection, i.projectionAttributes) with
                             | SerializableProjectionType.All, _ -> ValueNone
                             | SerializableProjectionType.Attributes, attr
                             | SerializableProjectionType.Keys, attr -> List.ofArray attr |> ValueSome
-                            | _ -> serverError "Invalid projection" })))
+                            | _ -> serverError "Invalid projection" }}))
                 |> MapUtils.ofSeq
             
             { createStream = t.info.streamsEnabled
@@ -231,7 +231,7 @@ module FromSerializable =
                         expressionAttrNames = Map.empty
                         returnValues = BasicReturnValues.None } })
         
-        let copyFromromSerializble globalLogger (fromJson: SerializableDatabase) (db: Api.Database) =
+        let copyFromromSerializble globalLogger (fromJson: SerializableDatabase) (db: Api.FSharp.Database) =
                         
             fromJson.tables
             |> Seq.map asTableConfig
@@ -247,19 +247,19 @@ module FromSerializable =
         
         let fromSerializable globalLogger (fromJson: SerializableDatabase) =
             
-            let db = new Api.Database(fromJson.databaseId)
+            let db = new Api.FSharp.Database(fromJson.databaseId)
             copyFromromSerializble globalLogger fromJson db
             db
 
-    module DistributedDatabase =
+    module GlobalDatabase =
         
-        let dbHasTable (db: DistributedDatabase) dbId tableName =
+        let dbHasTable (db: GlobalDatabase) dbId tableName =
             db.TryGetDatabase dbId
             ?>>= fun db -> db.TryDescribeTable ValueNone tableName
             |> ValueOption.isSome
         
         let rec private tryAddReplications = function
-            | struct ([]: SerializableReplication list, struct (db: DistributedDatabase, logger)) -> struct (db, [])
+            | struct ([]: SerializableReplication list, struct (db: GlobalDatabase, logger)) -> struct (db, [])
             | r::tail, (db, logger) when dbHasTable db r.from r.tableName ->
                 { createStreamsForReplication = true
                   replicaInstructions = [Create r.``to``] }
@@ -283,12 +283,12 @@ module FromSerializable =
                 |> sprintf "Error adding replications\n%s"
                 |> invalidOp
         
-        let fromSerializable globalLogger (fromJson: SerializableDistributedDatabase) =
+        let fromSerializable globalLogger (fromJson: SerializableGlobalDatabase) =
             
             let db =
                 globalLogger
-                ?|> fun logger -> new Api.DistributedDatabase(logger = logger)
-                ?|>? fun _ -> new Api.DistributedDatabase()
+                ?|> fun logger -> new Api.FSharp.GlobalDatabase(logger = logger)
+                ?|>? fun _ -> new Api.FSharp.GlobalDatabase()
             
             fromJson.databases
             |> List.fold (fun _ x ->

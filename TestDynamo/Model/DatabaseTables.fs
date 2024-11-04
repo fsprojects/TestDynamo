@@ -25,6 +25,14 @@ type ConditionAndProject<'returnValues> =
       expressionAttrValues: Map<string, AttributeValue>
       expressionAttrNames: Map<string, string>
       returnValues: 'returnValues }
+    
+    with
+    static member empty tableName returnValues =
+        { tableName = tableName
+          conditionExpression = ValueNone
+          expressionAttrValues = Map.empty
+          expressionAttrNames = Map.empty
+          returnValues = returnValues }
 
 module ConditionAndProject =
     let fromTable name =

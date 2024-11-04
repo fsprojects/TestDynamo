@@ -1,9 +1,10 @@
-﻿namespace TestDynamo.Client
+﻿namespace TestDynamo.Api
 
 open System
 open System.IO
 open System.Linq
 open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
@@ -17,15 +18,14 @@ open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 
 [<Struct; IsReadOnly>]
-type StreamSubscriber =
+type LambdaStreamSubscriber =
     private | Ss of struct (
         struct (SubscriberBehaviour * StreamDataType) *
         (AwsAccountId -> RegionId -> DatabaseSynchronizationPacket<TableCdcPacket> -> CancellationToken -> ValueTask<Unit>))
 
-module StreamSubscriber =
-
-    let rec attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
-    and private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
+    static member private attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = LambdaStreamSubscriber.attributeFromDynamodb' "$"
+    
+    static member private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
         match struct (
             attr.BOOL.HasValue,
             attr.S,
@@ -46,36 +46,36 @@ module StreamSubscriber =
         | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
         | false, null, null, null, false, true, false, false, false, false ->
             if attr.M = null then clientError "Map data not set"
-            itemFromDynamodb' name attr.M |> AttributeValue.HashMap
+            LambdaStreamSubscriber.itemFromDynamodb' name attr.M |> AttributeValue.HashMap
         | false, null, null, null, false, false, true, false, false, false ->
             CSharp.sanitizeSeq attr.L 
-            |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
+            |> Seq.mapi (fun i -> LambdaStreamSubscriber.attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
         | false, null, null, null, false, false, false, true, false, false ->
             CSharp.sanitizeSeq attr.SS
             |> Seq.map String
-            |> AttributeSet.fromStrings
+            |> AttributeSet.create
             |> HashSet
         | false, null, null, null, false, false, false, false, true, false ->
 
             CSharp.sanitizeSeq attr.NS
             |> Seq.map (Decimal.Parse >> Number)
-            |> AttributeSet.fromNumbers
+            |> AttributeSet.create
             |> HashSet
         | false, null, null, null, false, false, false, false, false, true ->
 
             CSharp.sanitizeSeq attr.BS
             |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
-            |> AttributeSet.fromBinary
+            |> AttributeSet.create
             |> HashSet
         | pp -> clientError $"Unknown attribute type for \"{name}\""
 
-    and private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
-        struct (attr.Key, attributeFromDynamodb' $"{name}.{attr.Key}" attr.Value)
+    static member private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
+        struct (attr.Key, LambdaStreamSubscriber.attributeFromDynamodb' $"{name}.{attr.Key}" attr.Value)
 
-    and private itemFromDynamodb' name x = x |> Seq.map (mapAttribute name) |> MapUtils.fromTuple
-    and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$"
+    static member private itemFromDynamodb' name x = x |> Seq.map (LambdaStreamSubscriber.mapAttribute name) |> MapUtils.fromTuple
+    static member itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = LambdaStreamSubscriber.itemFromDynamodb' "$"
 
-    let rec attributeToDynamoDbEvent = function
+    static member private attributeToDynamoDbEvent = function
         | AttributeValue.String x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.S <- x
@@ -98,7 +98,7 @@ module StreamSubscriber =
             attr
         | AttributeValue.HashMap x ->
             let attr = DynamoDBEvent.AttributeValue()
-            attr.M <- itemToDynamoDbEvent x
+            attr.M <- LambdaStreamSubscriber.itemToDynamoDbEvent x
             attr
         | AttributeValue.HashSet x ->
             let attr = DynamoDBEvent.AttributeValue()
@@ -125,30 +125,30 @@ module StreamSubscriber =
             attr
         | AttributeValue.AttributeList xs ->
             let attr = DynamoDBEvent.AttributeValue()
-            attr.L <- xs |> AttributeListType.asSeq |> Seq.map attributeToDynamoDbEvent |> Enumerable.ToList
+            attr.L <- xs |> AttributeListType.asSeq |> Seq.map LambdaStreamSubscriber.attributeToDynamoDbEvent |> Enumerable.ToList
             attr
 
-    and itemToDynamoDbEvent =
-        CSharp.toDictionary (fun (x: string) -> x) attributeToDynamoDbEvent
+    static member private itemToDynamoDbEvent =
+        CSharp.toDictionary (fun (x: string) -> x) LambdaStreamSubscriber.attributeToDynamoDbEvent
 
-    let private getEventNameAndKeyConfig keyConfig (x: ChangeResult) =
+    static member private getEventNameAndKeyConfig keyConfig (x: ChangeResult) =
         match struct (x.Put, x.Deleted) with
         | ValueNone, ValueNone -> ValueNone
         | ValueSome x, ValueNone -> ValueSome struct ("INSERT", KeyConfig.keyAttributesOnly (Item.attributes x) keyConfig)
         | ValueNone, ValueSome x -> ValueSome struct ("REMOVE", KeyConfig.keyAttributesOnly (Item.attributes x) keyConfig)
         | ValueSome x, ValueSome _ -> ValueSome struct ("REMOVE", KeyConfig.keyAttributesOnly (Item.attributes x) keyConfig)
 
-    let private size item =
+    static member private size item =
         match item with
         | ValueSome x -> Item.size x
         | ValueNone -> 0
 
-    let private mapItem =
-        ValueOption.map (Item.attributes >> itemToDynamoDbEvent) >> CSharp.fromOption
+    static member private mapItem =
+        ValueOption.map (Item.attributes >> LambdaStreamSubscriber.itemToDynamoDbEvent) >> CSharp.fromOption
 
-    let private mapChange awsAccountId regionId (streamViewType: StreamViewType) (ch: DatabaseSynchronizationPacket<TableCdcPacket>) (result: ChangeResult) =
+    static member private mapChange awsAccountId regionId (streamViewType: StreamViewType) (ch: DatabaseSynchronizationPacket<TableCdcPacket>) (result: ChangeResult) =
 
-        getEventNameAndKeyConfig ch.data.packet.changeResult.KeyConfig result
+        LambdaStreamSubscriber.getEventNameAndKeyConfig ch.data.packet.changeResult.KeyConfig result
         ?|> (fun struct (evName, keys) -> 
             let r = DynamoDBEvent.DynamodbStreamRecord()
             r.EventSourceArn <- ch.data.tableArn struct (awsAccountId, regionId)
@@ -160,48 +160,62 @@ module StreamSubscriber =
             r.Dynamodb <-
                 let ddb = DynamoDBEvent.StreamRecord()
                 ddb.ApproximateCreationDateTime <- System.DateTime.UtcNow
-                ddb.Keys <- itemToDynamoDbEvent keys
+                ddb.Keys <- LambdaStreamSubscriber.itemToDynamoDbEvent keys
                 ddb.SequenceNumber <- result.Id.Value.ToString()
-                ddb.SizeBytes <- (size result.Deleted + size result.Put) |> int64
+                ddb.SizeBytes <- (LambdaStreamSubscriber.size result.Deleted + LambdaStreamSubscriber.size result.Put) |> int64
                 ddb.StreamViewType <- streamViewType.Value
-                ddb.OldImage <- mapItem result.Deleted
-                ddb.NewImage <- mapItem result.Put
+                ddb.OldImage <- LambdaStreamSubscriber.mapItem result.Deleted
+                ddb.NewImage <- LambdaStreamSubscriber.mapItem result.Put
                 ddb
 
             r)
 
-    let private mapCdcPacket awsAccountId regionId dataType (x: DatabaseSynchronizationPacket<TableCdcPacket>) =
+    static member private mapCdcPacket awsAccountId regionId dataType (x: DatabaseSynchronizationPacket<TableCdcPacket>) =
         let changes =
             x.data.packet.changeResult.OrderedChanges
-            |> Seq.map (mapChange awsAccountId regionId dataType x)
+            |> Seq.map (LambdaStreamSubscriber.mapChange awsAccountId regionId dataType x)
             |> Maybe.traverse
 
         let record = DynamoDBEvent()
         record.Records <- List(changes)
         record
 
-    let private parseStreamConfig = function
+    static member private parseStreamConfig = function
         | (x: StreamViewType) when x.Value = StreamViewType.KEYS_ONLY.Value -> StreamDataType.KeysOnly
         | x when x.Value = StreamViewType.NEW_IMAGE.Value -> StreamDataType.NewImage 
         | x when x.Value = StreamViewType.OLD_IMAGE.Value -> StreamDataType.OldImage 
         | x when x.Value = StreamViewType.NEW_AND_OLD_IMAGES.Value -> StreamDataType.NewAndOldImages
         | x -> notSupported $"Invalid {nameof StreamViewType} \"{x.Value}\""
 
-    let private completedTask = ValueTask<_>(()).Preserve()
-    let build struct (behaviour, streamViewType) (f: System.Func<DynamoDBEvent, CancellationToken, ValueTask>) =
-        let streamConfig = parseStreamConfig streamViewType
+    static member private completedTask = ValueTask<_>(()).Preserve()
+    static member Build (
+        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
+        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType) =
         
-        mapCdcPacket
+        LambdaStreamSubscriber.Build(subscriber, SubscriberBehaviour.defaultOptions, streamViewType)
+        
+    static member Build (
+        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
+        behaviour,
+        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType) =
+        
+        let streamConfig =
+            streamViewType
+            |> CSharp.toOption
+            ?|? StreamViewType.NEW_AND_OLD_IMAGES
+            |> LambdaStreamSubscriber.parseStreamConfig
+        
+        LambdaStreamSubscriber.mapCdcPacket
         >>> fun mapper changeData c ->
             let funcInput = mapper streamViewType changeData
             
             // filter results which only have attempted deletes
             if List.isEmpty changeData.data.packet.changeResult.OrderedChanges
-            then completedTask
-            else f.Invoke(funcInput, c) |> Io.normalizeVt
+            then LambdaStreamSubscriber.completedTask
+            else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
         |> tpl struct (behaviour, streamConfig)
         |> Ss
 
-    let getStreamConfig (Ss (x, _)) = x
+    static member internal getStreamConfig (Ss (x, _)) = x
 
-    let getStreamSubscriber awsAccountId regionId (Ss (_, f)) = f awsAccountId regionId
+    static member internal getStreamSubscriber awsAccountId regionId (Ss (_, f)) = f awsAccountId regionId

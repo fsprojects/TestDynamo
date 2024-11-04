@@ -57,7 +57,7 @@ let mutable MaxReplicationTime = TimeSpan.FromSeconds 10
 
 /// <summary>
 /// <para>
-/// The region of any databases created in a non-distributed context
+/// The region of any databases created in a non-global context
 /// </para>
 /// <para> 
 /// Default: "default-region"

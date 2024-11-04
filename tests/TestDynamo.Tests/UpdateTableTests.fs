@@ -4,7 +4,7 @@ namespace TestDynamo.Tests
 open System.Threading
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open Microsoft.Extensions.Logging
@@ -157,7 +157,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             task {
                 use writer = new TestLogger(collector)
 
-                use host = new DistributedDatabase(logger = writer)
+                use host = new GlobalDatabase(logger = writer)
                 use client = TestDynamoClient.Create(host, defaultDbId, writer)
                 let! _ =                    
                     TableBuilder.empty
@@ -196,9 +196,9 @@ type UpdateTableTests(output: ITestOutputHelper) =
                     | ValueSome x ->
                         collector.Emit x
                         let w = new TestLogger(x)
-                        fun (x: DistributedDatabaseCloneData) -> new DistributedDatabase(x, w)
+                        fun (x: GlobalDatabaseCloneData) -> new GlobalDatabase(x, w)
                     | ValueNone ->
-                        fun x -> new DistributedDatabase(x)
+                        fun x -> new GlobalDatabase(x)
 
                 let! x = init
                 return create x
@@ -618,7 +618,6 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             let w = (ValueSome (writer :> ILogger))
-            let w' = (ValueSome (writer :> ILogger |> Either1))
             use! host = ``Create host with replication`` ``cloned host`` writer
 
             let struct (deleteClient, otherClient, otherDb) =
@@ -631,7 +630,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             let! _ = deleteClient.DeleteTableAsync(defaultTable)
 
-            let struct (sub, records) = recordSubscription w' defaultTable otherDb ValueNone ValueNone
+            let struct (sub, records) = recordSubscription w defaultTable otherDb ValueNone ValueNone
             use _ = sub
 
             // act
@@ -734,10 +733,9 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
             let w = (ValueSome (writer :> ILogger))
-            let w' = (ValueSome (writer :> ILogger |> Either1))
             let database = host.GetDatabase w defaultDbId
             use client = TestDynamoClient.Create(database, writer)
-            let struct (x, recorded) = recordSubscription w' defaultTable database ValueNone ValueNone
+            let struct (x, recorded) = recordSubscription w defaultTable database ValueNone ValueNone
             use _ = x
 
             let req =
@@ -828,7 +826,6 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             use! host = baseTableWithoutStream (ValueSome output)
             let w = (ValueSome (writer:> ILogger))
-            let w' = (ValueSome (writer :> ILogger |> Either1))
             let database = host.GetDatabase w defaultDbId
             use client = TestDynamoClient.Create(database, writer)
             let req =
@@ -842,7 +839,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             do! put client
 
             // assert
-            let struct (x, recorded) = recordSubscription w' defaultTable database ValueNone ValueNone
+            let struct (x, recorded) = recordSubscription w defaultTable database ValueNone ValueNone
             use _ = x
             do! put client
             do! client.AwaitAllSubscribers CancellationToken.None

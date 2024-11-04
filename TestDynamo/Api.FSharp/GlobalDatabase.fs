@@ -1,4 +1,4 @@
-﻿namespace TestDynamo.Api
+﻿namespace TestDynamo.Api.FSharp
 
 open System
 open Microsoft.FSharp.Core
@@ -10,26 +10,26 @@ open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open Microsoft.Extensions.Logging
 
-type UpdateDistributedTableData =
+type UpdateGlobalTableData =
     { replicaInstructions: CreateOrDelete<DatabaseId> list
       /// <summary>If true, and the source table does not have streams enabled, this will enable the streams correctly</summary>
       createStreamsForReplication: bool }
 
 type UpdateTableData =
     { tableName: string
-      distributedTableData: UpdateDistributedTableData
+      globalTableData: UpdateGlobalTableData
       tableData: UpdateSingleTableData }
     
-type DistributedDatabaseCloneData =
-    { data: DistributedDatabaseClone }
+type GlobalDatabaseCloneData =
+    { data: GlobalDatabaseClone }
 
 /// <summary>
-/// A mutable Distributed Database object containing Tables and Streams
+/// A mutable Global Database object containing Tables and Streams
 /// 
 /// Allows database tables to be relicated between Databases
 /// Databases are created automatically when requested
 /// </summary>
-type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData, logger: ILogger voption) =
+type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: ILogger voption) =
 
     static let validateError id =
         $" * Duplicate database in setup data {id}"
@@ -48,19 +48,19 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
         | "" -> ()
         | e -> $"Invalid database input\n{e}" |> invalidOp
     
-    let state: MutableValue<DistributedDatabaseState> =
+    let state: MutableValue<GlobalDatabaseState> =
         initialDatabases.data.databases
-        |> DistributedDatabaseState.build logger
+        |> GlobalDatabaseState.build logger
         |> MutableValue.createDisposable
 
     let defaultLogger = logger
     let buildLogger operationName localLogger =
         let logger = DatabaseLogger.buildLogger defaultLogger localLogger
-        Logger.trace1 "[Api.DistributedDatabase] %s" operationName logger
+        Logger.trace1 "[Api.GlobalDatabase] %s" operationName logger
         Logger.scope logger
 
     let buildDebugTables =
-        Map.map (fun _ (x: TestDynamo.Api.Database) -> x.DebugTables)
+        Map.map (fun _ (x: TestDynamo.Api.FSharp.Database) -> x.DebugTables)
 
     let lockedAndLogged operationName localLogger f =
         MutableValue.mutate (fun state ->
@@ -92,7 +92,7 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     // Create replications - needs to be done after initial state set
     do
         let createReplication =
-            DistributedDatabaseState.createReplication true false defaultLogger buildReplicationDisposable
+            GlobalDatabaseState.createReplication true false defaultLogger buildReplicationDisposable
             >>>> tpl ()
 
         initialDatabases.data.replicationKeys
@@ -103,28 +103,28 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     // trigger an update to set debug tables
     do lockedAndLogged "INIT" ValueNone (asLazy (tpl ()))
 
-    new(initialDatabases: DistributedDatabaseCloneData, ?logger: ILogger) =
-        new DistributedDatabase(initialDatabases, Maybe.fromRef logger)
+    new(initialDatabases: GlobalDatabaseCloneData, ?logger: ILogger) =
+        new GlobalDatabase(initialDatabases, Maybe.fromRef logger)
 
     new(?logger: ILogger) =
         let data =
-            { data = DistributedDatabaseClone.empty }
+            { data = GlobalDatabaseClone.empty }
             
-        new DistributedDatabase(data, Maybe.fromRef logger)
+        new GlobalDatabase(data, Maybe.fromRef logger)
 
-    new(cloneData: Api.DatabaseCloneData, ?logger: ILogger) =
+    new(cloneData: Api.FSharp.DatabaseCloneData, ?logger: ILogger) =
         let data =
             { data = { databases = [cloneData]; replicationKeys = [] } }
-        new DistributedDatabase(data, Maybe.fromRef logger)
+        new GlobalDatabase(data, Maybe.fromRef logger)
 
     interface IDisposable with member this.Dispose() = this.Dispose()
 
     member _.Dispose() =
         lockedAndLogged "DISPOSING" ValueNone (fun logger db ->
-            Logger.log0 "Disposing distributed database" logger
+            Logger.log0 "Disposing global database" logger
             (state :> IDisposable).Dispose()
-            Logger.log0 "Disposed distributed database" logger
-            DistributedDatabaseState.Disposed
+            Logger.log0 "Disposed global database" logger
+            GlobalDatabaseState.Disposed
             |> tpl ())
 
     member _.DefaultLogger = defaultLogger
@@ -132,14 +132,14 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     /// <summary>
     /// Get a list of DebugTables. All Databases, Tables, Indexes and Items will be enumerated  
     /// </summary>
-    member _.DebugTables = MutableValue.get state |> DistributedDatabaseState.databases |> buildDebugTables
+    member _.DebugTables = MutableValue.get state |> GlobalDatabaseState.databases |> buildDebugTables
 
     /// <summary>
     /// Get a database in a specific region.
     /// If the Database does not exist it will be created  
     /// </summary>
     member _.GetDatabase logger databaseId =
-        DistributedDatabaseState.ensureDatabase defaultLogger databaseId
+        GlobalDatabaseState.ensureDatabase defaultLogger databaseId
         |> lockedAndLogged "GET DATABASE" logger
 
     /// <summary>
@@ -147,12 +147,12 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     /// If the Database does not exist nothing will be returned  
     /// </summary>
     member _.TryGetDatabase databaseId =
-        MutableValue.get state |> DistributedDatabaseState.tryDatabase databaseId
+        MutableValue.get state |> GlobalDatabaseState.tryDatabase databaseId
 
     /// <summary>
     /// List all databases that have been created so far  
     /// </summary>
-    member _.GetDatabases () = MutableValue.get state |> DistributedDatabaseState.databases
+    member _.GetDatabases () = MutableValue.get state |> GlobalDatabaseState.databases
     
     /// <summary>
     /// Describe a global table as a list of linked tables
@@ -160,7 +160,7 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     /// </summary>
     member _.TryDescribeGlobalTable logger dbId table =
         MutableValue.get state
-        |> DistributedDatabaseState.getReplicatedTables logger dbId table
+        |> GlobalDatabaseState.getReplicatedTables logger dbId table
         |> List.ofSeq
         |> function
             | [] -> ValueNone
@@ -179,7 +179,7 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
             ?|? id
                 
         MutableValue.get state
-        |> DistributedDatabaseState.listReplicatedTables
+        |> GlobalDatabaseState.listReplicatedTables
         |> Seq.map (tplDouble >> mapSnd (this.DescribeGlobalTable logger ValueNone))
         |> dbIdFilter
         |> Seq.filter predicate
@@ -204,40 +204,40 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
         >>> ValueOption.isSome
         
     member _.ListReplications logger rootsOnly =
-        loggedGet "AS SERIALIZABLE" logger (fun _ db ->
-            DistributedDatabaseState.listReplications true db)
+        loggedGet "LIST REPLICATIONS" logger (fun _ db ->
+            GlobalDatabaseState.listReplications true db)
 
     /// <summary>
-    /// Build a clone of this DistributedDatabase which contains Databases with data, stream config and replication settings
+    /// Build a clone of this GlobalDatabase which contains Databases with data, stream config and replication settings
     /// Does not clone subscription callbacks to streams
     /// </summary>
     member _.Clone logger =
         let data =
-            { data = loggedGet "CLONE" logger DistributedDatabaseState.getCloneData } 
+            { data = loggedGet "CLONE" logger GlobalDatabaseState.getCloneData } 
 
-        new DistributedDatabase(initialDatabases = data, logger = logger)
+        new GlobalDatabase(initialDatabases = data, logger = logger)
 
     /// <summary>
-    /// Build some data which can be used to clone this DistributedDatabase at a later state.
-    /// The clone data is immutable and can be used to clone multiple other DistributedDatabases
-    /// Any DistributedDatabase created from this clone data will contain the data, stream config and replication settings from this DistributedDatabase
+    /// Build some data which can be used to clone this GlobalDatabase at a later state.
+    /// The clone data is immutable and can be used to clone multiple other GlobalDatabases
+    /// Any GlobalDatabase created from this clone data will contain the data, stream config and replication settings from this GlobalDatabase
     /// It will not contain subscription callbacks to streams
     /// </summary>
     member _.BuildCloneData logger =
-        loggedGet "BUILD CLONE DATA" logger DistributedDatabaseState.getCloneData
+        loggedGet "BUILD CLONE DATA" logger GlobalDatabaseState.getCloneData
         |> fun x -> { data = x; }
         
     /// <summary>
     /// Change how a replication propagates it's data
     /// </summary>
     member this.UpdateReplication logger replicationId behaviour twoWayUpdate =
-        DistributedDatabaseState.updateReplication replicationId behaviour twoWayUpdate
+        GlobalDatabaseState.updateReplication replicationId behaviour twoWayUpdate
         |> loggedGet "REPLICATION UPDATE" logger
 
     /// <summary>
     /// Update a table. This can be used to add replications
     /// </summary>
-    member this.UpdateTable dbId logger tableName (args: UpdateDistributedTableData) =
+    member this.UpdateTable dbId logger tableName (args: UpdateGlobalTableData) =
         let struct (replicationSuccess, replicationFailure) =
             args.replicaInstructions
             |> List.map (function
@@ -245,7 +245,7 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
                     let name = $"Delete {x}/{tableName}"
                     try
                         { fromDb = dbId; toDb = x; tableName = tableName }
-                        |> DistributedDatabaseState.removeReplication
+                        |> GlobalDatabaseState.removeReplication
                         >>> tpl ()
                         |> lockedAndLogged "DELETE REPLICATION" logger
                         |> tpl name
@@ -256,7 +256,7 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
                     let name = $"Create {x}/{tableName}"
                     try
                         let key = { fromDb = dbId; toDb = x; tableName = tableName }
-                        DistributedDatabaseState.createReplication false args.createStreamsForReplication defaultLogger buildReplicationDisposable key
+                        GlobalDatabaseState.createReplication false args.createStreamsForReplication defaultLogger buildReplicationDisposable key
                         >>> tpl ()
                         |> lockedAndLogged "CREATE REPLICATION" logger
                         |> tpl name
@@ -285,5 +285,5 @@ type DistributedDatabase private (initialDatabases: DistributedDatabaseCloneData
     /// The returned task will throw any errors encountered in subscribers
     /// </summary>
     member _.AwaitAllSubscribers logger c =
-        loggedGet "AWAIT ALL SUBSCRIBERS" logger (DistributedDatabaseState.awaitAllSubscribers c)
+        loggedGet "AWAIT ALL SUBSCRIBERS" logger (GlobalDatabaseState.awaitAllSubscribers c)
         |> Io.deNormalizeVt

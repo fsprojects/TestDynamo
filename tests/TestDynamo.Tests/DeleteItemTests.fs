@@ -16,7 +16,7 @@ open Utils
 open TestDynamo.Client.ItemMapper
 open RequestItemTestUtils
 open TestDynamo.Model
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open Tests.Loggers
 
 type DeleteItemTests(output: ITestOutputHelper) =
@@ -66,8 +66,6 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -165,7 +163,6 @@ type DeleteItemTests(output: ITestOutputHelper) =
         
         task {
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
             
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -242,7 +239,6 @@ type DeleteItemTests(output: ITestOutputHelper) =
         task {
             // arrange
             use writer = new TestLogger(output)
-            let writer = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)

@@ -247,7 +247,7 @@ type IndexKeys = (struct (string * string voption))
 type CreateIndexData =
     { keys: IndexKeys
       projectionsAreKeys: bool
-      projection: string list voption }
+      projectionCols: string list voption }
 
 type IndexConfig =
     { keyConfig: KeyConfig
@@ -275,7 +275,7 @@ module Index =
 
     let empty (config: IndexConfig) =
         let name = $"{config.tableName}/{ValueOption.defaultValue primaryIndexName config.indexName}"
-        let pjns = config.config.projection ?|> (
+        let pjns = config.config.projectionCols ?|> (
             buildProjectionCols [config.keyConfig; config.tableKeyConfig] >> Array.ofSeq)
 
         if ValueOption.isSome config.indexName then

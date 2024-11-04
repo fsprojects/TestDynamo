@@ -27,20 +27,27 @@ module Fetch =
     [<Struct; IsReadOnly>]
     type ScanLimits =
         { /// <summary>
+          /// <para>
           /// The max number of items to scan in a single operation
           /// If this number is reached before a single item is found, the operation will return nothing, but an
           /// exclusive start key is returned to resume the query.
+          /// </para>
           ///
+          /// <para>
           /// When scanning a GSI where multiple items have the same partition and sort key, all items will be included
           /// in the same page, regardless of this value
+          /// </para>
           /// </summary>
           maxScanItems: int
 
           /// <summary>
+          /// <para>
           /// The max number size of data dynamodb will return in a single page
-          /// 
+          /// </para>
+          /// <para>
           /// When scanning a GSI where multiple items have the same partition and sort key, all items will be included
           /// in the same page, regardless of this value
+          /// </para>
           /// </summary>
           maxPageSizeBytes: int }
 

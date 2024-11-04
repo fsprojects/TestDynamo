@@ -3,7 +3,7 @@ namespace TestDynamo.Tests
 
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -142,7 +142,7 @@ type SmokeTests(output: ITestOutputHelper) =
             }
 
         task {
-            use host = new DistributedDatabase()
+            use host = new GlobalDatabase()
             use client = TestDynamoClient.Create(host, {regionId = "r1" })
 
             // arrange
@@ -205,7 +205,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             // arrange
-            use commonHost = new DistributedDatabase()
+            use commonHost = new GlobalDatabase()
             use client = TestDynamoClient.Create(commonHost, {regionId = "r1" })
 
             let! tableName = addTable client true
@@ -235,7 +235,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             // arrange
-            use commonHost = new DistributedDatabase()
+            use commonHost = new GlobalDatabase()
             use client = TestDynamoClient.Create(commonHost, {regionId = "r1" })
             let! tableName = addTable client true
             
@@ -265,15 +265,15 @@ type SmokeTests(output: ITestOutputHelper) =
                 Map.empty
                 |> Map.add "P3" (AttributeValue.String (if alterABit = 1 then "xy" else "xz"))
                 |> Map.add "P4" (AttributeValue.AttributeList (Maybe.traverse [
-                    AttributeSet.fromNumbers [
+                    AttributeSet.create [
                         AttributeValue.Number 1M; AttributeValue.Number (if alterABit = 2 then 7M else 8M)
                     ] |> AttributeValue.HashSet |> ValueSome
 
-                    AttributeSet.fromStrings [
+                    AttributeSet.create [
                         AttributeValue.String "1"; AttributeValue.String (if alterABit = 3 then "7" else "8")
                     ] |> AttributeValue.HashSet |> ValueSome
 
-                    AttributeSet.fromBinary [
+                    AttributeSet.create [
                         AttributeValue.Binary [|1uy|]; AttributeValue.Binary [|if alterABit = 4 then 7uy else 8uy|]
                     ] |> AttributeValue.HashSet |> ValueSome
 

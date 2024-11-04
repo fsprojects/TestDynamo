@@ -2,34 +2,37 @@
 
 open System
 open System.Collections.Generic
+open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
-open TestDynamo.Client
 open TestDynamo.Model
+open TestDynamo.Api.FSharp
+open TestDynamo.Client
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open Microsoft.Extensions.Logging
 
 type Region = string
-type ApiDb = TestDynamo.Api.Database
+type CsApiDb = TestDynamo.Api.Database
+type CsApiGlobalDb = TestDynamo.Api.GlobalDatabase
+type ApiDb = TestDynamo.Api.FSharp.Database
 
 /// <summary>
-/// A client which can execute operations on an in memory Database or DistributedDatabase.
+/// A client which can execute operations on an in memory Database or GlobalDatabase.
 /// Use the static Create methods to build a clients
 /// </summary>
 type TestDynamoClient private (
-    database: Either<ApiDb, struct (DistributedDatabase * DatabaseId)>,
+    database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
     disposeOfDatabase: bool,
     defaultLogger: ILogger voption) =
 
     let db =
         match database with
         | Either1 x -> x
-        | Either2 struct (x: DistributedDatabase, id) -> x.GetDatabase defaultLogger id
+        | Either2 struct (x: GlobalDatabase, id) -> x.GetDatabase defaultLogger id
 
     let parent =
         match database with
@@ -49,7 +52,7 @@ type TestDynamoClient private (
     let mutable scanSizeLimits = defaultScanSizeLimits
 
     let mutable awsAccountId = "123456789012"
-
+    
     static let asTask (x: ValueTask<'a>) = x.AsTask()
 
     static let taskify delay (c: CancellationToken) x =
@@ -63,56 +66,81 @@ type TestDynamoClient private (
 
     let executeAsync mapIn f mapOut c =
         taskify artificialDelay c >> Io.bind (mapIn >> f defaultLogger) >> Io.map (mapOut db.Id) >> asTask
+        
+    let mutable csDb = ValueNone
+    
+    let mutable csGlobalDb = ValueNone
 
     static let notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
 
-    static let describeRequiredTable (db: Api.Database) (logger: ILogger voption) (name: string) =
+    static let describeRequiredTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) =
         db.TryDescribeTable logger name |> ValueOption.defaultWith (fun _ -> clientError $"Table {name} not found on database {db.Id}")
 
-    static let maybeUpdateTable (db: Api.Database) (logger: ILogger voption) (name: string) (req: UpdateSingleTableData voption) =
+    static let maybeUpdateTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) (req: UpdateSingleTableData voption) =
         match req with
         | ValueNone -> describeRequiredTable db logger name
         | ValueSome req -> db.UpdateTable logger name req
 
-    static member Create() =
-        new TestDynamoClient(new ApiDb() |> Either1, true, ValueNone)
+    static member Create([<Optional; DefaultParameterValue(Nullable<DatabaseId>())>] databaseId: Nullable<DatabaseId>, [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        
+        let databaseId = if databaseId.HasValue then databaseId.Value else DatabaseId.defaultId
+        let logger = CSharp.toOption logger
+        new TestDynamoClient(new ApiDb(databaseId) |> Either1, true, logger)
         :> ITestDynamoClient
 
-    static member Create(logger: ILogger) =
-        new TestDynamoClient(new ApiDb() |> Either1, true, ValueSome logger)
+    static member Create(database: ApiDb, [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        
+        let logger = CSharp.toOption logger
+        new TestDynamoClient(Either1 database, false, logger)
         :> ITestDynamoClient
 
-    static member Create(database: ApiDb) =
-        new TestDynamoClient(Either1 database, false, database.DefaultLogger)
-        :> ITestDynamoClient
+    static member Create(database: CsApiDb, [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        TestDynamoClient.Create(database.CoreDb, logger)
 
-    static member Create(database: ApiDb, logger: ILogger) =
-        new TestDynamoClient(Either1 database, false, ValueSome logger)
-        :> ITestDynamoClient
-
-    static member Create(databaseId: DatabaseId, logger: ILogger) =
-        new TestDynamoClient(new ApiDb(databaseId = databaseId) |> Either1, true, ValueSome logger)
-        :> ITestDynamoClient
-
-    static member Create(databaseId: DatabaseId) =
-        new TestDynamoClient(new ApiDb(databaseId = databaseId) |> Either1, true, ValueNone)
-        :> ITestDynamoClient
-
-    static member Create(database: DistributedDatabase, target: DatabaseId) =
+    static member Create(
+        database: GlobalDatabase,
+        [<Optional; DefaultParameterValue(Nullable<DatabaseId>())>] target: Nullable<DatabaseId>,
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        
+        let target = if target.HasValue then target.Value else DatabaseId.defaultId
+        let logger = CSharp.toOption logger
         let data = Either2 struct (database, target)
         new TestDynamoClient(data, false, database.DefaultLogger) :> ITestDynamoClient
 
-    static member Create(database: DistributedDatabase, target: DatabaseId, logger: ILogger) =
-        let data = Either2 struct (database, target)
-        new TestDynamoClient(data, false, ValueSome logger) :> ITestDynamoClient
+    static member Create(
+        database: CsApiGlobalDb,
+        [<Optional; DefaultParameterValue(Nullable<DatabaseId>())>] target: Nullable<DatabaseId>,
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        
+        TestDynamoClient.Create(database.CoreDb, target, logger)
 
     interface ITestDynamoClient with
 
         /// <inheritdoc />
-        member _.Database = db
+        member _.FsDatabase = db
+        
+        /// <inheritdoc />
+        member _.CsDatabase =
+            // locking not really needed here. CsDb is transparent with equality overloads
+            match csDb with
+            | ValueSome x -> x
+            | ValueNone ->
+                let db = new Api.Database(db)
+                csDb <- ValueSome db
+                db
 
         /// <inheritdoc />
-        member _.DistributedDatabase = ValueOption.map fstT parent
+        member _.FsGlobalDatabase = ValueOption.map fstT parent
+        
+        /// <inheritdoc />
+        member this.CsGlobalDatabase =
+            // locking not really needed here. CsDb is transparent with equality overloads
+            match csGlobalDb with
+            | ValueSome x -> x |> CSharp.fromOption
+            | ValueNone ->
+                let globalDb = parent |> ValueOption.map (fstT >> fun x -> new Api.GlobalDatabase(x))
+                csGlobalDb <- ValueSome globalDb
+                globalDb |> CSharp.fromOption
 
         /// <inheritdoc />
         member _.DebugView = db.DebugTables
@@ -131,7 +159,7 @@ type TestDynamoClient private (
             | ValueSome struct (h, _) -> h.AwaitAllSubscribers defaultLogger c
 
         /// <inheritdoc />
-        member _.DistributedDebugView =
+        member _.GlobalDebugView =
             match parent with
             | ValueNone -> Map.add DatabaseId.defaultId db.DebugTables Map.empty
             | ValueSome struct (h, _) -> h.DebugTables
@@ -141,7 +169,7 @@ type TestDynamoClient private (
             LazyDebugTable(name, (describeRequiredTable db defaultLogger name).table)
 
         /// <inheritdoc />
-        member this.GetDistributedTable databaseId name =
+        member this.GetGlobalTable databaseId name =
             match parent with
             | ValueNone when databaseId = DatabaseId.defaultId ->
                 (this :> ITestDynamoClient).GetTable name
@@ -151,14 +179,8 @@ type TestDynamoClient private (
                 let db = h.GetDatabase defaultLogger databaseId
 
                 db.TryDescribeTable defaultLogger name
-                ?|> (fun x -> LazyDebugTable(name, x.table))
+                ?|> fun x -> LazyDebugTable(name, x.table)
                 |> ValueOption.defaultWith (fun _ -> invalidArg (nameof name) $"Invalid table \"{name}\" on database \"{databaseId}\"")
-
-        /// <inheritdoc />
-        member _.SubscribeToStream table (subscriber: StreamSubscriber) =
-            let config = StreamSubscriber.getStreamConfig subscriber
-            let fn = StreamSubscriber.getStreamSubscriber awsAccountId db.Id.regionId subscriber
-            db.SubscribeToStream ValueNone table config fn
 
         /// <inheritdoc />
         member _.SetScanLimits limits = scanSizeLimits <- limits
@@ -240,7 +262,7 @@ type TestDynamoClient private (
             let cluster =
                 parent
                 |> ValueOption.map fstT
-                |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a distributed database")
+                |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a global database")
                 
             if cluster.IsGlobalTable defaultLogger db.Id request.GlobalTableName |> not
             then clientError $"{request.GlobalTableName} in {db.Id} is not a global table"
@@ -277,7 +299,7 @@ type TestDynamoClient private (
             let cluster =
                 parent
                 |> ValueOption.map fstT
-                |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a distributed database")
+                |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a global database")
                 
             execute DescribeTable.Global.List.inputs cluster.ListGlobalTables (DescribeTable.Global.List.output request.Limit) cancellationToken request
 

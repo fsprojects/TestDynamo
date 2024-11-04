@@ -49,7 +49,7 @@ type PagingTests(output: ITestOutputHelper) =
 
                 // make sure host is initialized
                 let! data = sharedTestData (ValueSome collector)
-                let host = cloneHost (ValueSome (writer :> Microsoft.Extensions.Logging.ILogger))
+                let host = cloneHost writer
                 use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
                 let tab = Tables.get true true data
                 do! put tab.name client 199
@@ -417,7 +417,7 @@ type PagingTests(output: ITestOutputHelper) =
             Number -0.5678M
         |]
         |> Seq.ofArray
-        |> AttributeSet.fromNumbers
+        |> AttributeSet.create
         |> HashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 60
@@ -433,7 +433,7 @@ type PagingTests(output: ITestOutputHelper) =
             String "-0.5678"
         |]
         |> Seq.ofArray
-        |> AttributeSet.fromStrings
+        |> AttributeSet.create
         |> HashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 50
@@ -449,7 +449,7 @@ type PagingTests(output: ITestOutputHelper) =
             Binary (Encoding.UTF8.GetBytes  "-0.5678")
         |]
         |> Seq.ofArray
-        |> AttributeSet.fromBinary
+        |> AttributeSet.create
         |> HashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 50

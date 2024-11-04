@@ -4,25 +4,36 @@ open System
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
-open TestDynamo.Api
+open TestDynamo.Api.FSharp
 open TestDynamo.Model
 
 /// <summary>
-/// A client which can execute operations on an in memory Database or an in memory DistributedDatabase
+/// A client which can execute operations on an in memory Database or an in memory GlobalDatabase
 /// </summary>
 type ITestDynamoClient =
     inherit IAmazonDynamoDB
 
     /// <summary>
-    /// The database which this client will query
+    /// The database which this client will query, optimized for FSharp
     /// </summary>
-    abstract member Database: TestDynamo.Api.Database
+    abstract member FsDatabase: TestDynamo.Api.FSharp.Database
+    
+    /// <summary>
+    /// The database which this client will query, optimized for CSharp
+    /// </summary>
+    abstract member CsDatabase: TestDynamo.Api.Database
 
     /// <summary>
-    /// The distributed database which this client will query
+    /// The global database which this client will query optimized for FSharp
     /// This property may be None if the client only works with a local database  
     /// </summary>
-    abstract member DistributedDatabase: DistributedDatabase voption
+    abstract member FsGlobalDatabase: TestDynamo.Api.FSharp.GlobalDatabase voption
+
+    /// <summary>
+    /// The global database which this client will query optimized for FSharp
+    /// This property may be null if the client only works with a local database  
+    /// </summary>
+    abstract member CsGlobalDatabase: TestDynamo.Api.GlobalDatabase
 
     /// <summary>
     /// Return a task that will be completed when all subscribers have been completed and the system is at rest
@@ -37,7 +48,7 @@ type ITestDynamoClient =
     /// </para>
     ///
     /// <para>
-    /// For programmatic access, use the Tables property
+    /// For programmatic access, use the GetTable method
     /// </para>
     /// </summary>
     abstract member DebugView: DebugTable seq
@@ -49,14 +60,14 @@ type ITestDynamoClient =
     /// </para>
     ///
     /// <para>
-    /// If this client works on a non distributed database, there will only be one item in the result
+    /// If this client works on a non global database, there will only be one item in the result
     /// </para>
     ///
     /// <para>
-    /// For programmatic access, use the DistributedTables property
+    /// For programmatic access, use the GetGlobalTable method
     /// </para>
     /// </summary>
-    abstract member DistributedDebugView: Map<DatabaseId, DebugTable list>
+    abstract member GlobalDebugView: Map<DatabaseId, DebugTable list>
 
     /// <summary>
     /// <para>
@@ -84,19 +95,13 @@ type ITestDynamoClient =
     /// For a debugger display, see the DebugView property
     /// </para>
     /// </summary>
-    abstract member GetDistributedTable: databaseId: DatabaseId -> tableName: string -> LazyDebugTable
+    abstract member GetGlobalTable: databaseId: DatabaseId -> tableName: string -> LazyDebugTable
 
     /// <summary>
     /// An artificial delay to add to processing to simulate IO
     /// If greater than zero, will also defer execution to another thread using Tasks 
     /// </summary>
     abstract member ProcessingDelay: TimeSpan with get, set
-
-    /// <summary>
-    /// Add a callback to any changes to a specific table. This functionality mocks DynamoDbStreams
-    /// Returns an item that will remove the subscription 
-    /// </summary>
-    abstract member SubscribeToStream: tableName: string -> subscriber: StreamSubscriber -> IStreamSubscriberDisposal
 
     /// <summary>
     /// <para>
