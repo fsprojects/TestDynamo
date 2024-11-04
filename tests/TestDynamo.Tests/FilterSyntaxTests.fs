@@ -380,6 +380,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                         |> mapFst (List.map sndT)
                         |> mapSnd (List.map sndT)
                     before@($"({x} AND {y})"::after) |> nestCenter
+                
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
             let folder =
@@ -395,8 +396,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 | x -> invalidOp (x.ToString())
 
             let expr =
-                [0..250]
-                |> Seq.map (sprintf "p%i<>:p")
+                [0..300]
+                |> Seq.map (asLazy "p<>:p")
                 |> folder
 
             // act
@@ -417,7 +418,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 // test for stack overflow
             with
             | e ->
-                assertError output "Maximum depth of query has been reached" e
+                assertError output "Maximum number of operators has been reached" e
         }
 
     [<Theory>]

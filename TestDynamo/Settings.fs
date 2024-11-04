@@ -31,28 +31,18 @@ let mutable DatabaseLockWaitTime = TimeSpan.FromMinutes(1)
 
 /// <summary>
 /// <para>
-/// Rough max depth that the expression compiler is allowed to use when executing
-/// If changing this value, you may need to increase the stack size in your dotnet environment
+/// Maximum number of operators and functions allowed in a query. This is an AWS imposed limit
+/// If increasing this value, you may need to increase the stack size in your dotnet environment
+/// </para>
+/// <para>
+/// https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html#limits-expression-parameters
 /// </para>
 /// 
 /// <para>
-/// For example, the expression "A1 = :b AND A2 = :b OR X1 = :y AND X2 = :y"
-/// has a depth of roughly 3  
-/// </para>
-/// 
-/// <code>
-/// depth 1 : depth 2 : depth 3
-/// Root -    OR1 -     A1 = :b 
-///      \        -     A2 = :b
-///           OR2 -     X1 = :y
-///               -     X2 = :y
-/// </code>
-/// 
-/// <para>
-/// Default: 200
+/// Default: 300
 /// </para> 
 /// </summary>
-let mutable ExpressionCompilerRecursionlimit = 200
+let mutable ExpressionOperatorLimit = 300
 
 /// <summary>
 /// <para>

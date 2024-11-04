@@ -406,12 +406,19 @@ module ExpressionCompiler =
                 >> mapFst (debug logger)
                 >> sndT
 
-    let private depthError = $"Maximum depth of query has been reached. See {nameof Settings}.{nameof Settings.ExpressionCompilerRecursionlimit} for configuration"
+    let private operatorLimitError = $"Maximum number of operators has been reached. See {nameof Settings}.{nameof Settings.ExpressionOperatorLimit} for configuration"
     let compile node lookups (Ec c) =
 
-        AstNode.depthFirstSearch (fun i () _ ->
-            if i > Settings.ExpressionCompilerRecursionlimit then serverError depthError
-            ()) () node
+        let operatorCount =
+            AstNode.depthFirstSearch (fun _ s -> function
+                | AstNode.Call _
+                | AstNode.Between _
+                | AstNode.BinaryOperator _
+                | AstNode.UnaryOperator _ -> s + 1
+                | _ -> s) 0 node
+        
+        if operatorCount > Settings.ExpressionOperatorLimit
+        then clientError operatorLimitError
 
         c.compiler node lookups
         |> mapFst (flip Writer.map)

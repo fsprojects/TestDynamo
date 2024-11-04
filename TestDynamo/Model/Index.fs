@@ -46,8 +46,8 @@ type private DeletedItems =
         | recursive, x, head::tail when head.deleteId.Value > x.deleteId.Value ->
             // non tail call should be fine here. In the unlikely case that an item should not go at the head
             // of this list, it will go a small number of items back
-            assert (recursive < 500)
-            if recursive >= 500
+            assert (recursive < 100)
+            if recursive >= 100
             then
                 // In extreme cases, accept defeat and take sort performance hit (memory + cpu)
                 x::head::tail |> List.sortWith (fun x y -> y.deleteId.Value - x.deleteId.Value)
