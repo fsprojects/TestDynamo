@@ -1,0 +1,8 @@
+bin/
+obj/
+.idea/
+*.DotSettings.user
+.fake
+/BenchmarkDotNet.Artifacts/
+node_modules/
+TestResults/
