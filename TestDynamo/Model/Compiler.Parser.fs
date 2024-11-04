@@ -89,6 +89,9 @@ and private processToken' state token collection =
         debug struct (verb.ToString(), tkn) processNonConformingUpdateExpression state p verb collection
     | (p, _), Tkn (Token.Text x) when Array.contains x.string state.inputs.settings.functionNames ->
         debug struct ("CALL", tkn) processCall state p x.string collection
+    | (p, _), Tkn (Token.Text x) when tryTokenIsOpen (p + 1us) collection ->
+        // this is a failure case. At this state we know it is an invalid function name
+        debug struct ("CALL", tkn) processCall state p x.string collection
     | (p, _), Tkn (Token.Text attr) -> debug struct ("Symbol", tkn) processText state attr.string p collection
     | (p, _), Tkn (Token.ExpressionAttrValue attr) -> debug struct ("\":val\"", tkn) processExpressionAttrValue state attr.string p collection |> Ok
     | (p, _), Tkn (Token.ExpressionAttrName attr) -> debug struct ("\"#name\"", tkn) processExpressionAttrName state attr.string p collection |> Ok
@@ -103,6 +106,13 @@ and private processToken' state token collection =
 and private processAst _ struct (l, r) ast collection = Ok struct (collection, ProcessedTokenPointer.create l r ast)
 
 and private processSpace _ () = serverError "Spaces should have been removed"
+
+and tryTokenIsOpen p (collection: PrecedenceProcessor<_>) =
+    PrecedenceProcessor.tryGetToken p collection
+    ?|> function
+        | Token.Open _ -> true
+        | _ -> false
+    ?|? false
 
 /// <summary>
 /// Conforming update expressions are expressions which have the same syntax as filters, queries etc
@@ -442,7 +452,7 @@ let private handleError =
     combineErrors
     >> function
         | Ok x -> x
-        | Error (Either2 _) -> serverError "Query cannot be compiled"
+        | Error (Either2 _) -> clientError "Query cannot be compiled"
         | Error (Either1 client) ->
             client
             |> Seq.mapi (fun i -> Str.indentSpace (i * 2))

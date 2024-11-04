@@ -1,16 +1,8 @@
 
 Features
  * Bulk execute operations from string. basicaly serialize an array of operations so that they can be applied
- * Serialize stream subscriber behaviour for replications
- * Found randomly in transact write item docs: "Nesting Levels have exceeded supported limits."
- * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception) 
- * Stream error handling
-	*// TODO: currently a subscriber will execute once. If it fails, the queue is not
-                // blocked and items go directly onto a DLQ. This should be configurable
-                // MAKE SURE TO TAKE INTO ACCOUNT DB SYNC CORRUPTION WITH DLQ 
-				search for https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-errors.html
+ * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception)
  * Search for ReturnValuesOnConditionCheckFailure
- * Compiler error message if function is spelled incorrectly isn't great: e.g. try update expression ""SET Attr = if_nost_exists(Attr, :x)""
  * TODO https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
  * When building a DynamoDBEvent.DynamodbStreamRecord
     * EventVersion is not set
@@ -18,7 +10,6 @@ Features
 
 Tests
  * Do a giant fuzz tester of all expressions
- * When scanning and calculating item size, should size be calculated before or after projection
 
 Interface
  * Audit every public facing type/record + document

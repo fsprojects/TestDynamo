@@ -286,8 +286,8 @@ module PrecedenceProcessor =
     /// Get a token at a given index, along with its processed version if available
     /// </summary>
     let tryGet =
-        // O(N) operation on an ever shinking number of nodes
-        // probaly does not need to be optimised for small collections
+        // O(N) operation on an ever shrinking number of nodes
+        // probably does not need to be optimised for small collections
         let rec tryAst index = function
             | [] -> ValueNone
             | head::_ when head.fromToken <= index && head.toToken >= index ->
@@ -302,6 +302,14 @@ module PrecedenceProcessor =
                 ?|> (mapSnd Processed)
                 |> ValueOption.defaultValue (Array.get tkn (int i) |> Tkn |> tpl struct (i, i))
                 |> ValueSome
+
+    /// <summary>
+    /// Get a token at a given index. Even if the token is processed, return it's unprocessed version
+    /// </summary>
+    let tryGetToken (i: uint16) (Pp { tokens = tkn }) =
+        let i = int i
+        if i >= Array.length tkn then ValueNone
+        else ValueSome tkn[i]
 
     /// <summary>
     /// Specify whether a given index is out of range

@@ -332,10 +332,9 @@ module private StreamSubscriber =
             |%>>= (fun failed ->
                 subscriber.callback subscriber.behaviour logger message
                 |%|> (tpl failed))
-            |%|> (function
+            |%|> function
                 | failed, ValueNone -> failed
-                // https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-errors.html
-                | failed, ValueSome x -> x::failed)
+                | failed, ValueSome x -> x::failed
 
         { subscriber with executionState = newErrs.Preserve() }
 
