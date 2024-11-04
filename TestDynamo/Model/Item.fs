@@ -805,31 +805,34 @@ module Item =
 
     let private validateMap =
         let dot = "."
-        let rec getAttrErrors prop: AttributeValue -> string seq = function
-            | HashMap item ->
+        let rec getAttrErrors = function
+            | struct (struct (depth, path), _) when depth > 32 ->
+                $"Maximum nested attribute depth is 32: \"{path |> List.rev |> Str.join dot}\""
+                |> Seq.singleton 
+            | struct (depth, prop), HashMap item ->
 
                 let invalidNested =
                     item
                     |> MapUtils.toSeq
                     |> Seq.collect (
-                        mapFst (flip Collection.prependL prop)
-                        >> uncurry getAttrErrors)
+                        mapFst (
+                            flip Collection.prependL prop
+                            >> tpl (depth + 1))
+                        >> getAttrErrors)
 
                 match struct (Map.containsKey null item || Map.containsKey "" item, prop) with
                 | false, _ -> invalidNested
                 | true, name -> Collection.prepend $"Item has map or property attribute with null or empty name: \"{prop |> List.rev |> Str.join dot}\"" invalidNested
-            | HashSet xs -> AttributeSet.asSet xs |> Seq.collect (getAttrErrors ("[]"::prop))
-            | AttributeList xs -> xs |> AttributeListType.asSeq |> Seq.collect (getAttrErrors ("[]"::prop))
-            | Null -> Seq.empty
-            | String null -> Seq.empty
-            | Binary null -> Seq.empty
-            | String _ -> Seq.empty
-            | Number _ -> Seq.empty
-            | Binary _ -> Seq.empty
-            | Boolean _ -> Seq.empty
+            | (depth, prop), HashSet xs -> AttributeSet.asSet xs |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
+            | (depth, prop), AttributeList xs -> xs |> AttributeListType.asSeq |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
+            | _, Null -> Seq.empty
+            | _, String _ -> Seq.empty
+            | _, Number _ -> Seq.empty
+            | _, Binary _ -> Seq.empty
+            | _, Boolean _ -> Seq.empty
 
         fun item ->
-            match getAttrErrors [] (HashMap item) |> Str.join "; " with
+            match getAttrErrors ((1, []), HashMap item) |> Str.join "; " with
             | "" -> ()
             | e -> clientError $"Invalid item - {e}"
 
