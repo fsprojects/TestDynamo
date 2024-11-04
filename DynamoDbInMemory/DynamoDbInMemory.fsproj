@@ -1,0 +1,83 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Settings.fs" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="Logger.fs" />
+    <Compile Include="CSharp.fs" />
+    <Compile Include="Data\BasicStructures.fs" />
+    <Compile Include="Data\AvlTree.fs" />
+    <Compile Include="Data\Monads.fs" />
+    <Compile Include="Data\Monads.MaybeLazy.fs" />
+    <Compile Include="Data\Monads.Operators.fs" />
+    <Compile Include="Data\Queue.fs" />
+    <Compile Include="Data\MutableValue.fs" />
+    <Compile Include="Model\DatabaseLogger.fs" />
+    <Compile Include="Model\Item.fs" />
+    <Compile Include="Model\KeyConfig.fs" />
+    <Compile Include="Model\ChangeResults.fs" />
+    <Compile Include="Model\Partition.fs" />
+    <Compile Include="Model\Index.fs" />
+    <Compile Include="Model\TableKeyAttributeList.fs" />
+    <Compile Include="Model\Compiler.ReservedWords.fs" />
+    <Compile Include="Model\Compiler.Lexer.fs" />
+    <Compile Include="Model\Compiler.PrecedenceProcessor.fs" />
+    <Compile Include="Model\Compiler.AstNode.fs" />
+    <Compile Include="Model\Compiler.Parser.fs" />
+    <Compile Include="Model\Compiler.Validator.fs" />
+    <Compile Include="Model\Compiler.ExpressionPartCompiler.fs" />
+    <Compile Include="Model\Compiler.GetOps.fs" />
+    <Compile Include="Model\Compiler.MutateOps.fs" />
+    <Compile Include="Model\Compiler.AstOps.fs" />
+    <Compile Include="Model\Compiler.ExpressionCompiler.fs" />
+    <Compile Include="Model\Compiler.QueryExpressionCompiler.fs" />
+    <Compile Include="Model\Compiler.Compilers.fs" />
+    <Compile Include="Model\ExpressionExecutors.fs" />
+    <Compile Include="Model\Table.fs" />
+    <Compile Include="Model\DatabaseTables.fs" />
+    <Compile Include="Model\Stream.fs" />
+    <Compile Include="Model\SynchronizationException.fs" />
+    <Compile Include="Model\Database.fs" />
+    <Compile Include="Api\DebugTables.fs" />
+    <Compile Include="Api\Database.fs" />
+    <Compile Include="Api\DistributedDatabaseState.fs" />
+    <Compile Include="Api\DistributedDatabase.fs" />
+    <Compile Include="Serialization\Converters.fs" />
+    <Compile Include="Serialization\Data.Version1.fs" />
+    <Compile Include="Serialization\DatabaseSerializer.fs" />
+    <Compile Include="Client\StreamSubscriber.fs" />
+    <Compile Include="Client\IInMemoryDynamoDbClient.fs" />
+    <Compile Include="Client\ItemMapper.fs" />
+    <Compile Include="Client\Shared.fs" />
+    <Compile Include="Client\DescribeTable.fs" />
+    <Compile Include="Client\CreateTable.fs" />
+    <Compile Include="Client\DeleteTable.fs" />
+    <Compile Include="Client\UpdateTable.fs" />
+    <Compile Include="Client\CreateGlobalTable.fs" />
+    <Compile Include="Client\UpdateGlobalTable.fs" />
+    <Compile Include="Client\Query.fs" />
+    <Compile Include="Client\GetItem.fs" />
+    <Compile Include="Client\PutItem.fs" />
+    <Compile Include="Client\UpdateItem.fs" />
+    <Compile Include="Client\DeleteItem.fs" />
+    <Compile Include="Client\TransactWriteItems.fs" />
+    <Compile Include="Client\Scan.fs" />
+    <Compile Include="Client\MultiClientOperations.fs" />
+    <Compile Include="Client\InMemoryDynamoDbClient.fs" />
+    <Content Include="TODO.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.DynamoDBEvents" Version="3.1.1" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>
