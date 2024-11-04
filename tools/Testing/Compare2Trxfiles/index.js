@@ -10,7 +10,7 @@ console.log("Starting")
 const slow = parse(process.argv[2])
 const fast = parse(process.argv[3])
 
-console.log(processResults(combine(slow, fast), x => x.name.startsWith("DynamoDbInMemory.Tests.FilterSyntaxTests.Filter, <,<=,>,>=, returns correct items")))
+console.log(processResults(combine(slow, fast), x => x.name.startsWith("TestDynamo.Tests.FilterSyntaxTests.Filter, <,<=,>,>=, returns correct items")))
 
 function processResults(combinations, filter) {
     const missingFromSlow = toArray(combinations.missingFromSlow).reduce((s, x) => s + x.value.result, 0)

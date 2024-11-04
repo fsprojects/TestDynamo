@@ -71,7 +71,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -139,7 +139,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -224,7 +224,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -265,7 +265,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -315,7 +315,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -542,7 +542,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -643,7 +643,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride

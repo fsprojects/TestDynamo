@@ -203,7 +203,7 @@ Dictionary<string, object> Done()
 {
     var replicaDescription = JsonSerializer.Serialize(new
     {
-        __description = "Partial support. If an `InMemoryDynamoDbClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty",
+        __description = "Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty",
         GlobalSecondaryIndexes = new
         {
             IndexName = true
