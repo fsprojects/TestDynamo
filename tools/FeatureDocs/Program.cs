@@ -3,14 +3,11 @@
 using Amazon.DynamoDBv2;
 using Amazon.Runtime;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 var done = Done();
 var classes = typeof(IAmazonDynamoDB)
     .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-
-    //.Where(x => x.Name == "CreateTableAsync")
 
     .Where(x => x.GetParameters().Length > 0)
     .GroupBy(x => x.Name)
@@ -32,7 +29,7 @@ var classes = typeof(IAmazonDynamoDB)
     .Select(x => (x.Name, Print(x.Name, x.Inputs, x.Outputs)))
     .OrderBy(x => x.Item2.Item1 ? 0 : 1)
     .ThenBy(x => x.Item2.Item2)
-    .Select(x => (x.Item2.Item1 ? x.Item1 : null, x.Item2.Item2))
+    .Select(x => (x.Item2.Item1 ? x.Name : null, x.Item2.Item2))
     .ToList();
 
 var names = new List<string>();
@@ -99,6 +96,12 @@ string Indent(string str, int indent)
         Dictionary<string, object> d when d.ContainsKey("__description") => (string)d["__description"],
         _ => ""
     };
+    
+    var omitChildren = schema.Value switch
+    {
+        Dictionary<string, object> d when d.ContainsKey("__omitChildren") && d["__omitChildren"].Equals(true) => true,
+        _ => false
+    };
 
     if (description != "") description = $" - {description}";
 
@@ -110,8 +113,10 @@ string Indent(string str, int indent)
         
     if (schema.Value is bool b2 && !b2)
         return ("2" + schema.Key, $" * {schema.Key}{description}");
-        //return ("2" + schema.Key, $" * ❌ {schema.Key}{description}");
         
+    if (omitChildren)
+        return ("2" + schema.Key, $" * {schema.Key}{description}");
+
     if (schema.Value is not Dictionary<string, object> inner)
         throw new Exception();
 
@@ -147,6 +152,16 @@ Dictionary<string, object> DescribeRoot(Type type, Dictionary<string, object>? d
         .Where(x => x.DeclaringType != typeof(AmazonWebServiceResponse))
         .Select(x => KeyValuePair.Create<string, object>(x.Name, false))
         .ToDictionary();
+
+    var removeProps = result.Keys
+        .Select(k => $"Is{k}Set")
+        .Where(result.ContainsKey)
+        .ToList();
+
+    foreach (var k in removeProps)
+    {
+        result.Remove(k);
+    }
 
     if (done != null)
     {
@@ -203,7 +218,7 @@ Dictionary<string, object> Done()
 {
     var replicaDescription = JsonSerializer.Serialize(new
     {
-        __description = "Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty",
+        __description = "Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty",
         GlobalSecondaryIndexes = new
         {
             IndexName = true
@@ -249,8 +264,29 @@ Dictionary<string, object> Done()
         Replicas = "{{replicaDescription}}"
     });
 
+    var deprecated = new
+    {
+        __description = "This operation is deprecated by AWS",
+        __omitChildren = true
+    };
+
     var json = JsonSerializer.Serialize(new
     {
+        DeleteItemRequest = new
+        {
+            Key = true,
+            TableName = true,
+            ConditionExpression = true,
+            ExpressionAttributeNames = true,
+            ExpressionAttributeValues = true,
+            ReturnValues = true,
+            ConditionalOperator = deprecated,
+            Expected = deprecated
+        },
+        DeleteItemResponse = new
+        {
+            Attributes = true
+        },
         CreateTableRequest = new
         {
             TableName = true,
@@ -324,7 +360,9 @@ Dictionary<string, object> Done()
             ReturnValues = true,
             ConditionExpression = true,
             ExpressionAttributeNames = true,
-            ExpressionAttributeValues = true
+            ExpressionAttributeValues = true,
+            Expected = deprecated,
+            ConditionalOperator = deprecated
         },
         PutItemResponse = new
         {
@@ -383,15 +421,6 @@ Dictionary<string, object> Done()
                 Item = true
             }
         },
-        DeleteItemRequest = new
-        {
-            Key = true,
-            TableName = true,
-            ConditionExpression = true,
-            ExpressionAttributeNames = true,
-            ExpressionAttributeValues = true,
-            ReturnValues = true
-        },
         ListTablesResponse = new 
         {
             TableNames = true,
@@ -401,10 +430,6 @@ Dictionary<string, object> Done()
         {
             ExclusiveStartTableName = true,
             Limit = true
-        },
-        DeleteItemResponse = new
-        {
-            Attributes = true
         },
         DescribeTableRequest = new
         {
@@ -477,7 +502,11 @@ Dictionary<string, object> Done()
             ScanIndexForward = true,
             ExclusiveStartKey = true,
             ProjectionExpression = true,
-            Select = true
+            Select = true,
+            AttributesToGet = deprecated,
+            KeyConditions = deprecated,
+            QueryFilter = deprecated,
+            ConditionalOperator = deprecated
         },
         QueryResponse = new
         {
@@ -555,7 +584,8 @@ Dictionary<string, object> Done()
             TableName = true,
             ProjectionExpression = true,
             Key = true,
-            ExpressionAttributeNames = true
+            ExpressionAttributeNames = true,
+            AttributesToGet = deprecated
         },
         GetItemResponse = new
         {
@@ -620,7 +650,9 @@ Dictionary<string, object> Done()
             TableName = true,
             ReturnValues = true,
             ExpressionAttributeNames = true,
-            ExpressionAttributeValues = true
+            ExpressionAttributeValues = true,
+            Expected = deprecated,
+            ConditionalOperator = deprecated
         },
         UpdateItemResponse = new
         {

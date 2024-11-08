@@ -71,7 +71,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -139,7 +139,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -177,8 +177,8 @@
  * ✅ Key
  * ✅ ReturnValues
  * ✅ TableName
- * ConditionalOperator
- * Expected
+ * ConditionalOperator - This operation is deprecated by AWS
+ * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure
@@ -224,7 +224,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -265,7 +265,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -315,7 +315,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -351,7 +351,7 @@
  * ✅ Key
  * ✅ ProjectionExpression
  * ✅ TableName
- * AttributesToGet
+ * AttributesToGet - This operation is deprecated by AWS
  * ConsistentRead
  * ReturnConsumedCapacity
 
@@ -396,8 +396,8 @@
  * ✅ Item
  * ✅ ReturnValues
  * ✅ TableName
- * ConditionalOperator
- * Expected
+ * ConditionalOperator - This operation is deprecated by AWS
+ * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure
@@ -423,12 +423,11 @@
  * ✅ ScanIndexForward
  * ✅ Select
  * ✅ TableName
- * AttributesToGet
- * ConditionalOperator
+ * AttributesToGet - This operation is deprecated by AWS
+ * ConditionalOperator - This operation is deprecated by AWS
  * ConsistentRead
- * IsLimitSet
- * KeyConditions
- * QueryFilter
+ * KeyConditions - This operation is deprecated by AWS
+ * QueryFilter - This operation is deprecated by AWS
  * ReturnConsumedCapacity
 
 ### Outputs
@@ -455,9 +454,6 @@
  * AttributesToGet
  * ConditionalOperator
  * ConsistentRead
- * IsLimitSet
- * IsSegmentSet
- * IsTotalSegmentsSet
  * ReturnConsumedCapacity
  * ScanFilter
  * Segment
@@ -542,7 +538,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -569,8 +565,8 @@
  * ✅ ReturnValues
  * ✅ TableName
  * ✅ UpdateExpression
- * ConditionalOperator
- * Expected
+ * ConditionalOperator - This operation is deprecated by AWS
+ * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure
@@ -643,7 +639,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a distributed db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
