@@ -406,7 +406,7 @@ module ExpressionCompiler =
                 >> mapFst (debug logger)
                 >> sndT
 
-    let private operatorLimitError = $"Maximum number of operators has been reached. See {nameof Settings}.{nameof Settings.ExpressionOperatorLimit} for configuration"
+    let private operatorLimitError = $"Maximum number of operators has been reached. You can change this value by modifying {nameof Settings}.{nameof Settings.ExpressionOperatorLimit} for configuration"
     let compile node lookups (Ec c) =
 
         let operatorCount =

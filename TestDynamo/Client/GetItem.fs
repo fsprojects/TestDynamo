@@ -73,7 +73,7 @@ module Transaction =
 
     let inputs1 (req: TransactGetItemsRequest) =
         if req.TransactItems <> null && req.TransactItems.Count > Settings.TransactReadSettings.MaxItemsPerRequest
-        then clientError $"The limit on TransactGetItems is {Settings.TransactReadSettings.MaxItemsPerRequest} records. You can change this limit by setting {nameof Settings}.{nameof Settings.TransactReadSettings}.{nameof Settings.TransactReadSettings.MaxItemsPerRequest}"
+        then clientError $"The limit on TransactGetItems is {Settings.TransactReadSettings.MaxItemsPerRequest} records. You can change this value by modifying {nameof Settings}.{nameof Settings.TransactReadSettings}.{nameof Settings.TransactReadSettings.MaxItemsPerRequest}"
 
         req.TransactItems |> CSharp.sanitizeSeq |> Seq.map (_.Get >> inputs1')
 

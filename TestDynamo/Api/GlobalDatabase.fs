@@ -7,6 +7,8 @@ open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open Microsoft.Extensions.Logging
 
+#nowarn "3390"
+
 type FsGlobalDb = TestDynamo.Api.FSharp.GlobalDatabase
 type GlobalDatabaseCloneData = TestDynamo.Api.FSharp.GlobalDatabaseCloneData
 type DatabaseCloneData = TestDynamo.Api.FSharp.DatabaseCloneData
@@ -115,6 +117,10 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     member this.IsGlobalTable([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.IsGlobalTable  (CSharp.toOption logger)
         
+    /// <param name="rootsOnly">
+    /// If true, will only list replications which describe a paren => child operation.
+    /// If false, will include all replications, half of which will be child => parent operations
+    /// </param>
     member _.ListReplications (rootsOnly, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.ListReplications  (CSharp.toOption logger) rootsOnly
 

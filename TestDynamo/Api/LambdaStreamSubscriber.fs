@@ -17,6 +17,8 @@ open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 
+#nowarn "3390"
+
 [<Struct; IsReadOnly>]
 type LambdaStreamSubscriber =
     private | Ss of struct (
@@ -188,12 +190,20 @@ type LambdaStreamSubscriber =
         | x -> notSupported $"Invalid {nameof StreamViewType} \"{x.Value}\""
 
     static member private completedTask = ValueTask<_>(()).Preserve()
+    
+    /// <summary>
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// </summary>
     static member Build (
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType) =
         
         LambdaStreamSubscriber.Build(subscriber, SubscriberBehaviour.defaultOptions, streamViewType)
         
+    /// <summary>
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// </summary>
+    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     static member Build (
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         behaviour,

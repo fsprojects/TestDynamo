@@ -59,10 +59,16 @@ type Database private (db: FsDb, dispose: bool) =
     
     member internal _. CoreDb = db
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Get a table for debugging purposes
+    /// </summary>
     member _.GetTable name =
         LazyDebugTable(name, (describeRequiredTable db name).table)
     
+    /// <summary>
+    /// Create a table builder, which can accumulate properties and settings
+    /// and then execute an AddTable request against this database
+    /// </summary>
     member _.TableBuilder(
         name: string,
         partitionKey: struct (string * string),
@@ -70,7 +76,11 @@ type Database private (db: FsDb, dispose: bool) =
         
         TableBuilder.Create(db, name, partitionKey, sortKey)
     
-    member _.ItemBuilder(name) = ItemBuilder.Create(db, name)
+    /// <summary>
+    /// Create an item builder, which can accumulate attributes
+    /// and then execute a Put request against this database
+    /// </summary>
+    member _.ItemBuilder(tableName) = ItemBuilder.Create(db, tableName)
 
     /// <summary>
     /// Add a callback which can subscribe to a Table Stream

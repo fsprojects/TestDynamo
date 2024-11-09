@@ -13,14 +13,7 @@ Tests
  * Do a giant fuzz tester of all expressions
 
 Interface
- * Audit every public facing type/record + document
- * Audit of C# F# interop
-	* + clean up CSharp code
  * full audit of dependencies and dotnet versions
- * Test ``Delete item, with pk, deletes from table and index``. Use to have a look at log indenting, which looks weird inside `applyFilters`
- * make the "you can change this setting" message more consistant
- * audit what has leaked out from the Api.Database into the client. Might need to roll some stuff back there
- * Streamsubscriber.fs: change to an F# interface. Make a separate construct for C#
  
 Optimisations/refactoring
  * PrecedenceProcessor.fs: Optimize this whole file + Parser.fs they are are a hot path

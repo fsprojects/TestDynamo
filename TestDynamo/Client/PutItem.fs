@@ -136,7 +136,7 @@ module BatchWrite =
         then
             [
                 $"Max allowed items is {Settings.BatchItems.MaxBatchWriteItems} for the BatchWriteItem call. "
-                $"You can modify this with {nameof Settings}.{nameof Settings.BatchItems}.{nameof Settings.BatchItems.MaxBatchWriteItems}."
+                $"You can change this value by modifying {nameof Settings}.{nameof Settings.BatchItems}.{nameof Settings.BatchItems.MaxBatchWriteItems}."
             ] |> Str.join "" |> clientError
 
         let requests =
