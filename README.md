@@ -62,6 +62,8 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [`ITestDynamoClient`](#itestdynamoclient) is the entry point for dynamodb operations. It implements `IAmazonDynamoDb`.
     * Check the [features](./Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
+ * [Locking and atomic transactions](#locking-and-atomic-transactions)
+ * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
 
 ### ITestDynamoClient
 
@@ -186,6 +188,12 @@ var ringo = database
 
 ### Streaming and Subscriptions
 
+If streams are enabled on tables they can be used for global table 
+replication and custom subscribers. TestDynamo differes from dynamodb as follows
+
+ * There is no limit to the number of subscribers that you can have on a stream
+ * Strem settings (e.g. `NEW_AND_OLD_IMAGES`) are configured per subsriber. If these values are set on a stream they will be ignored
+
 Subscribe to changes with a lambda stream subscription syntax
 
 ```C#
@@ -239,9 +247,30 @@ var subscription = database
 subscription.Dispose();
 ```
 
+Subscriptions synchonicity error handling and can be customized with `SubscriberBehaviour` through the 
+`Scubscribe` and `LambdaStreamSubscriber` methods. 
+
+Subscriptions can be executed synchonously or asynchonously. For example, if a subscription 
+is configured to execute synchronously, and a PUT request is executed, the `ITestDynamoClient` will not return
+a PUT response until the subscriber has completed it's work. If the subscription is asynchronous, then subscriber
+execution is disconnected from the event trigger.
+
+If a subscriber is synchronous, its errors can be propagated back to the trigger method, allowing for more direct
+test results. Otherwise, errors are cached and can be retrieved in the form of Exceptions when an `AwaitAllSubscribers`
+method is called
+
+#### AwaitAllSubscribers
+
+The `Api.Database`, `Api.GlobalDatabase` and `ITestDynamoClient` have `AwaitAllSubscribers` methods to pause test execution
+until all subscribers have executed. This method will throw any exceptions that were experienced within subscribers and were not
+propagated synchronously
+
 ### Global Database
 
 The global database models an aws account with a collection of regions. Each region is an [`Api.Database`](#database). It is used test global table functionality 
+
+Creating global tables is a synchonous operation. The global table will 
+be ready to use as soon as the `ITestDynamo` client returns a response.
 
 ```C#
 using TestDynamo;
@@ -266,6 +295,11 @@ using var globalDatabase = new GlobalDatabase();
 using var db2 = globalDatabase.Clone();
 ```
 
+#### AwaitAllSubscribers
+
+The `Api.GlobalDatabase` and `ITestDynamoClient` have `AwaitAllSubscribers` methods to pause test execution
+until all data has been replicated between databases
+
 ### Database Serializers
 
 Database serializers can serialize or deserialize an entire database or global database to facilitate data driven testing
@@ -281,3 +315,20 @@ DatabaseSerializer.Database.ToFile(db1, @"C:\Tests\TestData.json");
 
 using var db2 = DatabaseSerializer.Database.FromFile(@"C:\Tests\TestData.json");
 ```
+
+### Locking and Atomic transactions
+
+Test dynamo is more consistant than DynamoDb. In general, all operations on a single database (region) are atomic. 
+Within the `ITestDynamo` client, BatchRead and BatchWrite operations are executed as several independant operations in order
+to simulate non consistency.
+
+The bigges difference you will see are
+
+ * Reads are always atomic
+ * Writes from tables to global secondary indexes are always atomic
+
+### Transact write ClientRequestToken
+
+[Client request tokens](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax) are used in transact write operations as an idempotency key. If 2 requests have the
+same client request token, the second one will not be executed. By default AWS keeps client request tokens for 10 minutes. TestDynamo
+keeps client request tokens for 10 seconds. This cache time can be updated in `Settings`.

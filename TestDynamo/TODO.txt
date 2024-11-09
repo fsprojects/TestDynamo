@@ -14,7 +14,6 @@ Tests
 
 Interface
  * Audit every public facing type/record + document
- * Replicated/global/global/synchronized all mean the same thing
  * Audit of C# F# interop
 	* + clean up CSharp code
  * full audit of dependencies and dotnet versions
@@ -22,21 +21,6 @@ Interface
  * make the "you can change this setting" message more consistant
  * audit what has leaked out from the Api.Database into the client. Might need to roll some stuff back there
  * Streamsubscriber.fs: change to an F# interface. Make a separate construct for C#
- 
-Documentation
- * ScanLimits
- * Everything in Settings.fs
- * SubscriberBehaviour
- * Document model
- * Docs on locking
-    * locking is done at db level (tables and indexes on the same DB are atomic)
-    * document locking settings
- * Update table (add replication): copy of data to new table is synchronous
- * Create table stream config, property is not actually used
- * Settings.ClientRequestTokenTTL: extra ducumentation on this one
- * in features.md 
-    * output, search for "IsLimitSet". Should not be in there
-    * mark deprecated fetch attributes as such with alternative suggestion (e.g. AttributesToGet)
  
 Optimisations/refactoring
  * PrecedenceProcessor.fs: Optimize this whole file + Parser.fs they are are a hot path
