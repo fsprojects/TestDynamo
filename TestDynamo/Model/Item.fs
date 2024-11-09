@@ -706,8 +706,12 @@ module ItemSize =
             let byteArr = ArrayPool.Shared.Rent 4
             try
                 let decimalBuffer = Span<int>(intArr)
+#if NETSTANDARD2_1
+                let bits = Decimal.GetBits(x)
+                bits.CopyTo(decimalBuffer)
+#else
                 Decimal.GetBits(x, decimalBuffer) |> ignoreTyped<int>
-
+#endif
                 let outputBuffer = Span<byte>(byteArr)
                 if not (BitConverter.TryWriteBytes(outputBuffer, decimalBuffer[3]))
                 then

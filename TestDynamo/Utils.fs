@@ -1122,17 +1122,59 @@ module Io =
 
     let deNormalizeVt (valueTask: ValueTask<unit>) =
         match trySyncResult valueTask with
+#if NETSTANDARD2_1
+        | ValueSome _ -> ValueTask()
+#else
         | ValueSome _ -> ValueTask.CompletedTask
+#endif
         | ValueNone ->
             task {
                 do! valueTask
                 return ()
             } |> ValueTask
+            
+    let private asAction (f: unit -> unit): System.Action = f
+            
+    // todo: not tested
+    /// <summary>Less efficient version of Task.WaitAsync</summary>
+    let private addCancellationToken' (c: CancellationToken) (t: Task<'a>) =
+        let source = TaskCompletionSource<'a>(c)
+        let mutable i = 0
+        
+        let mutable unRegister = Unchecked.defaultof<CancellationTokenRegistration>
+        let cancel () = 
+            if Interlocked.Increment(&i) = 1
+            then
+                source.SetCanceled()
+                unRegister.Dispose()
+        
+        unRegister <- c.Register(cancel)
+        
+        task {
+            try
+                let! x = t
+                if Interlocked.Increment(&i) = 1
+                then
+                    source.SetResult x
+                    unRegister.Dispose()
+            with
+            | e -> 
+                if Interlocked.Increment(&i) = 1
+                then
+                    source.SetException e
+                    unRegister.Dispose()
+        } |> ignoreTyped<Task<unit>>
+        
+        source.Task
 
     let addCancellationToken (c: CancellationToken) (t: ValueTask<'a>) =
         if t.IsCompleted || c = CancellationToken.None then t
+        // TODO: code doesn't seem to be used (not covered by tests anyway)
+#if NETSTANDARD2_1
+        else t.AsTask() |> addCancellationToken' c |> ValueTask<'a>
+#else
         else t.AsTask().WaitAsync(c) |> ValueTask<'a>
-
+#endif
     let apply x = x |> flip map |> bind
 
     let inline ignoreTask<'a> (x: Task<^a>): Task = x

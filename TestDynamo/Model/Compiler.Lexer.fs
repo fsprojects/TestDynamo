@@ -146,6 +146,16 @@ module Token =
 
 /// <summary>Match against a full regex if it appears at the specified index</summary>
 let private matchAtIndex struct (rx: Regex, struct (text: string, index)) =
+#if NETSTANDARD2_1
+    // find match indexes over parse matches to avoid heavy (and unnecessary) substringing
+    let rxMatch = rx.Match(text, index)
+
+    if rxMatch.Success |> not
+    then ValueNone
+    elif rxMatch.Index <> index
+    then ValueNone
+    else rxMatch.Groups[0].Captures[0].Value |> ValueSome
+#else
     // find match indexes over parse matches to avoid heavy (and unnecessary) substringing
     let mutable enm = rx.EnumerateMatches(text, index)
 
@@ -154,6 +164,7 @@ let private matchAtIndex struct (rx: Regex, struct (text: string, index)) =
     elif enm.Current.Index <> index then ValueNone
     elif enm.Current.Length = 0 then serverError "Infinite loop"
     else text.Substring(index, enm.Current.Length) |> ValueSome
+#endif
 
 let private token map (rx: Regex) =
 
