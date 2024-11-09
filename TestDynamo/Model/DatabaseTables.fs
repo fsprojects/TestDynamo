@@ -51,7 +51,8 @@ module ConditionAndProject =
 
 type UpdateItemArgs =
     { key: Map<string, AttributeValue>
-      updateExpression: string
+      // document model uses update for everything. If item only has keys, this will be None
+      updateExpression: string voption
       conditionExpression: ConditionAndProject<UpdateReturnValues> }
     with member this.tableName = this.conditionExpression.tableName 
 

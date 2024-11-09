@@ -41,7 +41,7 @@ let private update (req: Update) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
     
     { key = ItemMapper.itemFromDynamodb "$" req.Key
-      updateExpression = req.UpdateExpression |> CSharp.mandatory "Either UpdateExpression must be set"
+      updateExpression = req.UpdateExpression |> CSharp.emptyStringToNull |> CSharp.toOption
       conditionExpression =
           { conditionExpression = req.ConditionExpression |> Query.filterExpression
             tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"

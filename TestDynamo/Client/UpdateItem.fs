@@ -116,19 +116,13 @@ let inputs1 logger (req: UpdateItemRequest) =
     if dictionaryHasValue req.Expected then notSupported "Legacy Expected parameter is not supported"
     if req.ConditionalOperator <> null then notSupported "Legacy ConditionalOperator parameter is not supported"
 
-    let attributeUpdates = buildFromAttributeUpdates req logger
-    let updateExpression =
-        attributeUpdates
-        ?|> fstT
-        |> ValueOption.defaultWith (fun _ -> req.UpdateExpression |> CSharp.mandatory "Either UpdateExpression or AttributeUpdates must be set")
-
-    let struct (names, values) =
-        attributeUpdates
-        ?|> sndT
-        |> ValueOption.defaultValue struct (Map.empty, Map.empty)
+    let struct (updateExpression, struct (names, values)) =
+        buildFromAttributeUpdates req logger
+        ?|> mapFst ValueSome
+        ?|? struct (CSharp.emptyStringToNull req.UpdateExpression |> CSharp.toOption, struct (Map.empty, Map.empty))
 
     { key = ItemMapper.itemFromDynamodb "$" req.Key
-      updateExpression = updateExpression 
+      updateExpression = updateExpression
       conditionExpression =
           { conditionExpression = req.ConditionExpression |> filterExpression
             tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"

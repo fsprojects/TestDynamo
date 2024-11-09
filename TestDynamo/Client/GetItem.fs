@@ -16,21 +16,42 @@ open TestDynamo.Data.Monads.Operators
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 type MList<'a> = System.Collections.Generic.List<'a>
 
-let inputs1 (req: GetItemRequest) =
-    if req.AttributesToGet <> null && req.AttributesToGet.Count <> 0 then notSupported "Legacy AttributesToGet parameter is not supported"
+let private buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
+    if attributesToGet <> null && attributesToGet.Count > 0 && ValueOption.isSome projectionExpression
+    then clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
+    
+    if attributesToGet <> null && attributesToGet.Count > 0
+    then
+        attributesToGet
+        |> Seq.map (fun x ->
+            // TODO: uniqueid factory
+            let id = Guid.NewGuid().ToString().Replace("-", "") |> sprintf "#x%s"
+            struct (id, struct (id, x)))
+        |> Collection.unzip
+        |> mapFst (
+            Str.join ","
+            >> ValueSome
+            >> ProjectedAttributes)
+    else
+        projectionExpression
+        |> ValueOption.map (ValueSome >> ProjectedAttributes)
+        |> ValueOption.defaultValue AllAttributes
+        |> flip tpl List.empty
 
+let inputs1 (req: GetItemRequest) =
+    let struct (returnValues, exprAttrNames) = buildProjection (CSharp.toOption req.ProjectionExpression) req.AttributesToGet
+    
     { keys = [|itemFromDynamodb "$" req.Key|]
       maxPageSizeBytes = Int32.MaxValue
       conditionExpression =
           { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
             conditionExpression = ValueNone
             expressionAttrValues = Map.empty
-            expressionAttrNames = req.ExpressionAttributeNames |> expressionAttrNames
-            returnValues =
-                req.ProjectionExpression
-                |> CSharp.toOption
-                |> ValueOption.map (ValueSome >> ProjectedAttributes)
-                |> ValueOption.defaultValue AllAttributes }} : GetItemArgs
+            expressionAttrNames =
+                req.ExpressionAttributeNames
+                |> expressionAttrNames
+                |> flip (Seq.fold (fun s struct (k, v) -> Map.add k v s)) exprAttrNames
+            returnValues = returnValues }} : GetItemArgs
 
 let inputs2 struct (tableName, key) =
     let req = GetItemRequest()
@@ -152,9 +173,10 @@ module Batch =
 
         out
 
-    let private suppressMessage =
-        $"{nameof ITestDynamoClient}.{nameof Unchecked.defaultof<ITestDynamoClient>.AwsAccountId} or by "
-        + $"setting {nameof Settings}.{nameof Settings.SupressErrorsAndWarnings}.{nameof Settings.SupressErrorsAndWarnings.AwsAccountIdErrors} = true"
+    // TODO
+    let private suppressMessage = "TODO"
+        // $"{nameof ITestDynamoClient}.{nameof Unchecked.defaultof<ITestDynamoClient>.AwsAccountId} or by "
+        // + $"setting {nameof Settings}.{nameof Settings.SupressErrorsAndWarnings}.{nameof Settings.SupressErrorsAndWarnings.AwsAccountIdErrors} = true"
 
     let reKey awsAccountId defaultDatabaseId (req: struct (string * _) seq) =
 

@@ -71,6 +71,7 @@ let inputs1 =
         struct (attr.Key, attributeFromDynamodb "$" attr.Value)
 
     fun limits (req: QueryRequest) ->
+        // TODO: AttributesToGet are supported
         if req.AttributesToGet <> null && req.AttributesToGet.Count <> 0 then notSupported "Legacy AttributesToGet parameter is not supported"
         if req.KeyConditions <> null && req.KeyConditions.Count <> 0 then notSupported "Legacy KeyConditions parameter is not supported"
         if req.QueryFilter <> null && req.QueryFilter.Count <> 0 then notSupported "Legacy QueryFilter parameter is not supported"

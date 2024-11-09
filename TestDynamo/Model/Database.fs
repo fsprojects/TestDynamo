@@ -577,12 +577,14 @@ module Database =
         | _ -> None
 
     let private updatePut logger updateExpression args db =
-        put' "UpdateItem" DatabaseTables.put logger struct (ValueNone, ValueSome updateExpression, args) db
+        put' "UpdateItem" DatabaseTables.put logger struct (ValueNone, updateExpression, args) db
 
     type private UpdateResult =
         { updateProjector: Lazy<Item -> Map<string,AttributeValue>>
           cdcPacket: CdcPacket
           projectionFromPutOperation: Map<string,AttributeValue> voption } 
+    
+    let private noProjections = lazy(fun _ -> Map.empty)
     
     let private update' =
         let createItem logger attrs table =
@@ -602,14 +604,19 @@ module Database =
         let putPart logger (args: EmergencyBrakeRequest<_>) struct (struct (table, item), db) =
             Logger.log0 "Found item, applying updates" logger
             
-            let updateArgs =
-                { updateExpression = args.request.updateExpression
-                  expressionAttrValues = args.request.conditionExpression.expressionAttrValues
-                  expressionAttrNames = args.request.conditionExpression.expressionAttrNames }: ExpressionExecutors.Update.UpdateInput
+            let struct (updateResult, projector) = 
+                args.request.updateExpression
+                ?|> (fun updateExpr ->
+                
+                    let updateArgs =
+                        { updateExpression = updateExpr
+                          expressionAttrValues = args.request.conditionExpression.expressionAttrValues
+                          expressionAttrNames = args.request.conditionExpression.expressionAttrNames }: ExpressionExecutors.Update.UpdateInput
 
-            let attributeNames = Table.attributeNames table
-            let tableKeys = Table.primaryIndex table |> Index.keyConfig
-            let struct (updateResult, projector) = ExpressionExecutors.Update.executeUpdate updateArgs logger tableKeys attributeNames item
+                    let attributeNames = Table.attributeNames table
+                    let tableKeys = Table.primaryIndex table |> Index.keyConfig
+                    ExpressionExecutors.Update.executeUpdate updateArgs logger tableKeys attributeNames item)
+                ?|? struct (Item.attributes item, noProjections)
             
             let putReq =
                 EmergencyBrakeRequest.map (fun (args: UpdateItemArgs) ->
