@@ -10,6 +10,11 @@ open Amazon.Runtime
 let internal QueryCacheSize = ValueSome struct (500, 1000)
 
 /// <summary>
+/// The default value to use as the AWS account id for all ITestDynamo clients
+/// </summary>
+let mutable DefaultAwsAccountId = "123456789012"
+
+/// <summary>
 /// <para>
 /// Max amount of time to wait when attempting to synchronously lock a mutable value for mutation
 /// </para>

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <!--<TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>-->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -49,7 +50,6 @@
     <Compile Include="Api.FSharp\GlobalDatabaseState.fs" />
     <Compile Include="Api.FSharp\GlobalDatabase.fs" />
     <Compile Include="Api\CSharpHelpers.fs" />
-    <Compile Include="Api\LambdaStreamSubscriber.fs" />
     <Compile Include="Api\Database.fs" />
     <Compile Include="Api\GlobalDatabase.fs" />
     <Compile Include="Serialization\Converters.fs" />
@@ -76,7 +76,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Amazon.Lambda.DynamoDBEvents" Version="3.1.1" />
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />

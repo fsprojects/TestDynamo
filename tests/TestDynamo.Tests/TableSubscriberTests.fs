@@ -9,6 +9,7 @@ open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api
 open TestDynamo.Client
+open TestDynamo.Lambda
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open Tests.Items
@@ -232,8 +233,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let func = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-            let sub = LambdaStreamSubscriber.Build(func, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-            use _ = client.CsDatabase.SubscribeToLambdaStream(table.name, "123", sub)
+            use _ = Subscriptions.Add(client, table.name, func)
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
@@ -241,8 +241,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let r = Assert.Single(record) |> sndT
             let t = Assert.Single(r.Records)
             
-            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data1, LambdaStreamSubscriber.itemFromDynamoDb t.Dynamodb.OldImage)
-            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data2, LambdaStreamSubscriber.itemFromDynamoDb t.Dynamodb.NewImage)
+            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data1, LambdaSubscriberUtils.itemFromDynamoDb t.Dynamodb.OldImage)
+            Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data2, LambdaSubscriberUtils.itemFromDynamoDb t.Dynamodb.NewImage)
         }
 
     [<Theory>]
@@ -820,8 +820,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                let lSub = LambdaStreamSubscriber.Build (sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-                client.CsDatabase.SubscribeToLambdaStream(table.name, "123", lSub)
+                Subscriptions.Add(client, table.name, sub)
                 
             do! invalidPut1()
             do! invalidPut2()
@@ -876,15 +875,14 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                let lSub = LambdaStreamSubscriber.Build(sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
-                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
+                Subscriptions.Add(client, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
                 
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                let lSub = LambdaStreamSubscriber.Build (sub, SubscriberBehaviour.defaultOptions, Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
-                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
+                
+                Subscriptions.Add(client, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
                 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
@@ -929,8 +927,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 let sub = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                let lSub = LambdaStreamSubscriber.Build (sub, settings1, Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES)
-                client.CsDatabase.SubscribeToLambdaStream(table.name, "aa", lSub)
+                
+                Subscriptions.Add(client, table.name, sub, behaviour = settings1)
                 
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
             host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2

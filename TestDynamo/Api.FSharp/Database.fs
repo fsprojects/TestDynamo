@@ -185,6 +185,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// Add a callback which can subscribe to a Table Stream
     /// </summary>
     member this.SubscribeToStream logger table streamConfig (subscriber: DatabaseSynchronizationPacket<TableCdcPacket> -> CancellationToken -> ValueTask<Unit>) =
+                
         let sub x c =
             match x with
             | { databaseChange = OnChange (SchemaChange _) }

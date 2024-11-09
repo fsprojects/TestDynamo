@@ -194,23 +194,26 @@ replication and custom subscribers. TestDynamo differes from dynamodb as follows
  * There is no limit to the number of subscribers that you can have on a stream
  * Strem settings (e.g. `NEW_AND_OLD_IMAGES`) are configured per subsriber. If these values are set on a stream they will be ignored
 
-Subscribe to changes with a lambda stream subscription syntax
+To subscribe to changes with a lambda stream subscription syntax you can import the `TestDynamo.Lambda` package from nuget
 
 ```C#
-var subscription = database
-   .SubscribeToLambdaStream("Beatles", "1234567", LambdaStreamSubscriber
-      .Build((dynamoDbStreamsEvent, cancellationToken) =>
-      {
-         var added = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.NewImage?["FirstName"]?.S;
-         if (added != null)
-            Console.WriteLine($"{added} has joined the Beatles");
-         
-         var removed = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.OldImage?["FirstName"]?.S;
-         if (removed != null)
-            Console.WriteLine($"{removed} has left the Beatles");
-         
-         return default;
-      }));
+using TestDynamo.Lambda;
+
+var subscription = Subscriptions.Add(
+   database,
+   "Beatles",
+   (dynamoDbStreamsEvent, cancellationToken) =>
+   {
+      var added = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.NewImage?["FirstName"]?.S;
+      if (added != null)
+         Console.WriteLine($"{added} has joined the Beatles");
+      
+      var removed = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.OldImage?["FirstName"]?.S;
+      if (removed != null)
+         Console.WriteLine($"{removed} has left the Beatles");
+      
+      return default;
+   });
 
 // disposing will remove the subscription
 subscription.Dispose();

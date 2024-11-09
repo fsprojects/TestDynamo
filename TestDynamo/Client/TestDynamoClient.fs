@@ -51,7 +51,7 @@ type TestDynamoClient private (
 
     let mutable scanSizeLimits = defaultScanSizeLimits
 
-    let mutable awsAccountId = "123456789012"
+    let mutable awsAccountId = Settings.DefaultAwsAccountId
     
     static let asTask (x: ValueTask<'a>) = x.AsTask()
 

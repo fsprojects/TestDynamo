@@ -116,12 +116,6 @@ type Database private (db: FsDb, dispose: bool) =
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
         
         this.SubscribeToStream(table, SubscriberBehaviour.defaultOptions, subscriber, streamViewType, logger)
-
-    /// <inheritdoc />
-    member _.SubscribeToLambdaStream (table, awsAccountId, subscriber: LambdaStreamSubscriber, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        let config = LambdaStreamSubscriber.getStreamConfig subscriber
-        let fn = LambdaStreamSubscriber.getStreamSubscriber awsAccountId db.Id.regionId subscriber
-        db.SubscribeToStream (CSharp.toOption logger) table config fn
         
     /// <summary>
     /// PUT an Item into the Database  
