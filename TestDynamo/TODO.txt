@@ -1,15 +1,17 @@
 
 Features
- * Bulk execute operations from string. basicaly serialize an array of operations so that they can be applied
+ * Important: Allow custom handler for missing functionality
  * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception)
  * Search for ReturnValuesOnConditionCheckFailure
- * TODO https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
+ * Add any missing service quotas https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
  * When building a DynamoDBEvent.DynamodbStreamRecord
     * EventVersion is not set
     * If TTL is ever set, the UserIdentity property must be set. It has comments on how
  * Object store
+ * Remove dependency on dynamodb. Replace with compilation
 
 Tests
+ * Segregated tests for different framework versions
  * Do a giant fuzz tester of all expressions
 
 Interface
