@@ -166,7 +166,7 @@ module Database =
         let private transactWriteExpired (createdDate: DateTimeOffset) =
             createdDate < DateTimeOffset.Now - Settings.TransactWriteSettings.ClientRequestTokenTTL
         
-        let private purgeTransactWriteCache (dbInfo: DatabaseState) =
+        let private purgeTransactWriteCache' (dbInfo: DatabaseState) =
             let struct (firstExpired, expiredItems) =
                 dbInfo.info.transactWriteResultCache
                 |> MapUtils.toSeq
@@ -181,18 +181,25 @@ module Database =
                     Seq.fold (fun s x -> Map.remove x s) dbInfo.info.transactWriteResultCache expiredItems
                     
                 { dbInfo with info.transactWriteResultCache = altered }
+                
+        let private purgeTransactWriteCache = function
+            | Db x -> purgeTransactWriteCache' x |> Db
+            | NonFunctioning (SyncError (x, err)) -> purgeTransactWriteCache' x |> flip tpl err |> SyncError |> NonFunctioning
+            | x -> x
         
-        let private dbMap logOperation executeOnSyncErrror name f =
+        let private dbMap logOperation executeOnSyncError name f =
 
             let fLogged = logAndInline (logOperation name) f
             let exe request logger database =
                 try
                     match database with
                     | Db x -> fLogged.Invoke(logger, struct(request, x)) |> mapSnd Db
-                    | NonFunctioning (SyncError struct (db, err)) when executeOnSyncErrror ->
-                        fLogged.Invoke(logger, struct(request, db)) |> mapSnd (flip tpl err >> SyncError >> NonFunctioning)
+                    | NonFunctioning (SyncError struct (db, err)) when executeOnSyncError ->
+                        fLogged.Invoke(logger, struct(request, db))
+                        |> mapSnd (flip tpl err >> SyncError >> NonFunctioning)
                     | NonFunctioning (Disposed x) -> invalidOp $"Database {x} has been disposed"
                     | NonFunctioning (SyncError struct (_, e)) -> raise e
+                    |> mapSnd purgeTransactWriteCache
                 with
                 | e ->
                     Logger.debug1 "Error in %s operation" name logger
@@ -203,17 +210,18 @@ module Database =
 
             exe
 
-        let private dbBind logOperation executeOnSyncErrror name f =
+        let private dbBind logOperation executeOnSyncError name f =
 
             let fLogged = logAndInline (logOperation name) f
             let exe request logger database =
                 try
                     match database with
                     | Db x -> fLogged.Invoke(logger, struct (request, struct (x, ValueNone)))
-                    | NonFunctioning (SyncError struct (db, err)) when executeOnSyncErrror ->
+                    | NonFunctioning (SyncError struct (db, err)) when executeOnSyncError ->
                         fLogged.Invoke(logger, struct (request, struct (db, ValueSome err)))
                     | NonFunctioning (Disposed x) -> invalidOp $"Database {x} has been disposed"
                     | NonFunctioning (SyncError struct (_, e)) -> raise e
+                    |> mapSnd purgeTransactWriteCache
                 with
                 | e ->
                     match struct (Settings.Logging.LogDatabaseExceptions, e) with
