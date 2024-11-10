@@ -988,8 +988,13 @@ module Maybe =
 
 [<RequireQualifiedAccess>]
 module Io =
+    let private caf (x: Task<'a>) = x.ConfigureAwait(false)
+    let private caf0 (x: Task) = x.ConfigureAwait(false)
+    let private cafV (x: ValueTask<'a>) = x.ConfigureAwait(false)
+    let private cafV0 (x: ValueTask) = x.ConfigureAwait(false)
+    
     let retn (x: 'a) = ValueTask<'a>(x)
-
+    
     let private trySyncResult (task: ValueTask<'a>) =
         if task.IsCompletedSuccessfully then ValueSome task.Result
         elif task.IsCompleted then ValueSome (task.AsTask().Result)
@@ -1003,7 +1008,7 @@ module Io =
         | ValueSome x -> ValueTask<'b>(f x)
         | ValueNone ->
             task {
-                let! x' = x
+                let! x' = x |> cafV
                 return (f x')
             } |> ValueTask<'b>
 
@@ -1013,8 +1018,8 @@ module Io =
         | ValueSome x -> f x
         | ValueNone ->
             task {
-                let! x' = x
-                return! (f x')
+                let! x' = x |> cafV
+                return! (f x') |> cafV
             } |> ValueTask<'b>
 
     /// <summary>Retains synchronousity if input task is complete</summary>
@@ -1023,7 +1028,7 @@ module Io =
         | ValueSome _ -> ValueTask<unit>(())
         | ValueNone ->
             task {
-                let! _ = x
+                let! _ = x |> cafV
                 return ()
             } |> ValueTask<unit>
 
@@ -1042,9 +1047,10 @@ module Io =
         if syncError.IsCompleted then syncError
         else
             let task = syncError.AsTask()
-            do task
-                   .ContinueWith(fun (t: Task<'b>) -> if t.IsFaulted then onErr t.Exception)
-                   .ConfigureAwait(false) |> ignoreTyped<ConfiguredTaskAwaitable>
+            do
+                task.ContinueWith(fun (t: Task<'b>) -> if t.IsFaulted then onErr t.Exception)
+                |> caf0
+                |> ignoreTyped<ConfiguredTaskAwaitable>
 
             ValueTask<'b>(task)
 
@@ -1056,7 +1062,7 @@ module Io =
             | ValueSome x -> ValueTask<'a>(x)
             | ValueNone ->
                 task {
-                    try return! x
+                    try return! x |> cafV
                     with | e -> return fRecovery e
                 } |> ValueTask<'a>
         with
@@ -1089,7 +1095,7 @@ module Io =
                 output.Add(Unchecked.defaultof<'a>)
                 let t =
                     task {
-                        let! x = enm.Current
+                        let! x = enm.Current |> cafV
                         try
                             output[i] <- x
                         with
@@ -1104,7 +1110,7 @@ module Io =
         then ValueTask<'a list>(processTraverseResult struct (err, output))
         else
             task {
-                let! _ = Task.WhenAll await
+                let! _ = Task.WhenAll await |> caf0
                 return processTraverseResult struct (err, output)
             } |> ValueTask<'a list>
 
@@ -1116,7 +1122,7 @@ module Io =
             vtU
         else
             task {
-                do! valueTask
+                do! valueTask |> cafV0
                 return ()
             } |> ValueTask<unit>
 
@@ -1129,15 +1135,16 @@ module Io =
 #endif
         | ValueNone ->
             task {
-                do! valueTask
+                do! valueTask |> cafV
                 return ()
             } |> ValueTask
             
     let private asAction (f: unit -> unit): System.Action = f
             
-    // todo: not tested
+    // should not be public, but needs some complex testing
+    // very difficult (niche) case where it might be uses organically
     /// <summary>Less efficient version of Task.WaitAsync</summary>
-    let private addCancellationToken' (c: CancellationToken) (t: Task<'a>) =
+    let addCancellationTokenNetStandard (c: CancellationToken) (t: Task<'a>) =
         let source = TaskCompletionSource<'a>(c)
         let mutable i = 0
         
@@ -1152,7 +1159,7 @@ module Io =
         
         task {
             try
-                let! x = t
+                let! x = t |> caf
                 if Interlocked.Increment(&i) = 1
                 then
                     source.SetResult x
@@ -1171,10 +1178,11 @@ module Io =
         if t.IsCompleted || c = CancellationToken.None then t
         // TODO: code doesn't seem to be used (not covered by tests anyway)
 #if NETSTANDARD2_1
-        else t.AsTask() |> addCancellationToken' c |> ValueTask<'a>
+        else t.AsTask() |> addCancellationTokenNetStandard c |> ValueTask<'a>
 #else
         else t.AsTask().WaitAsync(c) |> ValueTask<'a>
 #endif
+
     let apply x = x |> flip map |> bind
 
     let inline ignoreTask<'a> (x: Task<^a>): Task = x

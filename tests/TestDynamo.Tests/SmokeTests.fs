@@ -1,6 +1,8 @@
 
 namespace TestDynamo.Tests
 
+open System.Threading
+open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
@@ -76,6 +78,23 @@ type SmokeTests(output: ITestOutputHelper) =
             Assert.Equal("HASH", t.Table.KeySchema[0].KeyType.Value)
             Assert.Equal("SortKey", t.Table.KeySchema[1].AttributeName)
             Assert.Equal("RANGE", t.Table.KeySchema[1].KeyType.Value)
+        }
+
+    [<Fact>]        
+    let ``addCancellationTokenNetStandard tests`` () =
+        let doAndReturn7 () =
+            task {
+                do! Task.Delay(100)
+                return 7
+            }
+            
+        task {
+            let! v1 = doAndReturn7() |> Io.addCancellationTokenNetStandard CancellationToken.None
+            Assert.Equal(7, v1)
+            
+            use cts = new CancellationTokenSource(10)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> doAndReturn7() |> Io.addCancellationTokenNetStandard cts.Token |> Io.ignoreTask)
+            assertError output "A task was canceled" e
         }
 
     [<Fact>]

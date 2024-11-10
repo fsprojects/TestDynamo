@@ -199,7 +199,7 @@ module private StreamSubscriber =
 
     let private delay time () =
         task {
-            do! Task.Delay(delay = time)
+            do! Task.Delay(delay = time).ConfigureAwait(false)
             return ()
         } |> ValueTask<unit>
 
@@ -243,7 +243,7 @@ module private StreamSubscriber =
                     dispose <- null
                     task {
                         use d' = d
-                        return! result
+                        return! result.ConfigureAwait(false)
                     } |> ValueTask<SubscriberError voption>
             finally
                 if dispose <> null then dispose.Dispose()

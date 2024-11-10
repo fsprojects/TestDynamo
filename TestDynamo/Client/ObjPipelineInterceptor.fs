@@ -50,11 +50,16 @@ type ObjPipelineInterceptor(
     
     static let asTask (x: ValueTask<'a>) = x.AsTask()
 
+    static let delay' (delay: TimeSpan) (c: CancellationToken) =
+        task {
+            do! Task.Delay(delay, c).ConfigureAwait(false)
+        }
+    
     static let taskify delay (c: CancellationToken) x =
         match delay with
         | d when d < TimeSpan.Zero -> notSupported "Delay time must be greater than or equal to 0"
         | d when d = TimeSpan.Zero -> ValueTask<'a>(result = x)
-        | d -> Task.Delay(d, c) |> ValueTask |> Io.normalizeVt |%|> (asLazy x)
+        | d -> delay' d c |> ValueTask |> Io.normalizeVt |%|> (asLazy x)
 
     let execute mapIn f mapOut c: _ -> ValueTask<AmazonWebServiceResponse> =
         taskify artificialDelay c >> Io.map (mapIn >> f defaultLogger >> mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
