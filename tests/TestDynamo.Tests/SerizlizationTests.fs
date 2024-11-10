@@ -4,11 +4,13 @@ open System
 open System.Text.Json.Nodes
 open System.Threading
 open System.Threading.Tasks
+open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Utils
 open Xunit
@@ -52,7 +54,7 @@ type SerializationTests(output: ITestOutputHelper) =
             return new GlobalDatabase(globalData, logger = writer)
         }
 
-    static let replicate (client: ITestDynamoClient) regionName tableName = function
+    static let replicate (client: AmazonDynamoDBClient) regionName tableName = function
         | ChangeType.Update ->
             let req = UpdateTableRequest()
             req.TableName <- tableName
@@ -84,8 +86,8 @@ type SerializationTests(output: ITestOutputHelper) =
     let setUp2Regions logger doReplication =
         task {
             let! host = clonedHost logger
-            let client1 = TestDynamoClient.Create(host, { regionId = "eu-west-1"})
-            let client2 = TestDynamoClient.Create(host, { regionId = "eu-north-1"})
+            let client1 = TestDynamoClientBuilder.Create(host, { regionId = "eu-west-1"})
+            let client2 = TestDynamoClientBuilder.Create(host, { regionId = "eu-north-1"})
             let! tables = sharedTestData ValueNone
             let table = Tables.getByStreamsEnabled true tables
 
@@ -178,7 +180,7 @@ type SerializationTests(output: ITestOutputHelper) =
             
             // add a new db via json
             let newReplica = JsonObject.Parse(System.Text.Json.JsonSerializer.Serialize(
-                    {| from = toDb.FsDatabase.Id.regionId
+                    {| from = (toDb.GetDatabase()).Id.regionId
                        ``to`` = "somewhere-else"
                        tableName = table.name |}))
             
@@ -189,9 +191,9 @@ type SerializationTests(output: ITestOutputHelper) =
             else replicas.Add(newReplica)
             
             let db = DatabaseSerializer.GlobalDatabase.FromString(dbJson.ToString())
-            use client1 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
-            use client2 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)
-            use client3 = TestDynamoClient.Create(db.GetDatabase (ValueSome logger) { regionId = "somewhere-else" }, logger)
+            use client1 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
+            use client2 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)
+            use client3 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "somewhere-else" }, logger)
             
             let put1 =
                 ItemBuilder.empty

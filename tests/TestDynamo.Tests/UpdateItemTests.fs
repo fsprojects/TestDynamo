@@ -7,6 +7,7 @@ open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
 open TestDynamo.Model
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Loggers
 open Tests.Requests.Queries
@@ -54,7 +55,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     let random = randomBuilder output
 
     static let table =
-        let client = buildClient (OutputCollector() |> ValueSome)
+        let client = buildClient (OutputCollector())
+        let client = client.Client
 
         let t = sprintf "%s%i" (nameof UpdateItemTests) (uniqueId())
         let req =
@@ -132,7 +134,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update, smoke tests`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -176,7 +179,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("DELETE")>]
     let ``Update, with reserved update verbs as properties, behaves correctly`` verb =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -207,7 +211,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update, AttributeUpdates, smoke tests`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -260,7 +265,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<FourOneHotFlags>)>]
     let ``Update, clause with no values, throws`` ``set missing`` ``add missing`` ``remove missing`` ``delete missing`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -306,7 +312,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update, item does not exists, puts item`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! t = table
@@ -334,7 +341,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update, invalid query, throws`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
@@ -360,7 +368,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, multiple nested values`` ``root has value`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -405,7 +414,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, with if_not_exists, sets correctly`` exists =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -439,7 +449,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, with list_append, sets correctly`` exists =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -475,7 +486,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Update, SET, with list_append missing attributes, sets correctly`` ``1 exists`` ``2 exists`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -514,7 +526,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, with list_append non list, throws`` lIsNonList =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -547,7 +560,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, with +/-, sets correctly`` plus =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -581,7 +595,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, SET, combined arithmetic and if_not_exists`` exists =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -612,7 +627,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update, SET, multiple clauses`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -654,7 +670,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
         else
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -691,7 +708,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
         else
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -723,7 +741,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, REMOVE, multiple nested values`` ``root has value`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -761,7 +780,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, ADD numbers, sets correctly`` ``attr exists`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -795,7 +815,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("Binary")>]
     let ``Update, ADD sets, processes correctly`` ``set type`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -887,7 +908,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, ADD not top level attr, throws`` ``is number`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -928,7 +950,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<UpdateModifyKeyAttributeFlags>)>]
     let ``Update, try modify key attribute, throws`` ``is pk`` set remove add =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -967,7 +990,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, DELETE not top level attr, throws`` ``is nested list`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1005,7 +1029,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("Binary")>]
     let ``Update, DELETE, processes correctly`` ``set type`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1091,7 +1116,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
         let totalDeletes = asInt ``delete 1`` + asInt ``delete 2``
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1136,7 +1162,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, sibling attributes updated twice but nested, updates correctly`` ``nested list`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1175,7 +1202,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, super deep nesting, updates correctly`` ``nested list`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1248,7 +1276,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     let ``Update, same attribute twice but nested, throws`` ``at root`` ``nested list`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1285,7 +1314,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     let ``Update, problems with query inputs, throws`` failure =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1341,7 +1371,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("UPDATED_OLD")>]
     let ``Update, with projection, behaves correctly`` ``return vaulues`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1405,7 +1436,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("UPDATED_OLD")>]
     let ``Update, with projection, special case "Set x.#prop = :p", behaves correctly`` ``return vaulues`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1459,7 +1491,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
             
@@ -1520,7 +1552,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Exploratory: What happens if you delete all items in a set?"`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1552,7 +1585,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Exploratory: Is this valid? "SET x[123] = :p" if x is list of 1 element`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1587,7 +1621,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Exploratory: What happens here? "SET x.y = :p" if x is not a map (or list)`` ``is list`` deep = 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1619,7 +1654,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Exploratory: What happens here? "SET x = x + :p" if x has no value`` () = 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"
@@ -1646,7 +1682,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Exploratory: Is this valid? "SET val1 = :v1, val2 = val1"`` ``terms reversed`` = 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let pk = $"{uniqueId()}"

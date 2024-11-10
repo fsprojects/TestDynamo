@@ -21,7 +21,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, on partition key only, returns correct items`` (``has sort key``: bool) forward =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -60,7 +61,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -86,7 +88,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, on partition and sort key, returns correct items`` forward =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -113,7 +116,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with invalid partition operator, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -140,7 +144,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with partition key reuse, throws`` ``use alias`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -171,7 +176,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with sort key reuse, throws`` ``use alias`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -203,7 +209,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, on index partition key only, returns correct items`` (``has sort key``: bool) forwards =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -235,7 +242,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, on index partition and sort key, returns correct items`` forward =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -265,7 +273,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, on index with invalid partition operator, fails`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -303,7 +312,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             | false, false -> ">"
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -362,7 +372,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with superfluous attr query values, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -387,7 +398,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with superfluous attr query name, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -416,7 +428,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, BETWEEN, returns correct items`` bottomRange ``on index`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -471,7 +484,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, begins_with, returns correct items`` startsWith expectedCount =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -519,7 +533,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, begins_with, binary, returns correct items`` filter =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -571,7 +586,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with invalid attribute name characters, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -598,7 +614,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with invalid expression attribute name characters, throws`` ``err in filter`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -632,7 +649,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with invalid expression attribute value characters, throws`` ``err in filter`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -666,11 +684,13 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query on various numeric representations`` number =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             let tab = Tables.get true true tables
             let baseReq =
@@ -702,7 +722,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query, with filter expression, returns correct items`` (``on index``: bool) forward =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -745,7 +765,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":b2" sndBinary
                 |> QueryBuilder.setForwards forward
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             if tab.hasSk then Assert.True((Seq.length expected) > 1)
@@ -760,7 +780,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Query, on binary data partition key only, returns correct items`` ``use index`` forward =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -785,7 +805,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":p" pk
                 |> QueryBuilder.setForwards forward
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             Assert.True((Seq.length expected) > 1)
@@ -826,7 +846,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let buildExecuteTestCase hasPartition hasSort1 hasSort2 query =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
 
             // arrange
             let! baseQ = buildBracketsTestCase hasPartition hasSort1 hasSort2
@@ -836,7 +856,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             let! _ =
                 baseQ
                 |> QueryBuilder.setKeyConditionExpression query
-                |> QueryBuilder.queryRequest |> client.QueryAsync
+                |> QueryBuilder.queryRequest |> client.Client.QueryAsync
 
             ()
         }

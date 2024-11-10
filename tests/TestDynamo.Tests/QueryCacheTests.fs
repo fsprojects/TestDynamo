@@ -6,6 +6,7 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Client
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Table
@@ -20,10 +21,10 @@ type QueryCacheTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Big cache test: 1. create table; 2. do query+filter+projection; 3. do different query; 4. do different filter; 5. do different projection; 6. alter table and do query`` () =
 
-        let execute (f: ITestDynamoClient -> Task) =
+        let execute (f: AmazonDynamoDBClient -> Task) =
             task {
                 use recorder = new TestLogger(output)
-                use client = TestDynamoClient.Create(commonHost, recorder)
+                use client = TestDynamoClientBuilder.Create(commonHost, recorder)
                 recorder.Record true
 
                 do! f client
@@ -79,7 +80,7 @@ type QueryCacheTests(output: ITestOutputHelper) =
 
         task {
             use setupRecorder = new TestLogger(output)
-            let setupClient = TestDynamoClient.Create(commonHost, setupRecorder)
+            let setupClient = TestDynamoClientBuilder.Create(commonHost, setupRecorder)
             // Arrange
             let table = nameof QueryCacheTests
             let pk = $"{table}Pk"
@@ -96,13 +97,13 @@ type QueryCacheTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setProjectionExpression "Something"
                 |> QueryBuilder.setExpressionAttrValues ":p" (Model.AttributeValue.String "123")
 
-            let baseQuery (client: ITestDynamoClient) = 
+            let baseQuery (client: AmazonDynamoDBClient) = 
                 baseReq
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask
 
-            let newIndexQuery (client: ITestDynamoClient) = 
+            let newIndexQuery (client: AmazonDynamoDBClient) = 
                 baseReq
                 |> QueryBuilder.setIndexName indexName
                 |> QueryBuilder.setKeyConditionExpression $"{indexPk} = :p" 
@@ -113,21 +114,21 @@ type QueryCacheTests(output: ITestOutputHelper) =
                 |> client.QueryAsync
                 |> Io.ignoreTask
 
-            let keyCondChangedQuery (client: ITestDynamoClient) = 
+            let keyCondChangedQuery (client: AmazonDynamoDBClient) = 
                 baseReq
                 |> QueryBuilder.setKeyConditionExpression $"{pk} = :p AND {sk} = :p"
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask
 
-            let projectionExprChangedQuery (client: ITestDynamoClient) = 
+            let projectionExprChangedQuery (client: AmazonDynamoDBClient) = 
                 baseReq
                 |> QueryBuilder.setProjectionExpression "SomethingElse"
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask
 
-            let keyfilterChangedQuery (client: ITestDynamoClient) = 
+            let keyfilterChangedQuery (client: AmazonDynamoDBClient) = 
                 baseReq 
                 |> QueryBuilder.setFilterExpression "SomethingElse = :p"
                 |> QueryBuilder.queryRequest

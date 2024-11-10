@@ -197,6 +197,13 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
                 let fromDb = dbId ?|> sprintf " from database %A" ?|? ""
                 clientError $"Table {table}{fromDb} is not a global table"
             | ValueSome xs -> xs
+
+    member this.GetGlobalTable databaseId name =
+        let db = this.GetDatabase defaultLogger databaseId
+
+        db.TryDescribeTable defaultLogger name
+        ?|> fun x -> LazyDebugTable(name, x.table)
+        |> ValueOption.defaultWith (fun _ -> invalidArg (nameof name) $"Invalid table \"{name}\" on database \"{databaseId}\"")
     
     member this.IsGlobalTable logger =
         ValueSome

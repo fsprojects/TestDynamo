@@ -197,10 +197,6 @@ module LambdaSubscriberUtils =
             then completedTask
             else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
 
-    // let internal getStreamConfig (Ss (x, _)) = x
-    //
-    // let internal getStreamSubscriber awsAccountId regionId (Ss (_, f)) = f awsAccountId regionId
-
 type Subscriptions() =
     
     /// <summary>
@@ -246,7 +242,7 @@ type Subscriptions() =
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     static member  Add (
-        client: ITestDynamoClient,
+        client: AmazonDynamoDBClient,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
@@ -258,20 +254,20 @@ type Subscriptions() =
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    static member  Add (
-        client: ITestDynamoClient,
+    static member Add (
+        client: AmazonDynamoDBClient,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         behaviour,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
         
-        Subscriptions.Add(client.FsDatabase, tableName, subscriber, behaviour, streamViewType, awsAccountId)
+        Subscriptions.Add(client.GetDatabase(), tableName, subscriber, behaviour, streamViewType, awsAccountId)
     
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
-    static member  Add (
+    static member Add (
         database: TestDynamo.Api.Database,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,

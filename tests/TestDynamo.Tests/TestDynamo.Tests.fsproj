@@ -24,6 +24,7 @@
     <Compile Include="PutItemTests.fs" />
     <Compile Include="UpdateItemTests.fs" />
     <Compile Include="DeleteItemTests.fs" />
+    <Compile Include="DynamoDBContextSmokeTests.fs" />
     <Compile Include="TransactWriteItemTests.fs" />
     <Compile Include="GetItemTests.fs" />
     <Compile Include="QuerySyntaxTests.fs" />

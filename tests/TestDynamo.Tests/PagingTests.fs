@@ -2,9 +2,12 @@ namespace TestDynamo.Tests
 
 open System.Text
 open System.Threading.Tasks
+open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Client
+open TestDynamo.Model.ExpressionExecutors.Fetch
 open TestDynamo.Utils
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -20,9 +23,9 @@ type PagingTests(output: ITestOutputHelper) =
 
     static let tablePk = nameof PagingTests
     static let indexKey = (-98765).ToString()
-    static let sharedTestData =
+    static let sharedTestDatabase =
 
-        let rec put table (client: ITestDynamoClient): int -> Task = function
+        let rec put table (client: AmazonDynamoDBClient): int -> Task = function
             | x when x <= 99 -> task { return () } |> Io.ignoreTask
             | i ->
                 let t1 =
@@ -45,12 +48,12 @@ type PagingTests(output: ITestOutputHelper) =
         let collector = OutputCollector()
         let execution =
             task {
-                use writer = new TestLogger(collector)
+                let writer = new TestLogger(collector)
 
                 // make sure host is initialized
                 let! data = sharedTestData (ValueSome collector)
                 let host = cloneHost writer
-                use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+                let client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
                 let tab = Tables.get true true data
                 do! put tab.name client 199
 
@@ -68,7 +71,7 @@ type PagingTests(output: ITestOutputHelper) =
                 return t
             }
 
-    let rec executePagedQuery (client: ITestDynamoClient) req: Task<struct (Dictionary<_, _> list list * int)> =
+    let rec executePagedQuery (client: AmazonDynamoDBClient) req: Task<struct (Dictionary<_, _> list list * int)> =
         task {
             let! results = client.QueryAsync req
             Assert.Equal(results.Count, results.Items.Count)
@@ -81,7 +84,7 @@ type PagingTests(output: ITestOutputHelper) =
                 return (results.Items |> List.ofSeq)::next |> flip tpl (results.ScannedCount + nextScanned)
         }
 
-    let rec executePagedScan (client: ITestDynamoClient) req: Task<struct (Dictionary<_, _> list list * int)> =
+    let rec executePagedScan (client: AmazonDynamoDBClient) req: Task<struct (Dictionary<_, _> list list * int)> =
         task {
             let! results = client.ScanAsync req
             Assert.Equal(results.Count, results.Items.Count)
@@ -116,8 +119,9 @@ type PagingTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
 
             // arrange
-            let! struct (table, host) = sharedTestData ValueNone // (ValueSome output)
-            use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+            let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
+            use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+            
             // act
             let! struct (resultPages, resultScanned) = 
                 QueryBuilder.empty (ValueSome random)
@@ -175,8 +179,8 @@ type PagingTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
 
             // arrange
-            let! struct (table, host) = sharedTestData ValueNone // (ValueSome output)
-            use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+            let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
+            use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
             // act
             let! struct (resultPages, resultScanned) = 
                 QueryBuilder.empty (ValueSome random)
@@ -237,11 +241,11 @@ type PagingTests(output: ITestOutputHelper) =
                 | x -> invalidOp x
 
             // arrange
-            let! struct (table, host) = sharedTestData ValueNone // (ValueSome output)
-            use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+            let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
+            use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
             client.SetScanLimits
-                { maxScanItems = if maxScanItems then 1 else 100000
-                  maxPageSizeBytes = if maxPageSizeBytes then 1 else 100000 }
+                ({ maxScanItems = if maxScanItems then 1 else 100000
+                   maxPageSizeBytes = if maxPageSizeBytes then 1 else 100000 }: ScanLimits)
 
             let req = 
                 QueryBuilder.empty (ValueSome random)
@@ -281,8 +285,8 @@ type PagingTests(output: ITestOutputHelper) =
     [<InlineData("Scan", false, false, true)>]
     let ``Query and scan on packed index, with min paging + 1, returns 1 page`` opType limit maxScanItems maxPageSizeBytes  =
 
-        let singleItemSize tableName (client: ITestDynamoClient) =
-            client.GetTable tableName
+        let singleItemSize tableName (host: Api.FSharp.Database) =
+            host.GetTable ValueNone tableName
             |> _.GetValues()
             |> Seq.map _.InternalItem
             |> Seq.filter (
@@ -303,11 +307,11 @@ type PagingTests(output: ITestOutputHelper) =
                 | x -> invalidOp x
 
             // arrange
-            let! struct (table, host) = sharedTestData ValueNone // (ValueSome output)
-            use client = TestDynamoClient.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
+            let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
+            use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
             client.SetScanLimits
                 { maxScanItems = if maxScanItems then 51 else 100000
-                  maxPageSizeBytes = if maxPageSizeBytes then (singleItemSize table.name client |> float |> (*) 50.1 |> int) else 100000 }
+                  maxPageSizeBytes = if maxPageSizeBytes then (singleItemSize table.name host |> float |> (*) 50.1 |> int) else 100000 }
 
             let req = 
                 QueryBuilder.empty (ValueSome random)

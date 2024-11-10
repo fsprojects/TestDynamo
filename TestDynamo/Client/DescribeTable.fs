@@ -215,10 +215,13 @@ module Local =
         output
         
 module List =
+    let private isLimitSet = TestDynamo.Client.Shared.getOptionalBool<ListTablesRequest, int> (nameof Unchecked.defaultof<ListTablesRequest>.Limit)
+    
+    let getLimit (req: ListTablesRequest) =
+        isLimitSet req ?|? Int32.MaxValue
     
     let inputs1 (req: ListTablesRequest) =
-        // hack here. Set the limit to + 1 and then truncate in the output layer to get exclusive start key
-        struct (req.ExclusiveStartTableName |> CSharp.toNullOrEmptyOption, req.Limit)
+        struct (req.ExclusiveStartTableName |> CSharp.toNullOrEmptyOption, getLimit req)
         
     let inputs2 () =
         struct (ValueNone, Int32.MaxValue)
@@ -227,7 +230,6 @@ module List =
         struct (CSharp.mandatory "exclusiveStartTableName is mandatory" name |> ValueSome, Int32.MaxValue)
         
     let inputs4 (struct (name, limit) & x) =
-        // hack here. Set the limit to + 1 and then truncate in the output layer to get exclusive start key
         struct (CSharp.mandatory "exclusiveStartTableName is mandatory" name |> ValueSome, limit)
         
     let inputs5 limit =
@@ -235,7 +237,6 @@ module List =
 
     let output expectedLimit _ (names: _ seq) =
 
-        // hack here. Set the limit to + 1 in the input and then truncate in the output layer to get exclusive start key
         let output = Shared.amazonWebServiceResponse<ListTablesResponse>()
         
         output.TableNames <- new MList<_>(names |> Seq.map fstT)
@@ -295,7 +296,7 @@ module Global =
                     t)
                 |> Array.ofSeq
             
-            if globalTables.Length >= expectedLimit
+            if globalTables.Length >= expectedLimit && expectedLimit <> 0
             then output.LastEvaluatedGlobalTableName <- globalTables[globalTables.Length - 1].GlobalTableName
             output.GlobalTables <- MList<_>(globalTables)
             output

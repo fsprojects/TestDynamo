@@ -4,6 +4,7 @@ namespace TestDynamo.Tests
 open System.IO
 open System.Linq
 open System.Threading
+open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
@@ -45,7 +46,8 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
     let random = randomBuilder output
 
     let queryOrScan doQuery req =
-        let client = buildClient(ValueSome output)
+        let client = buildClient output
+        let client = client.Client
 
         if doQuery
         then QueryBuilder.queryRequest req |> client.QueryAsync |> mapTask _.Items
@@ -64,7 +66,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
 
         req2
 
-    let maybeBatch batch (client: ITestDynamoClient) (req: DeleteItemRequest) =
+    let maybeBatch batch (client: AmazonDynamoDBClient) (req: DeleteItemRequest) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.fromTask |%|> (asLazy ValueNone)
         else client.DeleteItemAsync req |> Io.fromTask |%|> ValueSome
@@ -85,7 +87,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
 
                     output.WriteLine("Cloning host")
                     let host = cloneHost writer
-                    TestDynamoClient.Create(host, writer))
+                    TestDynamoClientBuilder.Create(host, writer))
             
             return struct (client, table.name)
         }
@@ -100,7 +102,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
 
                     output.WriteLine("Cloning host")
                     let host = cloneHost writer
-                    TestDynamoClient.Create(host, writer))
+                    TestDynamoClientBuilder.Create(host, writer))
                 
             output.WriteLine("Getting table")
             
@@ -131,7 +133,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             return struct (client, table.name)
         }
         
-    let getFromWriteReq (client: ITestDynamoClient) (req: TransactWriteItemsRequest) =
+    let getFromWriteReq (client: AmazonDynamoDBClient) (req: TransactWriteItemsRequest) =
         task {
             let pkOnly (item: Dictionary<string, DynamoAttributeValue>) =
                 let k = Dictionary<_, _>()
@@ -163,7 +165,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
         attr.S <- x
         attr
 
-    let buildReq (client: ITestDynamoClient) tableName f =
+    let buildReq (client: AmazonDynamoDBClient) tableName f =
 
         task {
             let put = Put()
@@ -227,7 +229,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             return req
         }
         
-    let writeAndGet req (client: ITestDynamoClient) tableName =
+    let writeAndGet req (client: AmazonDynamoDBClient) tableName =
         task {
             do! client.TransactWriteItemsAsync req |> Io.ignoreTask
             let! defaultReq = buildReq client tableName id
@@ -549,7 +551,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 assertError output "The maximum size of a transact write is" e
         }
         
-    let setUpglobalTable() =
+    let setUpGlobalTable() =
         task {
             // arrange
             let! table = getTable() // pre populate table
@@ -560,9 +562,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let toRegion = {regionId = "to-region" }
             
             let _ = host
-            let client1 = TestDynamoClient.Create(host, fromRegion, writer)
-            let client2 = TestDynamoClient.Create(host, toRegion, writer)
-            let clientContainer = new ClientContainer(host.GetDatabase writer' fromRegion, writer)
+            let client1 = TestDynamoClientBuilder.Create(host, fromRegion, writer)
+            let client2 = TestDynamoClientBuilder.Create(host, toRegion, writer)
+            let clientContainer = new ClientContainer(host.GetDatabase writer' fromRegion, writer, false)
             
             let addStreamsReq = UpdateTableRequest()
             addStreamsReq.TableName <- table.name
@@ -590,10 +592,14 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
         task {
             let writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            let! struct (host, client1, client2, clientContainer) = setUpglobalTable()
+            let! struct (host, client1, client2, clientContainer) = setUpGlobalTable()
+            use _ = host
+            use _ = client1
+            use _ = client2
+            use _ = clientContainer
             
             // act
-            let! e = executeFailedWrite (ValueSome clientContainer) (fun req ->
+            let! e = executeFailedWrite (ValueSome clientContainer.Client) (fun req ->
                 match ``error type`` with
                 | "KEY_ERR" ->
                     req.delete.Key.Clear()
@@ -624,10 +630,14 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let! table = getTable()
             let writer = new TestLogger(output)
             let writer' = ValueSome (writer :> ILogger)
-            let! struct (host, client1, client2, clientContainer) = setUpglobalTable()
+            let! struct (host, client1, client2, clientContainer) = setUpGlobalTable()
+            use _ = host
+            use _ = client1
+            use _ = client2
+            use _ = clientContainer
             
             // act
-            do! executeWrite (ValueSome clientContainer) ValueNone true id |> Io.ignoreTask
+            do! executeWrite (ValueSome clientContainer.Client) ValueNone true id |> Io.ignoreTask
             do! host.AwaitAllSubscribers writer' CancellationToken.None
             
             // assert
@@ -648,12 +658,17 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
 
         task {
             let! _ = getTable()
-            let! struct (_, client, _, clientContainer) = setUpglobalTable()
+            let! struct (_host, client, _client2, clientContainer) = setUpGlobalTable()
+            use _ = _host
+            use _ = client
+            use _ = _client2
+            use _ = clientContainer
+            
             let key = System.Guid.NewGuid().ToString() |> ValueSome
             
             // act
-            do! executeWrite (ValueSome clientContainer) key false id |> Io.ignoreTask
-            let! written = executeWrite (ValueSome clientContainer) key false (fun x ->
+            do! executeWrite (ValueSome clientContainer.Client) key false id |> Io.ignoreTask
+            let! written = executeWrite (ValueSome clientContainer.Client) key false (fun x ->
                 // validate that this is never run
                 x.condition.ConditionExpression <- "an invalid expression that would fail" 
                 x)

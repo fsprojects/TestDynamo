@@ -4,6 +4,7 @@ open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Client
 open TestDynamo.Utils
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -22,11 +23,13 @@ type ProjectionTests(output: ITestOutputHelper) =
     let ``Query on table, with project count, returns no records`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             let! data = sharedTestData ValueNone //(ValueSome output)
             let table = Tables.get true true data
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let struct (pk, _) = randomItem true random
 
             // arrange
@@ -49,11 +52,13 @@ type ProjectionTests(output: ITestOutputHelper) =
     let ``Scan on table, with project SPECIFIC_ATTRIBUTES but no projection, returns empty records`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             let! data = sharedTestData ValueNone //(ValueSome output)
             let table = Tables.get true true data
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let struct (pk, _) = randomItem true random
 
             // arrange
@@ -80,7 +85,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             let! data = sharedTestData ValueNone //(ValueSome output)
             let table = Tables.get true true data
             use logger = new TestLogger(output)
-            let client = TestDynamoClient.Create(cloneHost logger)
+            let client = TestDynamoClientBuilder.Create(cloneHost logger)
             let pk = $"id-{IncrementingId.next()}"
             let sk = (IncrementingId.next()).Value |> decimal
             let iPk = (IncrementingId.next()).Value |> decimal

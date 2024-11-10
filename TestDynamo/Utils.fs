@@ -98,7 +98,7 @@ let debug2 y x =
 let inline debug x = x
 let inline debug2 _ x = x
 #endif
-
+        
 type TestDynamoException(msg, ?inner, ?data) =
     inherit Amazon.DynamoDBv2.AmazonDynamoDBException(msg, inner |> Option.defaultValue null)
 

@@ -16,7 +16,7 @@ open TestDynamo.Data.Monads.Operators
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 type MList<'a> = System.Collections.Generic.List<'a>
 
-let private buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
+let buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
     if attributesToGet <> null && attributesToGet.Count > 0 && ValueOption.isSome projectionExpression
     then clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
     
@@ -173,10 +173,9 @@ module Batch =
 
         out
 
-    // TODO
-    let private suppressMessage = "TODO"
-        // $"{nameof ITestDynamoClient}.{nameof Unchecked.defaultof<ITestDynamoClient>.AwsAccountId} or by "
-        // + $"setting {nameof Settings}.{nameof Settings.SupressErrorsAndWarnings}.{nameof Settings.SupressErrorsAndWarnings.AwsAccountIdErrors} = true"
+    let private suppressMessage =
+        $"TestDynamoClient.SetAwsAccountId or by "
+        + $"setting {nameof Settings}.{nameof Settings.SupressErrorsAndWarnings}.{nameof Settings.SupressErrorsAndWarnings.AwsAccountIdErrors} = true"
 
     let reKey awsAccountId defaultDatabaseId (req: struct (string * _) seq) =
 
@@ -190,14 +189,14 @@ module Batch =
         | [acc] when acc <> awsAccountId && not Settings.SupressErrorsAndWarnings.AwsAccountIdErrors ->
             [
                 $"Invalid aws account id {acc} in ARN. The expected aws account "
-                $"id is {awsAccountId}. You can fix this issue by setting the value of "
+                $"id is {awsAccountId}. You can fix this issue by calling "
                 suppressMessage
             ] |> Str.join "" |> clientError
         | [_] -> reKeyed
         | xs ->
             [
                 $"Multiple account ids found {xs}. The expected aws account "
-                $"id is {awsAccountId}. You can fix this issue by setting the value of "
+                $"id is {awsAccountId}. You can fix this issue by calling "
                 suppressMessage
             ] |> Str.join "" |> clientError
 

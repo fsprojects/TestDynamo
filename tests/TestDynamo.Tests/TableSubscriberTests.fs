@@ -12,6 +12,7 @@ open TestDynamo.Client
 open TestDynamo.Lambda
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -55,7 +56,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         }
 
     let queryOrScan doQuery req =
-        let client = buildClient (ValueSome output)
+        let client = buildClient output
+        let client = client.Client
 
         if doQuery
         then QueryBuilder.queryRequest req |> client.QueryAsync |> mapTask _.Items
@@ -133,7 +135,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -211,7 +213,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<struct (DateTimeOffset * Amazon.Lambda.DynamoDBEvents.DynamoDBEvent)>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -233,7 +235,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let func = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-            use _ = Subscriptions.Add(client, table.name, func)
+            use _ = Subscriptions.Add(host, table.name, func)
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
@@ -267,7 +269,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -372,7 +374,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -461,7 +463,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -550,7 +552,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -607,7 +609,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record1 = System.Collections.Generic.List<_>()
             let record2 = System.Collections.Generic.List<_>()
@@ -652,7 +654,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let! _ = client.PutItemAsync(
                 ItemBuilder.tableName item,
                 ItemBuilder.dynamoDbAttributes item)
-            let! e = Assert.ThrowsAnyAsync(fun () -> (client.AwaitAllSubscribers CancellationToken.None).AsTask())
+            let! e = Assert.ThrowsAnyAsync(fun () -> (host.AwaitAllSubscribers ValueNone CancellationToken.None).AsTask())
             assertError output "####" e
 
             // assert
@@ -678,7 +680,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let! tables = sharedTestData ValueNone // (ValueSome output)
             output.WriteLine "CLONING"
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<_>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -725,7 +727,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let record = System.Collections.Generic.List<struct (DateTimeOffset * Amazon.Lambda.DynamoDBEvents.DynamoDBEvent)>()
             let pk = $"Sub-{IncrementingId.next()}"
@@ -820,7 +822,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                Subscriptions.Add(client, table.name, sub)
+                Subscriptions.Add(host, table.name, sub)
                 
             do! invalidPut1()
             do! invalidPut2()
@@ -844,7 +846,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.getByStreamsEnabled true tables
             let pk = $"Sub-{IncrementingId.next()}"
             let sk = IncrementingId.next().Value |> decimal
@@ -875,14 +877,14 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                Subscriptions.Add(client, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
+                Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
                 
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                Subscriptions.Add(client, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
+                Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
                 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
@@ -902,8 +904,8 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
-            client.ProcessingDelay <- TimeSpan.Zero
+            let client = TestDynamoClientBuilder.Create(host)
+            client.SetProcessingDelay TimeSpan.Zero
             let table = Tables.getByStreamsEnabled true tables
             let pk = $"Sub-{IncrementingId.next()}"
             let sk = IncrementingId.next().Value |> decimal
@@ -928,7 +930,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
                 
-                Subscriptions.Add(client, table.name, sub, behaviour = settings1)
+                Subscriptions.Add(host, table.name, sub, behaviour = settings1)
                 
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
             host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2

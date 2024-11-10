@@ -4,11 +4,13 @@ namespace TestDynamo.Tests
 open System.Linq
 open System.Threading
 open System.Threading.Tasks
+open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -38,13 +40,14 @@ type GetItemTests(output: ITestOutputHelper) =
     let random = randomBuilder output
 
     let queryOrScan doQuery req =
-        let client = buildClient(ValueSome output)
+        let client = buildClient output
+        let client = client.Client
 
         if doQuery
         then QueryBuilder.queryRequest req |> client.QueryAsync |> mapTask _.Items
         else QueryBuilder.scanRequest req |> client.ScanAsync |> mapTask _.Items
 
-    let executeAsBatchGet (client: ITestDynamoClient) (req: GetItemRequest) =
+    let executeAsBatchGet (client: AmazonDynamoDBClient) (req: GetItemRequest) =
         let kAndAttr =
             let op = KeysAndAttributes()
             op.Keys.Add(req.Key)
@@ -61,7 +64,7 @@ type GetItemTests(output: ITestOutputHelper) =
         |> Io.fromTask
         |%|> (_.Responses >> Seq.collect _.Value >> List.ofSeq >> function | [] -> Dictionary<_,_>() | [x] -> x | xs -> invalidOp "Expected 1")
 
-    let executeAsTransactGet (client: ITestDynamoClient) (req: GetItemRequest) =
+    let executeAsTransactGet (client: AmazonDynamoDBClient) (req: GetItemRequest) =
         let kAndAttr =
             let op = TransactGetItem()
             op.Get <- Get()
@@ -99,7 +102,7 @@ type GetItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
 
@@ -147,7 +150,7 @@ type GetItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
 
@@ -197,7 +200,7 @@ type GetItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get ``table has sk`` true tables
 
             let tablePk = $"{IncrementingId.next()}"
@@ -259,7 +262,7 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let last = Tables.get false false tables |> keys false
             let tableVals =
                 [
@@ -308,16 +311,19 @@ type GetItemTests(output: ITestOutputHelper) =
             use dHost = new GlobalDatabase(host.BuildCloneData())
             let tableName = (Tables.get true true tables).name
             use client =
-                if ``global`` then TestDynamoClient.Create(dHost, host.Id)
+                if ``global`` then TestDynamoClientBuilder.Create(dHost, host.Id)
                 else
-                    TestDynamoClient.Create(cloneHost writer)
+                    TestDynamoClientBuilder.Create(cloneHost writer)
+                    
+            client.SetAwsAccountId "12233445"
+                    
             let req =
                 let r = BatchGetItemRequest()
                 let k = KeysAndAttributes()
                 k.Keys.Add(Dictionary<_, _>())
                 r.RequestItems.Add(
                     if ``invalid region``
-                        then $"arn:aws:dynamodb:invalid-region:{client.AwsAccountId}:table/{tableName}"
+                        then $"arn:aws:dynamodb:invalid-region:{client.GetAwsAccountId()}:table/{tableName}"
                         else $"arn:aws:dynamodb:{host.Id}:999999:table/{tableName}"
                     ,
                     k)
@@ -343,7 +349,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer'
             use dHost = new GlobalDatabase(host.BuildCloneData())
-            use client = TestDynamoClient.Create(dHost, host.Id)
+            use client = TestDynamoClientBuilder.Create(dHost, host.Id)
             let table = Tables.get true true tables
             dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>
             do! dHost.AwaitAllSubscribers writer CancellationToken.None
@@ -359,13 +365,13 @@ type GetItemTests(output: ITestOutputHelper) =
                 let k = KeysAndAttributes()
                 k.Keys.Add(key)
                 r.RequestItems.Add(
-                    $"arn:aws:dynamodb:{host.Id.regionId}:{client.AwsAccountId}:table/{table.name}",
+                    $"arn:aws:dynamodb:{host.Id.regionId}:{Settings.DefaultAwsAccountId}:table/{table.name}",
                     k)
 
                 let k = KeysAndAttributes()
                 k.Keys.Add(key)
                 r.RequestItems.Add(
-                    $"arn:aws:dynamodb:new-region:{client.AwsAccountId}:table/{table.name}",
+                    $"arn:aws:dynamodb:new-region:{Settings.DefaultAwsAccountId}:table/{table.name}",
                     k)
                 r
 
@@ -386,7 +392,7 @@ type GetItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Batch get item, multiple pages, returns correct items`` ``consistant read``: Task<unit> =
 
-        let rec executeUntilDone (client: ITestDynamoClient) acc (req: Dictionary<string,KeysAndAttributes>) =
+        let rec executeUntilDone (client: AmazonDynamoDBClient) acc (req: Dictionary<string,KeysAndAttributes>) =
             task {
                 let! x = client.BatchGetItemAsync(req)
                 if x.UnprocessedKeys.Count = 0
@@ -422,7 +428,7 @@ type GetItemTests(output: ITestOutputHelper) =
 
             use dHost = new GlobalDatabase(host.BuildCloneData())
 
-            use client = TestDynamoClient.Create(dHost, host.Id)
+            use client = TestDynamoClientBuilder.Create(dHost, host.Id)
             dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>
             do! dHost.AwaitAllSubscribers writer CancellationToken.None
 
@@ -436,8 +442,8 @@ type GetItemTests(output: ITestOutputHelper) =
                         arn,
                         k)
 
-                add $"arn:aws:dynamodb:{host.Id.regionId}:{client.AwsAccountId}:table/{table.name}"
-                add $"arn:aws:dynamodb:new-region:{client.AwsAccountId}:table/{table.name}"
+                add $"arn:aws:dynamodb:{host.Id.regionId}:{Settings.DefaultAwsAccountId}:table/{table.name}"
+                add $"arn:aws:dynamodb:new-region:{Settings.DefaultAwsAccountId}:table/{table.name}"
                 r
 
             // act

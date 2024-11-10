@@ -4,6 +4,7 @@ open System
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
+open TestDynamo
 open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
@@ -16,6 +17,7 @@ open TestDynamo.Api.FSharp
 open Tests.ClientLoggerContainer
 open Tests.Loggers
 
+type ApiDb = TestDynamo.Api.FSharp.Database
 let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f 
 
 let recordSubscription writer tableName (database: ApiDb) behaviour subscriber =
@@ -179,16 +181,14 @@ let uniqueId = IncrementingId.next >> _.Value
 
 let commonHost = new Database()
 
-let buildClient = function
-    | ValueNone ->  TestDynamoClient.Create(commonHost)
-    | ValueSome x -> new ClientContainer(commonHost, new TestLogger(x)) :> ITestDynamoClient
+let buildClient output = new ClientContainer(commonHost, new TestLogger(output), true)
+    
+let buildTempClient() = new ClientContainer(commonHost, Logger.notAnILogger, false)
 
-let buildClientWithlogLevel logLevel = function
-    | ValueNone ->  TestDynamoClient.Create(commonHost)
-    | ValueSome x -> new ClientContainer(commonHost, new TestLogger(x, level = logLevel)) :> ITestDynamoClient
+let buildClientWithlogLevel logLevel logger = new ClientContainer(commonHost, new TestLogger(logger, level = logLevel), true)
 
 let buildClientFromLogger logger =
-    TestDynamoClient.Create(commonHost, logger)
+    TestDynamoClient.createClient (ValueSome logger) (ValueSome commonHost)
 let printFullList xs =
     Seq.mapi (fun i -> if i = 0 then id else sprintf "  %s;") xs
     |> Str.join "\n"

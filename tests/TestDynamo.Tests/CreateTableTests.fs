@@ -175,7 +175,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, partition and sort keys, creates successfully`` (simpleInput: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -201,7 +202,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, partition keys only, creates successfully`` (simpleInput: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -224,7 +226,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, missing key attribute, throws exception`` (missingSortKey: bool, simpleInput: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -248,7 +251,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, superfluous attribute, throws exception`` (simpleInput: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -274,7 +278,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, 2 key attributes the same, throws exception`` (simpleInput: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -297,7 +302,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, 2 index attributes the same, throws exception`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -323,7 +329,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, GSIs, creates successfully`` (hasSortKey: bool, projectAttributes: bool) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let sortKey = if hasSortKey then ValueSome "IndexSk" else ValueNone
@@ -354,7 +361,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, LSIs, creates successfully`` projectAttributes =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -381,7 +389,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, LSI with no sort key, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -405,7 +414,8 @@ type CreateTableTests(output: ITestOutputHelper) =
     let ``Create table, LSI with invalid partition key, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableName = (Guid.NewGuid()).ToString()
@@ -440,7 +450,9 @@ type CreateTableTests(output: ITestOutputHelper) =
             | "Local" -> struct (true, true)
             | x -> invalidOp x
 
-        let client = buildClient (ValueSome output)
+        let client = buildClient output
+
+        let client = client.Client
         task {
             // arrange
             let sortKey = if hasSortKey then ValueSome "IndexSk" else ValueNone

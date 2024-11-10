@@ -4,7 +4,6 @@ namespace TestDynamo.Tests
 open System.Threading
 open TestDynamo
 open TestDynamo.Api.FSharp
-open TestDynamo.Client
 open TestDynamo.Model
 open TestDynamo.Utils
 open Tests.Items
@@ -29,10 +28,10 @@ type Exploration(output: ITestOutputHelper) =
                   subscriberTimeout = System.TimeSpan.FromSeconds(2) }
 
             use host = new GlobalDatabase(logger = writer)
-            use clientFrom = TestDynamoClient.Create(host, dbFrom, writer)
-            use clientTo = TestDynamoClient.Create(host, dbTo, writer)
-            clientFrom.ProcessingDelay <- System.TimeSpan.Zero
-            clientTo.ProcessingDelay <- System.TimeSpan.Zero
+            use clientFrom = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome dbFrom) (ValueSome host)
+            use clientTo = TestDynamoClient.createGlobalClient(ValueSome writer) (ValueSome dbTo) (ValueSome host)
+            TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientFrom
+            TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientTo
 
             // add a table with data
             let! tableName = addTable clientFrom true

@@ -418,7 +418,8 @@ module RequestItemTestUtils =
         let execution =
             task {
                 let start = DateTimeOffset.Now
-                use client = buildClient (ValueSome collector)
+                use client = buildClient collector
+                let client = client.Client
 
                 let! t = newTables client
                 return struct (t, DateTimeOffset.Now - start)

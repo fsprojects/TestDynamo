@@ -1,11 +1,13 @@
 namespace TestDynamo.Tests
 
+open System
 open System.IO
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -37,7 +39,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         }
 
     let queryOrScan doQuery req =
-        let client = buildClient(ValueSome output)
+        let client = buildClient output
+        let client = client.Client
 
         if doQuery
         then QueryBuilder.queryRequest req |> client.QueryAsync |> mapTask _.Items
@@ -55,7 +58,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             else struct (filterExp, neq)
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -98,7 +102,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, NOT on property, returns correct items`` twice =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -133,7 +138,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, contains on list, returns correct result`` ``does contain`` index =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -166,7 +172,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, contains, LHS is a value, smoke test`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -210,7 +217,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, size, returns correct result`` ``property name`` size ``size is correct`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -271,7 +279,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, IN, returns correct result`` ``test prop`` ``does contain`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -332,7 +341,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``More complex Filter, IN, smoke tests`` ``in expression`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -430,6 +440,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // this test has a lot of logging. Turn of tracing
             use logger = new TestLogger(output, LogLevel.Information)
             let client = buildClientFromLogger (logger)
+            
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
 
@@ -464,7 +475,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, with indexed property, processes successfully`` ``named attribute value`` found =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -495,7 +507,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Scan filter can contain non primary key attributes`` () =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -517,7 +530,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<ThreeFlags>)>]
     let ``Query filter can only contain non primary key attributes`` control ``use alias`` ``part of path`` =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -556,7 +570,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, attribute_exists with non attr, throws`` func =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -592,7 +607,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use h = cloneHostUnlogged()
-            use client = TestDynamoClient.Create(h)
+            use client = TestDynamoClientBuilder.Create(h)
             let tab = Tables.get true true tables
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
             let! item =
@@ -684,7 +699,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use h = cloneHostUnlogged()
-            use client = TestDynamoClient.Create(h)
+            use client = TestDynamoClientBuilder.Create(h)
             let tab = Tables.get true true tables
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
             let! item =
@@ -744,7 +759,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -770,7 +786,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -797,7 +814,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -825,7 +843,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -851,7 +870,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, with invalid attribute name characters, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -876,7 +896,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Filter, with invalid expression attribute name characters, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -902,7 +923,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
     let ``Scan, with invalid expression attribute value characters, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -930,7 +952,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -972,7 +995,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -1014,7 +1038,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -1058,7 +1083,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -1086,7 +1112,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             // act
@@ -1110,7 +1137,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
+            let client = client.Client
             let tab = Tables.get true true tables
 
             // act
@@ -1132,7 +1160,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
@@ -1147,7 +1175,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":y" (HashMap (Map.add "BoolValue" (Boolean true) Map.empty))
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1161,7 +1189,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             // act
@@ -1174,7 +1202,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":n" (Number 666M)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1194,7 +1222,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             let lh =  if ``lhs aliased`` then "#" else ""
@@ -1212,7 +1240,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                     then QueryBuilder.setExpressionAttrName "#Attr1" "Attr1"
                     else id
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1230,7 +1258,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             let lh = if ``l aliased`` then "#" else ""
@@ -1248,7 +1276,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                     then QueryBuilder.setExpressionAttrName "#Attr1" "Attr1"
                     else id
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1263,7 +1291,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
 
@@ -1277,14 +1305,14 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":b" (if ``does contain`` then (Map.find "BinaryData" data) else [|111uy|] |> Binary)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             let expected = if ``does contain`` then  [data] else []
             assertItems (expected, result.Items, true)
 
             // random double dispose of client
-            client.Dispose()
+            (client :> IDisposable).Dispose()
         }
 
     [<Theory>]
@@ -1295,7 +1323,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
 
@@ -1309,7 +1337,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":n" ((if ``does contain`` then sk else -666M) |> Number)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             let expected = if ``does contain`` then  [data] else []
@@ -1324,7 +1352,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
 
@@ -1338,7 +1366,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":str" ((if ``does contain`` then pk else "invalid") |> String)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             let expected = if ``does contain`` then  [data] else []
@@ -1353,7 +1381,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
 
@@ -1367,7 +1395,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":str" ((if ``does contain`` then "is a longer" else "invalid") |> String)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             let expected = if ``does contain`` then  [data] else []
@@ -1381,7 +1409,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true ``on index`` tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
 
             let struct (struct (pk1, expected1), struct (pk2, expected2)) =
                 randomPartitions 2 tab.hasSk random
@@ -1403,7 +1431,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":p1" (String pk1)
                 |> QueryBuilder.setExpressionAttrValues ":p2" (String pk2)
                 |> QueryBuilder.scanRequest
-                |> client.ScanAsync
+                |> client.Client.ScanAsync
 
             // assert
             if tab.hasSk then Assert.True((Seq.length expected) > 1)
@@ -1430,7 +1458,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
             let h = if aliased then "#" else ""
 
@@ -1446,7 +1474,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                     then QueryBuilder.setExpressionAttrName $"{h}{``attribute name``}" ``attribute name``
                     else id
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             if exists then Assert.Equal(1, result.Items.Count)
@@ -1472,7 +1500,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             // act
@@ -1485,7 +1513,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":t" (String ``test type``)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             if correct then Assert.Equal(1, result.Items.Count)
@@ -1499,7 +1527,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             // act
@@ -1512,7 +1540,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.setExpressionAttrValues ":t" (String "invalid")
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1525,7 +1553,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             // act
@@ -1537,7 +1565,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
                 |> Io.ignoreTask)
 
             // assert
@@ -1562,7 +1590,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let tab = Tables.get true true tables
 
             let struct (pk, struct (sk, _)) = randomTrueItem tab.hasSk 1
@@ -1599,7 +1627,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.queryRequest
-                |> client.QueryAsync
+                |> client.Client.QueryAsync
 
             // assert
             if expectedResult then Assert.Equal(1, Seq.length result.Items)
@@ -1613,7 +1641,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let tab = Tables.get true true tables
 
             let allItemsGrouped =
@@ -1650,7 +1678,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setFilterExpression $"TablePk {op} :p"
                 |> QueryBuilder.setExpressionAttrValues ":p" target
                 |> QueryBuilder.scanRequest
-                |> client.ScanAsync
+                |> client.Client.ScanAsync
 
             // assert
             Assert.True((Seq.length expected) > 1)
@@ -1672,7 +1700,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let tab = Tables.get true true tables
 
             let allItemsGrouped =
@@ -1701,7 +1729,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setFilterExpression $"begins_with(IndexSk, :p)"
                 |> QueryBuilder.setExpressionAttrValues ":p" (String target)
                 |> QueryBuilder.scanRequest
-                |> client.ScanAsync
+                |> client.Client.ScanAsync
 
             // assert
             Assert.True((Seq.length expected) > 1)
@@ -1719,7 +1747,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
-            use client = buildClient(ValueSome output)
+            use client = buildClient output
             let tab = Tables.get true true tables
 
             let allItemsGrouped =
@@ -1750,7 +1778,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":p1" target1
                 |> QueryBuilder.setExpressionAttrValues ":p2" target2
                 |> QueryBuilder.scanRequest
-                |> client.ScanAsync
+                |> client.Client.ScanAsync
 
             // assert
             Assert.True((Seq.length expected) > 1)

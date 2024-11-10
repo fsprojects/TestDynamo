@@ -21,7 +21,8 @@ type SmokeTests(output: ITestOutputHelper) =
     let ``Create table, put item, query smoke tests`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = addTable client false
@@ -61,7 +62,8 @@ type SmokeTests(output: ITestOutputHelper) =
     let ``Create table, describe table smoke test`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = addTable client false
@@ -80,7 +82,7 @@ type SmokeTests(output: ITestOutputHelper) =
     let ``List tables smoke test`` () =
 
         task {
-            use client = TestDynamoClient.Create()
+            use client = TestDynamoClient.CreateClient()
 
             // arrange
             let! tableName1 = addTable client false
@@ -143,7 +145,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             use host = new GlobalDatabase()
-            use client = TestDynamoClient.Create(host, {regionId = "r1" })
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome host)
 
             // arrange
             let! tableName1 = addGlobalTable client
@@ -206,7 +208,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.Create(commonHost, {regionId = "r1" })
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome commonHost)
 
             let! tableName = addTable client true
             let req = CreateGlobalTableRequest()
@@ -236,7 +238,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.Create(commonHost, {regionId = "r1" })
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome commonHost)
             let! tableName = addTable client true
             
             let r =

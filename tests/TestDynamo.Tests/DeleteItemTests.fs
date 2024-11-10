@@ -6,6 +6,7 @@ open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -36,7 +37,8 @@ type DeleteItemTests(output: ITestOutputHelper) =
     let random = randomBuilder output
 
     let queryOrScan doQuery req =
-        let client = buildClient(ValueSome output)
+        let client = buildClient output
+        let client = client.Client
 
         if doQuery
         then QueryBuilder.queryRequest req |> client.QueryAsync |> mapTask _.Items
@@ -55,7 +57,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
         req2
 
-    let maybeBatch batch (client: ITestDynamoClient) (req: DeleteItemRequest) =
+    let maybeBatch batch (client: IAmazonDynamoDB) (req: DeleteItemRequest) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.fromTask |%|> (asLazy ValueNone)
         else client.DeleteItemAsync req |> Io.fromTask |%|> ValueSome
@@ -70,7 +72,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get ``table has sk`` ``index has sk`` tables
 
             let tablePk = $"{IncrementingId.next()}"
@@ -119,7 +121,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
             // assert
             let getItems filters =
-                let table = client.GetTable table.name
+                let table = host.GetTable ValueNone table.name
                 table.GetIndexes()
                 |> Seq.cast<IDebugIndex>
                 |> Collection.prepend table
@@ -167,7 +169,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
             
@@ -243,7 +245,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get ``table has sk`` true tables
 
             let tablePk = $"{IncrementingId.next()}"

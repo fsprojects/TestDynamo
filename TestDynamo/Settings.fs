@@ -15,6 +15,12 @@ let internal QueryCacheSize = ValueSome struct (500, 1000)
 let mutable DefaultAwsAccountId = "123456789012"
 
 /// <summary>
+/// An artificial delay to add to dynamodb requests. This helps to simulate IO
+/// Default 5ms
+/// </summary>
+let mutable DefaultClientResponseDelay = System.TimeSpan.FromMilliseconds(5)
+
+/// <summary>
 /// <para>
 /// Max amount of time to wait when attempting to synchronously lock a mutable value for mutation
 /// </para>

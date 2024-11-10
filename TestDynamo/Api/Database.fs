@@ -4,6 +4,7 @@ open System
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
+open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Model
@@ -243,3 +244,4 @@ type Database private (db: FsDb, dispose: bool) =
     /// The returned task will re-throw any errors thrown by Stream subscriber callbacks
     /// </summary>
     member _.AwaitAllSubscribers([<Optional; DefaultParameterValue(null: ILogger)>] logger, [<Optional; DefaultParameterValue(CancellationToken())>] c) = db.AwaitAllSubscribers (CSharp.toOption logger) c
+

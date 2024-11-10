@@ -64,7 +64,6 @@ let inputs1 limits (req: ScanRequest) =
 let inputs2 limits struct (tableName, attributesToGet: List<string>) =
     let req = ScanRequest()
     req.TableName <- tableName
-    // TODO: add test for this. Was not supported
     req.AttributesToGet <- attributesToGet
 
     inputs1 limits req
@@ -72,7 +71,6 @@ let inputs2 limits struct (tableName, attributesToGet: List<string>) =
 let inputs3 limits struct (tableName, scanFilter) =
     let req = ScanRequest()
     req.TableName <- tableName
-    // TODO: add test for this. Was not supported
     req.ScanFilter <- scanFilter
 
     inputs1 limits req
@@ -80,9 +78,7 @@ let inputs3 limits struct (tableName, scanFilter) =
 let inputs4 limits struct (tableName, attributesToGet, scanFilter) =
     let req = ScanRequest()
     req.TableName <- tableName
-    // TODO: add test for this. Was not supported
     req.AttributesToGet <- attributesToGet
-    // TODO: add test for this. Was not supported
     req.ScanFilter <- scanFilter
 
     inputs1 limits req

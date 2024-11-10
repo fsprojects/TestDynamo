@@ -8,6 +8,7 @@ open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Table
@@ -52,7 +53,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let random = randomBuilder output
 
     static let table =
-        let client = buildClient ValueNone
+        let client = buildTempClient ()
+        let client = client.Client
 
         let t = sprintf "%s%i" (nameof PutItemTests) (uniqueId())
         let req =
@@ -76,7 +78,8 @@ type PutItemTests(output: ITestOutputHelper) =
         }
 
     static let allStringsTable =
-        let client = buildClient (OutputCollector() |> ValueSome)
+        let client = buildClient (OutputCollector())
+        let client = client.Client
 
         let t = sprintf "%s%i" (nameof PutItemTests) (uniqueId())
         let req =
@@ -153,7 +156,7 @@ type PutItemTests(output: ITestOutputHelper) =
 
         req2
 
-    let maybeBatch batch (client: ITestDynamoClient) (req: PutItemRequest) =
+    let maybeBatch batch (client: IAmazonDynamoDB) (req: PutItemRequest) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.ignoreTask
         else client.PutItemAsync req |> Io.ignoreTask
@@ -163,7 +166,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, partition and sort keys, creates successfully`` batch =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -197,7 +201,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, missing index partition key, creates successfully`` batch =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -227,7 +232,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, missing index sort key, creates successfully`` batch =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -259,7 +265,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, missing partition key, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -287,7 +294,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, missing sort key, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -316,7 +324,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, invalid partition key type, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -345,7 +354,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem table, invalid sort key type, throws`` () =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! tableName = table
@@ -376,7 +386,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem, table and index, item is replicated`` ``table has sk`` ``index has sk`` batch =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableSk = if ``table has sk`` then ValueSome "TableSk" else ValueNone
@@ -426,7 +437,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem, test attribute types`` ``failure type`` =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let! table = allStringsTable
@@ -553,7 +565,8 @@ type PutItemTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<ThreeFlags>)>]
     let ``PutItem twice, table and index, item is replaced and replicated`` (``table has sk``, ``index has sk``, batch) =
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableSk = if ``table has sk`` then ValueSome "TableSk" else ValueNone
@@ -611,7 +624,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem, table and index, index pk key missing, item not replicated`` (``table has sk``, ``index has sk``, batch) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableSk = if ``table has sk`` then ValueSome "TableSk" else ValueNone
@@ -660,7 +674,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem, table and index, index sk key missing, item not replicated`` (``table has sk``, batch) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableSk = if ``table has sk`` then ValueSome "TableSk" else ValueNone
@@ -708,7 +723,8 @@ type PutItemTests(output: ITestOutputHelper) =
     let ``PutItem, table and index, duplicate item on index, item replicated`` (``table has sk``, ``index has sk``) =
 
         task {
-            use client = buildClient (ValueSome output)
+            use client = buildClient output
+            let client = client.Client
 
             // arrange
             let tableSk = if ``table has sk`` then ValueSome "TableSk" else ValueNone
@@ -771,7 +787,7 @@ type PutItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.Create(host)
+            let client = TestDynamoClient.createClient ValueNone (ValueSome host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
             
@@ -840,9 +856,10 @@ type PutItemTests(output: ITestOutputHelper) =
             use dHost = new GlobalDatabase(host.BuildCloneData())
             let tableName = (Tables.get true true tables).name
             use client =
-                if ``global`` then TestDynamoClient.Create(dHost, host.Id)
-                else
-                    TestDynamoClient.Create(cloneHost writer)
+                if ``global``
+                then TestDynamoClient.createGlobalClient ValueNone (ValueSome host.Id) (ValueSome dHost)
+                else TestDynamoClientBuilder.Create(writer)
+                
             let req =
                 let r = BatchWriteItemRequest()
                 let k = WriteRequest()
@@ -850,7 +867,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 k.DeleteRequest.Key <- Dictionary<_, _>()
                 r.RequestItems.Add(
                     if ``invalid region``
-                        then $"arn:aws:dynamodb:invalid-region:{client.AwsAccountId}:table/{tableName}"
+                        then $"arn:aws:dynamodb:invalid-region:{Settings.DefaultAwsAccountId}:table/{tableName}"
                         else $"arn:aws:dynamodb:{host.Id}:999999:table/{tableName}"
                     ,
                     [k] |> Enumerable.ToList)
@@ -874,7 +891,7 @@ type PutItemTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            use client = TestDynamoClient.Create(host)
+            use client = TestDynamoClientBuilder.Create(host)
             let tableName = (Tables.get true true tables).name
             let struct (putPk, struct (putSk, putItem)) = randomItem true random
             let struct (deletePk, struct (deleteSk, _)) = randomFilteredItem (fstT >> (<>)putPk) true random

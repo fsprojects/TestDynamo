@@ -8,6 +8,7 @@ open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open Microsoft.Extensions.Logging
+open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Table
@@ -158,7 +159,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 use writer = new TestLogger(collector)
 
                 use host = new GlobalDatabase(logger = writer)
-                use client = TestDynamoClient.Create(host, defaultDbId, writer)
+                use client = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome defaultDbId) (ValueSome host)
                 let! _ =                    
                     TableBuilder.empty
                     |> TableBuilder.withTableName defaultTable
@@ -182,7 +183,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                     ItemBuilder.tableName item,
                     ItemBuilder.dynamoDbAttributes item)
 
-                do! client.AwaitAllSubscribers CancellationToken.None
+                do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
                 return host.BuildCloneData(ValueSome writer)
             }
 
@@ -211,7 +212,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! host = baseTableWithStream (ValueSome output)
-            use originalClient = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use originalClient = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome defaultDbId) (ValueSome host)
 
             do!
                 ItemBuilder.empty
@@ -226,7 +227,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             let! _ = originalClient.UpdateTableAsync(
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
-                |> TableBuilder.withReplication "another region"
+                |> TableBuilder.withReplication "another-region"
                 |> TableBuilder.updateReq)
 
             if ``cloned host``
@@ -244,7 +245,8 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome defaultDbId) (ValueSome host)
+            
             // act
             // assert
             let! response = client.UpdateTableAsync (TableBuilder.empty |> TableBuilder.withTableName defaultTable |> TableBuilder.updateReq)
@@ -267,7 +269,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -302,7 +304,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -330,7 +332,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -350,7 +352,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -372,7 +374,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -394,7 +396,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let newPk = if ``sparse transfer`` then "IndexPk" else "another pk"
             let req =
                 TableBuilder.empty
@@ -454,7 +456,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             use! host1 = baseTableWithStream (ValueSome output)
             let host = host1.Clone (ValueSome writer)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             do!
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable
@@ -506,7 +508,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             use! host1 = baseTableWithStream (ValueSome output)
             let host = host1.Clone (ValueSome writer)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             do!
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable
@@ -537,7 +539,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -547,7 +549,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             // act
             let! response = client.UpdateTableAsync req
-            do! client.AwaitAllSubscribers CancellationToken.None
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
             // assert
             Assert.Equal(1, response.TableDescription.Replicas.Count)
@@ -571,8 +573,8 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = ``Create host with replication`` ``cloned host`` writer
 
             let struct (deleteClient, otherClient) =
-                let c1 = TestDynamoClient.Create(host, defaultDbId, (writer :> ILogger))
-                let c2 = TestDynamoClient.Create(host, { regionId = "another region"}, (writer :> ILogger))
+                let c1 = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
+                let c2 = TestDynamoClientBuilder.Create(host, { regionId = "another-region"}, (writer :> ILogger))
 
                 if ``delete on source table``
                 then struct (c1, c2)
@@ -596,7 +598,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             let dataB4 = dataCount()
 
-            let put (client: ITestDynamoClient) =
+            let put (client: IAmazonDynamoDB) =
                 client.PutItemAsync(
                     ItemBuilder.empty
                     |> ItemBuilder.withTableName defaultTable
@@ -621,11 +623,11 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = ``Create host with replication`` ``cloned host`` writer
 
             let struct (deleteClient, otherClient, otherDb) =
-                let c1 = TestDynamoClient.Create(host, defaultDbId, writer)
-                let c2 = TestDynamoClient.Create(host, { regionId = "another region"}, writer)
+                let c1 = TestDynamoClientBuilder.Create(host, defaultDbId, writer)
+                let c2 = TestDynamoClientBuilder.Create(host, { regionId = "another-region"}, writer)
 
                 if ``delete source table``
-                then struct (c1, c2, host.GetDatabase w { regionId = "another region" })
+                then struct (c1, c2, host.GetDatabase w { regionId = "another-region" })
                 else struct (c2, c1, host.GetDatabase w defaultDbId)
 
             let! _ = deleteClient.DeleteTableAsync(defaultTable)
@@ -655,7 +657,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Test deletion protection`` ``deletion protection added at create time`` =
 
-        let tableExists (client: ITestDynamoClient) =
+        let tableExists (client: IAmazonDynamoDB) =
             task {
                 try 
                     let! _ = client.ScanAsync(
@@ -671,7 +673,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             use host = new ApiDb(writer)
-            use client = TestDynamoClient.Create(host, writer)
+            use client = TestDynamoClientBuilder.Create(host, writer)
             let! _ =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -714,7 +716,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update table, delete stream, works correctly`` () =
 
-        let put (client: ITestDynamoClient) =
+        let put (host: GlobalDatabase) (client: IAmazonDynamoDB) =
             let item =
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable
@@ -725,7 +727,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                     ItemBuilder.tableName item,
                     ItemBuilder.dynamoDbAttributes item)
 
-                do! client.AwaitAllSubscribers CancellationToken.None
+                do! host.AwaitAllSubscribers ValueNone CancellationToken.None
             }
 
         task {
@@ -734,7 +736,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = baseTableWithStream (ValueSome output)
             let w = (ValueSome (writer :> ILogger))
             let database = host.GetDatabase w defaultDbId
-            use client = TestDynamoClient.Create(database, writer)
+            use client = TestDynamoClientBuilder.Create(database, writer)
             let struct (x, recorded) = recordSubscription w defaultTable database ValueNone ValueNone
             use _ = x
 
@@ -744,16 +746,14 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 |> TableBuilder.deleteStream
                 |> TableBuilder.updateReq
 
-            do! put client
-            do! client.AwaitAllSubscribers CancellationToken.None
+            do! put host client
             Assert.Equal(1, recorded.Count)
 
             // act
             let! response = client.UpdateTableAsync req
-            do! put client
+            do! put host client
 
             // assert
-            do! client.AwaitAllSubscribers CancellationToken.None
             Assert.Equal(1, recorded.Count)
             Assert.Null(response.TableDescription.LatestStreamArn)
         }
@@ -767,7 +767,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = baseTableWithoutStream (ValueSome output)
             let w = (ValueSome (writer :> ILogger))
             let database = host.GetDatabase w defaultDbId
-            use client = TestDynamoClient.Create(database, writer)
+            use client = TestDynamoClientBuilder.Create(database, writer)
             // act
             // assert
             let! e = Assert.ThrowsAnyAsync(fun () ->
@@ -790,7 +790,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = baseTableWithStream (ValueSome output)
             let w = (ValueSome (writer :> ILogger))
             let database = host.GetDatabase w defaultDbId
-            use client = TestDynamoClient.Create(database, writer)
+            use client = TestDynamoClientBuilder.Create(database, writer)
             // act
             // assert
             let! e = Assert.ThrowsAnyAsync(fun () ->
@@ -807,7 +807,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update table, add stream, works correctly`` () =
 
-        let put (client: ITestDynamoClient) =
+        let put (host: GlobalDatabase) (client: IAmazonDynamoDB) =
             let item =
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable
@@ -818,7 +818,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                     ItemBuilder.tableName item,
                     ItemBuilder.dynamoDbAttributes item)
 
-                do! client.AwaitAllSubscribers CancellationToken.None
+                do! host.AwaitAllSubscribers ValueNone CancellationToken.None
             }
 
         task {
@@ -827,7 +827,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use! host = baseTableWithoutStream (ValueSome output)
             let w = (ValueSome (writer:> ILogger))
             let database = host.GetDatabase w defaultDbId
-            use client = TestDynamoClient.Create(database, writer)
+            use client = TestDynamoClientBuilder.Create(database, writer)
             let req =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
@@ -836,13 +836,12 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             // act
             let! response = client.UpdateTableAsync req
-            do! put client
+            do! put host client
 
             // assert
             let struct (x, recorded) = recordSubscription w defaultTable database ValueNone ValueNone
             use _ = x
-            do! put client
-            do! client.AwaitAllSubscribers CancellationToken.None
+            do! put host client
             Assert.Equal(1, recorded.Count)
             Assert.StartsWith("arn:aws:dynamodb:local-machine-1:123456789012:table/Tab1/stream/202", response.TableDescription.LatestStreamArn)
         }
@@ -855,7 +854,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     //         // arrange
     //         let writer = Writer(output) :> Microsoft.Extensions.Logging.ILogger
     //         use! host = baseTable (ValueSome output) SubscriberOptions.defaultOptions
-    //         use client = TestDynamoClient.Create(host, defaultRegion, writer)
+    //         use client = TestDynamoClientBuilder.Create(host, defaultRegion, writer)
     //         
     //         let put () =
     //             let item =
