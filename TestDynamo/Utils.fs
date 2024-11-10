@@ -1176,7 +1176,6 @@ module Io =
 
     let addCancellationToken (c: CancellationToken) (t: ValueTask<'a>) =
         if t.IsCompleted || c = CancellationToken.None then t
-        // TODO: code doesn't seem to be used (not covered by tests anyway)
 #if NETSTANDARD2_1
         else t.AsTask() |> addCancellationTokenNetStandard c |> ValueTask<'a>
 #else

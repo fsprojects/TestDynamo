@@ -61,11 +61,11 @@ type ObjPipelineInterceptor(
         | d when d = TimeSpan.Zero -> ValueTask<'a>(result = x)
         | d -> delay' d c |> ValueTask |> Io.normalizeVt |%|> (asLazy x)
 
-    let execute mapIn f mapOut c: _ -> ValueTask<AmazonWebServiceResponse> =
-        taskify artificialDelay c >> Io.map (mapIn >> f defaultLogger >> mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
+    let execute overrideDelay mapIn f mapOut c: _ -> ValueTask<AmazonWebServiceResponse> =
+        taskify (overrideDelay ?|? artificialDelay) c >> Io.map (mapIn >> f defaultLogger >> mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
 
-    let executeAsync mapIn f mapOut c =
-        taskify artificialDelay c >> Io.bind (mapIn >> f defaultLogger) >> Io.map (mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
+    let executeAsync overrideDelay mapIn f mapOut c =
+        taskify (overrideDelay ?|? artificialDelay) c >> Io.bind (mapIn >> f defaultLogger) >> Io.map (mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
 
     static let notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
 
@@ -76,42 +76,36 @@ type ObjPipelineInterceptor(
         match req with
         | ValueNone -> describeRequiredTable db logger name
         | ValueSome req -> db.UpdateTable logger name req
-        
-    static let taskFactory = TaskFactory(
-        CancellationToken.None,
-        TaskCreationOptions.None,
-        TaskContinuationOptions.None,
-        TaskScheduler.Default)
     
     let mutable awsLogger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
     let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
     let mutable outerHandler = Unchecked.defaultof<IPipelineHandler>
     
-    let invoke operation cancellationToken: AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> = function
+    let invoke' overrideDelay cancellationToken: AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> = function
         | :? BatchGetItemRequest as request ->
             let update = MultiClientOperations.BatchGetItem.batchGetItem database
             request
-            |> execute (GetItem.Batch.inputs1 awsAccountId db.Id) update GetItem.Batch.output cancellationToken
+            |> execute overrideDelay (GetItem.Batch.inputs1 awsAccountId db.Id) update GetItem.Batch.output cancellationToken
         | :? BatchWriteItemRequest as request ->
             let update = MultiClientOperations.BatchWriteItem.batchPutItem database
             request
-            |> execute (PutItem.BatchWrite.inputs1 awsAccountId db.Id) update PutItem.BatchWrite.output cancellationToken
+            |> execute overrideDelay (PutItem.BatchWrite.inputs1 awsAccountId db.Id) update PutItem.BatchWrite.output cancellationToken
         | :? CreateGlobalTableRequest as request ->
             let update logger =
                 let t = maybeUpdateTable db logger
                 let dt = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
                 MultiClientOperations.UpdateTable.createGlobalTable awsAccountId parentDdb db.Id t dt
 
-            flip (execute id update (asLazy id)) request cancellationToken
+            flip (execute overrideDelay id update (asLazy id)) request cancellationToken
         | :? CreateTableRequest as request ->
             request
-            |> execute CreateTable.inputs1 db.AddTable (CreateTable.output awsAccountId) cancellationToken
+            |> execute overrideDelay CreateTable.inputs1 db.AddTable (CreateTable.output awsAccountId) cancellationToken
         | :? DeleteItemRequest as request ->
             request
-            |> execute DeleteItem.inputs1 db.Delete DeleteItem.output cancellationToken
+            |> execute overrideDelay DeleteItem.inputs1 db.Delete DeleteItem.output cancellationToken
         | :? DeleteTableRequest as request ->
             request.TableName
-            |> executeAsync id db.DeleteTable (DeleteTable.output awsAccountId) cancellationToken
+            |> executeAsync overrideDelay id db.DeleteTable (DeleteTable.output awsAccountId) cancellationToken
         | :? DescribeGlobalTableRequest as request ->
             let cluster =
                 parent
@@ -122,52 +116,56 @@ type ObjPipelineInterceptor(
             then clientError $"{request.GlobalTableName} in {db.Id} is not a global table"
                 
             request.GlobalTableName
-            |> execute id db.DescribeTable (DescribeTable.Global.output awsAccountId (ValueSome cluster) GlobalTableStatus.ACTIVE) cancellationToken
+            |> execute overrideDelay id db.DescribeTable (DescribeTable.Global.output awsAccountId (ValueSome cluster) GlobalTableStatus.ACTIVE) cancellationToken
         | :? DescribeTableRequest as request ->
             request.TableName
-            |> execute id db.DescribeTable (DescribeTable.Local.output awsAccountId) cancellationToken
+            |> execute overrideDelay id db.DescribeTable (DescribeTable.Local.output awsAccountId) cancellationToken
         | :? GetItemRequest as request ->
-            execute GetItem.inputs1 db.Get GetItem.output cancellationToken request
+            execute overrideDelay GetItem.inputs1 db.Get GetItem.output cancellationToken request
         | :? ListGlobalTablesRequest as request ->
             let cluster =
                 parent
                 |> ValueOption.map fstT
                 |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a global database")
                 
-            execute DescribeTable.Global.List.inputs cluster.ListGlobalTables (DescribeTable.Global.List.output request.Limit) cancellationToken request
+            execute overrideDelay DescribeTable.Global.List.inputs cluster.ListGlobalTables (DescribeTable.Global.List.output request.Limit) cancellationToken request
         | :? ListTablesRequest as request ->
             let limit = DescribeTable.List.getLimit request
-            execute DescribeTable.List.inputs1 db.ListTables (DescribeTable.List.output limit) cancellationToken request
+            execute overrideDelay DescribeTable.List.inputs1 db.ListTables (DescribeTable.List.output limit) cancellationToken request
         | :? PutItemRequest as request ->
-            execute PutItem.inputs1 db.Put PutItem.output cancellationToken request
+            execute overrideDelay PutItem.inputs1 db.Put PutItem.output cancellationToken request
         | :? QueryRequest as request ->
-            execute (Query.inputs1 scanSizeLimits) db.Query Query.output cancellationToken request
+            execute overrideDelay (Query.inputs1 scanSizeLimits) db.Query Query.output cancellationToken request
         | :? ScanRequest as request ->
-            execute (Scan.inputs1 scanSizeLimits) db.Query Scan.output cancellationToken request
+            execute overrideDelay (Scan.inputs1 scanSizeLimits) db.Query Scan.output cancellationToken request
         | :? TransactGetItemsRequest as request ->
             request
-            |> execute GetItem.Transaction.inputs1 db.Gets GetItem.Transaction.output cancellationToken
+            |> execute overrideDelay GetItem.Transaction.inputs1 db.Gets GetItem.Transaction.output cancellationToken
         | :? TransactWriteItemsRequest as request ->
             request
-            |> execute TransactWriteItems.inputs1 db.TransactWrite TransactWriteItems.output cancellationToken
+            |> execute overrideDelay TransactWriteItems.inputs1 db.TransactWrite TransactWriteItems.output cancellationToken
         | :? UpdateGlobalTableRequest as request ->
             let update logger =
                 let local = maybeUpdateTable db logger
                 let ``global`` = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
                 MultiClientOperations.UpdateTable.updateGlobalTable awsAccountId parentDdb db.Id local ``global``
 
-            flip (execute id update (asLazy id)) request cancellationToken
+            flip (execute overrideDelay id update (asLazy id)) request cancellationToken
         | :? UpdateItemRequest as request ->
             request
-            |> execute (UpdateItem.inputs1 loggerOrDevNull) db.Update UpdateItem.output cancellationToken
+            |> execute overrideDelay (UpdateItem.inputs1 loggerOrDevNull) db.Update UpdateItem.output cancellationToken
         | :? UpdateTableRequest as request ->
             let update logger =
                 let local = maybeUpdateTable db logger
                 let dt = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
                 MultiClientOperations.UpdateTable.updateTable awsAccountId parentDdb db.Id local dt
                 
-            flip (execute id update (asLazy id)) request cancellationToken
-        | x -> operation |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
+            flip (execute overrideDelay id update (asLazy id)) request cancellationToken
+        | x -> x.GetType().Name |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
+    
+    let invoke = invoke' ValueNone
+    
+    let invokeWithoutDelay = invoke' (ValueSome TimeSpan.Zero)
     
     member _.ProcessingDelay
         with get () = artificialDelay
@@ -179,6 +177,14 @@ type ObjPipelineInterceptor(
     member _.AwsAccountId
         with get () = awsAccountId
         and set value = awsAccountId <- value
+        
+    // exposed to test specific edge case
+    member _.InvokeSync useDelay request c =
+        let result = (if useDelay then invoke else invokeWithoutDelay) c request
+        
+        if not result.IsCompletedSuccessfully
+        then result.AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
+        else result.Result
     
     interface IPipelineHandler with
     
@@ -192,22 +198,15 @@ type ObjPipelineInterceptor(
             with get () = outerHandler
             and set value = outerHandler <- value
             
-        member _.InvokeSync(executionContext: IExecutionContext) =
-            let result =
-                invoke
-                    (executionContext.RequestContext.OriginalRequest.GetType()).Name
-                    executionContext.RequestContext.CancellationToken
+        member this.InvokeSync(executionContext: IExecutionContext) =
+            executionContext.ResponseContext.Response <- 
+                this.InvokeSync
+                    false
                     executionContext.RequestContext.OriginalRequest
-                |%|> fun r -> executionContext.ResponseContext.Response <- r
-                
-            if not result.IsCompletedSuccessfully
-            // TODO: test
-            then taskFactory.StartNew(fun _ -> result.AsTask()).Unwrap().GetAwaiter().GetResult()
-            else ()
+                    executionContext.RequestContext.CancellationToken
             
         member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
             invoke
-                (executionContext.RequestContext.OriginalRequest.GetType()).Name
                 executionContext.RequestContext.CancellationToken
                 executionContext.RequestContext.OriginalRequest
             |%|> fun r ->

@@ -1,9 +1,12 @@
 
 namespace TestDynamo.Tests
 
+open System
 open System.Threading
 open System.Threading.Tasks
+open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
+open Amazon.Runtime
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
@@ -95,6 +98,43 @@ type SmokeTests(output: ITestOutputHelper) =
             use cts = new CancellationTokenSource(10)
             let! e = Assert.ThrowsAnyAsync(fun _ -> doAndReturn7() |> Io.addCancellationTokenNetStandard cts.Token |> Io.ignoreTask)
             assertError output "A task was canceled" e
+        }
+
+    [<Fact>]        
+    let ``ObjPipelineInterceptor force synchronous test`` () =
+        task {
+            // arrange
+            let db = new ApiDb()
+            let delay = TimeSpan.FromSeconds(0.2)
+            let subject = ObjPipelineInterceptor(db |> Either1, delay, ValueNone)
+            let request =
+                let r = CreateTableRequest()
+                r.TableName <- "NewTable"
+                r.KeySchema <- MList<_>([
+                    let s = KeySchemaElement()
+                    s.AttributeName <- "kk"
+                    s.KeyType <- KeyType.HASH
+                    s
+                ])
+                r.AttributeDefinitions <- MList<_>([
+                    let attr = AttributeDefinition()
+                    attr.AttributeName <- "kk"
+                    attr.AttributeType <- ScalarAttributeType.S
+                    attr
+                ])
+                r
+            
+            // act
+            let start = DateTimeOffset.Now
+            do subject.InvokeSync true request CancellationToken.None |> ignoreTyped<AmazonWebServiceResponse>
+            
+            // assert
+            // + 50ms because Task.Delay is not 100% accurate
+            let time = DateTimeOffset.Now + TimeSpan.FromMilliseconds(50) - start 
+            Assert.True(time >= delay, time.ToString())
+            
+            db.GetTable ValueNone "NewTable"
+            |> Assert.NotNull
         }
 
     [<Fact>]

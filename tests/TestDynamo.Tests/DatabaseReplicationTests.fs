@@ -808,6 +808,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             // wait for the system to be at rest and begin monitoring logs
             do! host.AwaitAllSubscribers ValueNone CancellationToken.None
+            output.WriteLine("### Recording started")
             writer.Record true
             
             // don't wait for p1 to complete before doing p2
@@ -815,7 +816,9 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! _ = client4.PutItemAsync(table.name, update4)
             let! _ = p1
             do! host.AwaitAllSubscribers ValueNone CancellationToken.None
+            output.WriteLine("### Stopping record")
             writer.Record false
+            output.WriteLine("### Recording stopped")
 
             // assert
             
@@ -826,8 +829,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 let totalMessages = 2
                 totalMessages * ((midNodes * 2) + edgeNodes)
              
-            Assert.Equal(expectedPropagations, countLogs "Propagating synchronously")
             Assert.Equal(0, countLogs "Propagating asynchronously")
+            Assert.Equal(expectedPropagations, countLogs "Propagating synchronously")
             Assert.True(countLogs "Acquire lock failed" > 0)
             
             let scan (client: AmazonDynamoDBClient) =

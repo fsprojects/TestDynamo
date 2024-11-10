@@ -38,16 +38,17 @@ type RecordingLogger(logger: ITestLogger) =
 
     let mutable record = false
     let mutable recorded = System.Collections.Generic.List<struct (DateTime * string)>()
-    member this.Record x = record <- x
+    member this.Record x =
+        lock recorded (fun _ -> record <- x)
 
     /// <summary>Not thread safe</summary>
     member this.ClearRecord() = recorded <- System.Collections.Generic.List<_>()
 
-    /// <summary>Not thread safe</summary>
     member this.ClearRecordBefore i =
-        if i >= recorded.Count then this.ClearRecord()
-        elif i <= 0 then ()
-        else recorded.RemoveRange(0, i)
+        lock recorded (fun () ->
+            if i >= recorded.Count then this.ClearRecord()
+            elif i <= 0 then ()
+            else recorded.RemoveRange(0, i))
 
     member this.Recorded () = recorded :> System.Collections.Generic.IReadOnlyList<_>
 
@@ -61,7 +62,9 @@ type RecordingLogger(logger: ITestLogger) =
         member this.IsEnabled(logLevel) = logger.IsEnabled(logLevel)
         member this.TestLog state ``exception`` formatter =
             let txt = logger.TestLog state ``exception`` formatter
-            if record then recorded.Add(struct(DateTime.UtcNow, txt))
+            if record then
+                lock recorded (fun () ->
+                    if record then recorded.Add(struct(DateTime.UtcNow, txt)))
             txt
         member this.Log(logLevel, eventId, state, ``exception``, formatter) =
             (this :> ITestLogger).TestLog state ``exception`` formatter |> ignoreTyped<string>

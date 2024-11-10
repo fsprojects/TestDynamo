@@ -66,7 +66,6 @@ type TestDynamoClient =
         
     static let attach' (logger: ILogger voption) db (client: AmazonDynamoDBClient) =
         
-        // TODO: test client.Config.RegionEndpoint.SystemName
         let db = Either.map2Of2 (flip tpl ({ regionId = client.Config.RegionEndpoint.SystemName }: Model.DatabaseId)) db
         let id =
             db
@@ -212,7 +211,7 @@ type TestDynamoClient =
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
     /// </summary>
-    [<Extension>]   // TODO :test extension methods actually work correctly
+    [<Extension>]
     static member Attach (
         client: AmazonDynamoDBClient,
         db: TestDynamo.Api.GlobalDatabase,
