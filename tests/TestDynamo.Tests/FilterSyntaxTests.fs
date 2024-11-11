@@ -390,7 +390,6 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                         |> mapFst (List.map sndT)
                         |> mapSnd (List.map sndT)
                     before@($"({x} AND {y})"::after) |> nestCenter
-                
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
             let folder =
@@ -440,7 +439,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // this test has a lot of logging. Turn of tracing
             use logger = new TestLogger(output, LogLevel.Information)
             let client = buildClientFromLogger (logger)
-            
+
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
 

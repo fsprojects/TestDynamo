@@ -258,7 +258,7 @@ module CdcPacket =
                 Logger.scope logger
             elif count > 0 then Logger.scope logger
             else struct (logger, Disposable.nothingToDispose)
-            
+
         use _ = disposeScope
 
         let projectedCount =

@@ -35,7 +35,7 @@ let getScanIndexForward =
     >> ValueOption.defaultValue true
 
 let buildSelectTypes select projectionExpression (attributesToGet: IReadOnlyList<string>) indexName =
-    
+
     let inline attrC (attr: IReadOnlyList<string>) = if attr = null then 0 else attr.Count
     match struct (select, projectionExpression, attributesToGet) with
     | _, ValueSome _, attr when attrC attr > 0 -> clientError $"Cannot have a projection expression and AttributesToGet on the same request"
@@ -78,28 +78,30 @@ type Mapping =
     static member concat x y =
         { exprAttrNames = x.exprAttrNames@y.exprAttrNames
           exprAttrValues = x.exprAttrValues@y.exprAttrValues }
-          
+
     static member asMapAdders x =
         let names = flip (Seq.fold (fun s struct (k, v) -> Map.add k v s)) x.exprAttrNames
         let values = flip (Seq.fold (fun s struct (k, v) -> Map.add k v s)) x.exprAttrValues
-        
+
         struct (names, values)
 
 let private exists' = getOptionalBool<ExpectedAttributeValue, bool> (nameof Unchecked.defaultof<ExpectedAttributeValue>.Exists)
 
 let private attributeValueList = function
-    | Either1 (x: Condition) -> x.AttributeValueList
-    | Either2 (x: ExpectedAttributeValue) -> x.AttributeValueList
-    
-let private comparisonOperator = function
+    | Either1 (x: Condition) -> x.AttributeValueList |> CSharp.sanitizeSeq
+    | Either2 (x: ExpectedAttributeValue) when x.AttributeValueList <> null && x.AttributeValueList.Count > 0 -> x.AttributeValueList |> CSharp.sanitizeSeq
+    | Either2 (x: ExpectedAttributeValue) when x.Value <> null -> MList<_>([x.Value])
+    | Either2 _ -> MList<_>()
+
+let private comparisonOperator =
+    function
     | Either1 (x: Condition) -> x.ComparisonOperator
     | Either2 (x: ExpectedAttributeValue) -> x.ComparisonOperator
-    
+    >> CSharp.mandatory "ComparisonOperator is mandatory"
+
 let private exists = function
     | Either1 (x: Condition) -> ValueNone
     | Either2 (x: ExpectedAttributeValue) -> exists' x
-
-// last prop - member Value: AttributeValue ???
 
 let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attrName, value)) =
     let attrValues =
@@ -108,7 +110,7 @@ let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attr
             | struct (0, x) -> struct (valName, x)
             | i, x -> struct ($"{valName}_{i}", x))
         |> List.ofSeq
-    
+
     let exprString =
         match struct (comparisonOperator value, attrValues, exists value) with
         | struct (_, _, ValueSome true) -> sprintf "attribute_exists(%s)" attrAlias
@@ -129,11 +131,11 @@ let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attr
         | x, [(value, _)], ValueNone when x.Value = ComparisonOperator.BEGINS_WITH.Value -> sprintf "begins_with(%s, %s)" attrAlias value
         | x, [(value, _)], ValueNone when x.Value = ComparisonOperator.NOT_CONTAINS.Value -> sprintf "NOT contains(%s, %s)" attrAlias value
         | x, args , ValueNone -> clientError $"Unknown operation {x.Value} with {args.Length} args"
-    
+
     let values =
         Collection.mapSnd (ItemMapper.attributeFromDynamodb "$") attrValues
         |> List.ofSeq
-        
+
     struct (exprString, { exprAttrValues = values; exprAttrNames = [struct (attrAlias, attrName)]})
 
 let private buildKeyConditions' conditionType (op: ConditionalOperator) keyConditions =
@@ -150,7 +152,7 @@ let buildFetchExpression expressionName conditionsName conditionType op expressi
     if ValueOption.isSome expression
         && conditions <> null
         && conditions.Count > 0 then clientError $"Cannot specify {conditionsName} and {expressionName} in the same query"
-        
+
     if ValueOption.isNone expression
         && (conditions = null
             || conditions.Count = 0) then ValueNone
@@ -166,7 +168,7 @@ let buildUpdateConditionExpression op expression (conditions: Dictionary<_, _>) 
     if ValueOption.isSome expression
         && conditions <> null
         && conditions.Count > 0 then clientError $"Cannot specify Expected and ConditionExpression in the same query"
-        
+
     if ValueOption.isNone expression
         && (conditions = null
             || conditions.Count = 0) then ValueNone
@@ -177,18 +179,18 @@ let buildUpdateConditionExpression op expression (conditions: Dictionary<_, _>) 
             buildKeyConditions' "ue" op (conditions |> Seq.map (fun x -> struct (x.Key, Either2 x.Value)))
             |> mapSnd Mapping.asMapAdders
         |> ValueSome
-        
+
 let private buildQueryExpression = buildFetchExpression "KeyConditionExpression" "KeyConditions" "q" ConditionalOperator.AND
 
 let buildFilterExpression = buildFetchExpression "FilterExpression" "QueryFilter" "qf"
 
-let inputs1 =
+let inputs =
     // https://docs.aws.amazon.com/cli/latest/reference/dynamodb/query.html
     let mapAttribute (attr: KeyValuePair<string, DynamoAttributeValue>) =
         struct (attr.Key, attributeFromDynamodb "$" attr.Value)
 
     fun limits (req: QueryRequest) ->
-            
+
         let struct (selectTypes, addNames1) = buildSelectTypes' req
         let struct (queryExpression, struct (addNames2, addValues2)) =
             buildQueryExpression (CSharp.emptyStringToNull req.KeyConditionExpression |> CSharp.toOption) req.KeyConditions
@@ -197,7 +199,7 @@ let inputs1 =
             buildFilterExpression req.ConditionalOperator (CSharp.emptyStringToNull req.FilterExpression |> CSharp.toOption) req.QueryFilter
             ?|> mapFst ValueSome
             ?|? struct (ValueNone, struct (id, id))
-    
+
         { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
           indexName = req.IndexName |> toOption
           queryExpression = ExpressionExecutors.Fetch.ExpressionString queryExpression

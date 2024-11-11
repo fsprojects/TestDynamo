@@ -10,7 +10,6 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.Lambda.DynamoDBEvents
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open TestDynamo.Data.Monads.Operators
@@ -19,7 +18,7 @@ open TestDynamo.Utils
 #nowarn "3390"
 
 module LambdaSubscriberUtils =
-    
+
     let rec private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
         match struct (
             attr.BOOL.HasValue,
@@ -63,7 +62,7 @@ module LambdaSubscriberUtils =
             |> AttributeSet.create
             |> HashSet
         | pp -> clientError $"Unknown attribute type for \"{name}\""
-        
+
     and attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
 
     and private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
@@ -185,20 +184,20 @@ module LambdaSubscriberUtils =
         | x -> notSupported $"Invalid {nameof StreamViewType} \"{x.Value}\""
 
     let completedTask = ValueTask<_>(()).Preserve()
-        
+
     let build (subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>) (streamViewType: StreamViewType) =
-            
+
         mapCdcPacket
         >>> fun mapper changeData c ->
             let funcInput = mapper streamViewType changeData
-            
+
             // filter results which only have attempted deletes
             if List.isEmpty changeData.data.packet.changeResult.OrderedChanges
             then completedTask
             else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
 
 type Subscriptions() =
-    
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -208,9 +207,9 @@ type Subscriptions() =
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         Subscriptions.Add(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
-        
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -222,22 +221,22 @@ type Subscriptions() =
         behaviour,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         let awsAccountId =
             match awsAccountId with
             | null -> Settings.DefaultAwsAccountId
             | x -> x
-        
+
         let streamViewType =
             streamViewType
             |> CSharp.toOption
             ?|? StreamViewType.NEW_AND_OLD_IMAGES
-        
+
         let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
-            
+
         LambdaSubscriberUtils.build subscriber streamViewType awsAccountId database.Id.regionId
         |> database.SubscribeToStream ValueNone tableName struct (behaviour, streamConfig)
-    
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -247,9 +246,9 @@ type Subscriptions() =
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         Subscriptions.Add(client, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
-        
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -261,9 +260,9 @@ type Subscriptions() =
         behaviour,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         Subscriptions.Add(client.GetDatabase(), tableName, subscriber, behaviour, streamViewType, awsAccountId)
-    
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -273,9 +272,9 @@ type Subscriptions() =
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         Subscriptions.Add(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
-        
+
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
@@ -287,21 +286,18 @@ type Subscriptions() =
         behaviour,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-        
+
         let awsAccountId =
             match awsAccountId with
             | null -> Settings.DefaultAwsAccountId
             | x -> x
-        
+
         let streamViewType =
             streamViewType
             |> CSharp.toOption
             ?|? StreamViewType.NEW_AND_OLD_IMAGES
-        
+
         let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
-            
+
         let f = LambdaSubscriberUtils.build subscriber streamViewType awsAccountId database.Id.regionId
         database.SubscribeToStream(tableName, struct (behaviour, streamConfig), f)
-    
-    
-    

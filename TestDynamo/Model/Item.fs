@@ -18,7 +18,7 @@ type AttributeType =
     | HashSet of AttributeType
     | AttributeList
     | Null
-    
+
     static member describeHashSet =
         let desc = AttributeType.describe >> sprintf "%sS"
         let inline k (t: AttributeType) = t 
@@ -77,7 +77,7 @@ type AttributeSet =
     static member create strs =
         Seq.fold (fun struct (t, s) x ->
             let ``type`` = t ?|? AttributeValue.getType x
-            
+
             match AttributeValue.asType ``type`` x with
             | ValueNone -> clientError "Found multiple types in single set"
             | ValueSome x ->
@@ -482,7 +482,7 @@ and
         match this.TryList(&x) with
         | true -> x
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a list"
-                
+
     interface IComparable with
         member this.CompareTo obj =
             match obj with
@@ -688,7 +688,7 @@ type AttributeSelector =
         | HasValue x -> x
 
     static member asTpl selector = struct (selector.attributeName, selector.attributeType)
-        
+
 type ItemSize =
     private
     | Isz of uint16
@@ -827,7 +827,7 @@ module Item =
               attributes = item }
 
         It data
-        
+
     let empty = createItem "## Empty" (IncrementingId.next()) Map.empty
 
     let private validateMap =

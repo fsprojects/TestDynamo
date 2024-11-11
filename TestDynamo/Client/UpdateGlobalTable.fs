@@ -13,7 +13,7 @@ open TestDynamo.Client.DescribeTable.Global
 
 type MList<'a> = System.Collections.Generic.List<'a>
 
-let inputs1 (req: UpdateGlobalTableRequest) =
+let inputs (req: UpdateGlobalTableRequest) =
 
     let replicaInstructions =
         req.ReplicaUpdates

@@ -1,8 +1,6 @@
 ﻿namespace TestDynamo.Model
 
-open System.Collections.ObjectModel
 open System.Threading
-open Microsoft.Extensions.Logging
 open Microsoft.FSharp.Core
 open System
 open System.Runtime.CompilerServices
@@ -24,7 +22,7 @@ type private DatabaseInfo =
       databaseId: DatabaseId
       /// <summary>Identifies the database within the application</summary>
       uniqueIdentifier: IncrementingId
-      
+
       /// <summary>A cache of idempotency keys, transact write results and a cache invalidation times to prevent request replay</summary>
       transactWriteResultCache: Map<string, struct (Map<string,Map<string,AttributeValue> list> * DateTimeOffset)>
 
@@ -76,7 +74,7 @@ type UpdateSingleTableData =
 type DatabaseCloneData =
     { initialState: DatabaseTables
       streamsEnabled: string list }
-    
+
     with
     static member empty =
         { initialState = DatabaseTables.empty
@@ -165,7 +163,7 @@ module Database =
 
         let private transactWriteExpired (createdDate: DateTimeOffset) =
             createdDate < DateTimeOffset.Now - Settings.TransactWriteSettings.ClientRequestTokenTTL
-        
+
         let private purgeTransactWriteCache' (dbInfo: DatabaseState) =
             let struct (firstExpired, expiredItems) =
                 dbInfo.info.transactWriteResultCache
@@ -173,20 +171,20 @@ module Database =
                 |> Seq.filter (sndT >> sndT >> transactWriteExpired)
                 |> Seq.map fstT
                 |> Collection.tryHeadAndReturnUnmodified
-                
+
             match firstExpired with
             | ValueNone -> dbInfo
             | ValueSome _ ->
                 let altered =
                     Seq.fold (fun s x -> Map.remove x s) dbInfo.info.transactWriteResultCache expiredItems
-                    
+
                 { dbInfo with info.transactWriteResultCache = altered }
-                
+
         let private purgeTransactWriteCache = function
             | Db x -> purgeTransactWriteCache' x |> Db
             | NonFunctioning (SyncError (x, err)) -> purgeTransactWriteCache' x |> flip tpl err |> SyncError |> NonFunctioning
             | x -> x
-        
+
         let private dbMap logOperation executeOnSyncError name f =
 
             let fLogged = logAndInline (logOperation name) f
@@ -285,7 +283,7 @@ module Database =
         | NonFunctioning (Disposed (_, x))
         | Db { info = { uniqueIdentifier = x } }
         | NonFunctioning (SyncError ({ info = { uniqueIdentifier = x } }, _)) -> x
-    
+
     let hasTable name ignoreDisposed logger = function
         | NonFunctioning (Disposed _) when ignoreDisposed -> false
         | x ->
@@ -321,7 +319,7 @@ module Database =
         | NonFunctioning (Disposed (id, gId)) -> $"DB {id}/{gId}\n  DISPOSED"
         | NonFunctioning (SyncError struct (db, e)) -> $"DB {db.info.databaseId}/{db.info.databaseId}\n  SYNC ERROR FROM {e.FromDb}\n{print' db}"
         | Db db -> $"DB {db.info.databaseId}/{db.info.uniqueIdentifier}\n{print' db}"
-    
+
     let build =
         fun logger struct (databaseId, initialState, streamEnabledTables: string list) ->
             Logger.log1 "Database id %O" databaseId logger
@@ -351,7 +349,7 @@ module Database =
                 start
                 ?|> (compare >>> (flip (<) 0))
                 ?|? asLazy true
-                
+
             DatabaseTables.listTables db.tables
             |> Seq.sort
             |> Seq.filter predicate
@@ -455,7 +453,7 @@ module Database =
     let private removeUnWanted = function
         | struct ({ returnValues = BasicReturnValues.None }, items) -> [||]
         | { returnValues = AllOld }, items -> items
-         
+
     let private itemEmptyInput = Item.empty |> Seq.singleton |> QueryItems.ScannedItems
     let private noOutput = [||] |> asLazy
 
@@ -463,15 +461,15 @@ module Database =
 
         let index = Table.primaryIndex table
         let attrs = Table.attributeNames table
-        
+
         let struct (queryExpression, outputModifier) =
             item
             ?|> (Seq.singleton >> QueryItems.ScannedItems)
             ?|> flip tpl id
             ?|? struct (itemEmptyInput, noOutput)
-            
+
         Logger.trace1 "Items %O" queryExpression logger
-        
+
         // still do filter even if there is no expression. This validates the other expression parts
         { tableName = req.tableName
           indexName = ValueNone
@@ -497,7 +495,7 @@ module Database =
     let inline private publishChange logger streams data = TableStreams.onChange data logger streams
 
     let private put' apiRequestName execute logger struct (synchronizationPath, updateExpression, args: EmergencyBrakeRequest<PutItemArgs<_>>) db =
-        
+
         execute args.request logger db.tables
         |> tplDouble
         |> mapFst (
@@ -518,7 +516,7 @@ module Database =
                         let listBuilder =
                             ValueOption.map (flip NonEmptyList.prepend) synchronizationPath
                             |> ValueOption.defaultValue NonEmptyList.singleton
-                            
+
                         { data =
                             { packet = x
                               tableArn = table |> Table.arnBuilder }
@@ -583,9 +581,9 @@ module Database =
         { updateProjector: Lazy<Item -> Map<string,AttributeValue>>
           cdcPacket: CdcPacket
           projectionFromPutOperation: Map<string,AttributeValue> voption } 
-    
+
     let private noProjections = lazy(fun _ -> Map.empty)
-    
+
     let private update' =
         let createItem logger attrs table =
             Logger.log0 "Applying mock put" logger 
@@ -603,11 +601,11 @@ module Database =
 
         let putPart logger (args: EmergencyBrakeRequest<_>) struct (struct (table, item), db) =
             Logger.log0 "Found item, applying updates" logger
-            
+
             let struct (updateResult, projector) = 
                 args.request.updateExpression
                 ?|> (fun updateExpr ->
-                
+
                     let updateArgs =
                         { updateExpression = updateExpr
                           expressionAttrValues = args.request.conditionExpression.expressionAttrValues
@@ -617,7 +615,7 @@ module Database =
                     let tableKeys = Table.primaryIndex table |> Index.keyConfig
                     ExpressionExecutors.Update.executeUpdate updateArgs logger tableKeys attributeNames item)
                 ?|? struct (Item.attributes item, noProjections)
-            
+
             let putReq =
                 EmergencyBrakeRequest.map (fun (args: UpdateItemArgs) ->
                     { item = updateResult
@@ -626,7 +624,7 @@ module Database =
             Logger.log0 "Updates applied, persisting" logger
             let struct (struct (putProjection, database), cdc) =
                 updatePut logger args.request.updateExpression putReq db
-                
+
             let output =
                 { cdcPacket = cdc
                   updateProjector = projector
@@ -895,7 +893,7 @@ module Database =
                     mapSnd await
                     >> rebuild))
             >> uncurry ValueOption.defaultValue
-    
+
     module Replication =
 
         [<Struct; IsReadOnly>]
@@ -1007,7 +1005,7 @@ module Database =
               updates: UpdateItemArgs list
               idempotencyKey: string voption
               conditionCheck: GetItemArgs list }
-            
+
         let private singleKey = function
             | [|x|] -> x
             | xs -> invalidOp "Expected single key"
@@ -1018,12 +1016,12 @@ module Database =
                 + List.length writes.puts
                 + List.length writes.conditionCheck
                 + List.length writes.updates
-                
+
             if totalCount > Settings.TransactWriteSettings.MaxItemsPerRequest
             then clientError
                      ($"Maximum items in a transact write is {Settings.BatchItems.MaxBatchWriteItems}, got {totalCount}. "
                        + $"You can change this value by modifying {nameof Settings}.{nameof Settings.TransactWriteSettings}.{nameof Settings.TransactWriteSettings.MaxItemsPerRequest}")
-            
+
             let affectedTables =
                 [
                     writes.puts |> Seq.map _.tableName
@@ -1035,7 +1033,7 @@ module Database =
                 |> Seq.distinct
                 |> Seq.map (fun name -> describeTable name logger database |> Maybe.expectSomeErr "Cannot find table %s" name)
                 |> Seq.fold (fun s table -> Map.add table.name table s) Map.empty
-                
+
             let getKeys struct (tableName, attributes) =
                 Map.find tableName affectedTables
                 |> _.primaryIndex
@@ -1045,7 +1043,7 @@ module Database =
                     | struct (AttributeLookupResult.HasValue x, ValueNone) -> struct (x, ValueNone)
                     | AttributeLookupResult.HasValue x, ValueSome (AttributeLookupResult.HasValue y) -> struct (x, ValueSome y)
                     | pp -> clientError $"Invalid key specification for write request to table {tableName}"
-                    
+
             let tableModifications =    
                 [
                     writes.puts |> Seq.map (fun x -> struct (x.tableName, x.item))
@@ -1054,7 +1052,7 @@ module Database =
                 ]
                 |> Seq.concat
                 |> List.ofSeq
-                
+
             let keyErrs =
                 tableModifications
                 |> Seq.map (fun struct (k, v) -> struct (k, struct (k, v)))
@@ -1067,22 +1065,22 @@ module Database =
                     let skname = sk ?|> (AttributeValue.describe >> sprintf "/%O") ?|? ""
                     sprintf " * Duplicate request on item %s/%s%s" table (AttributeValue.describe pk) skname)
                 |> Str.join "\n"
-                
+
             match keyErrs with
             | "" -> ()
             | err -> sprintf "Error executing transact write\n%s" err |> clientError
-                        
+
             tableModifications
             |> Collection.groupBy fstT
             |> Collection.mapSnd (Seq.map sndT >> List.ofSeq)
             |> MapUtils.ofSeq
-            
+
         let private getForCondition =
             get
             >>>> function
                 | { items = [||]; scannedCount = s } when s > 0 -> $"An error occurred (ConditionalCheckFailedException): The conditional request failed" |> clientError
                 | xs -> xs.itemSizeBytes
-                
+
         let private validateItemSize = function
             | s when s > Settings.TransactWriteSettings.MaxRequestDataBytes ->
                 $"The maximum size of a transact write is {Settings.TransactWriteSettings.MaxRequestDataBytes}B, attempted {s}B. "
@@ -1096,14 +1094,14 @@ module Database =
             >>> (
                 clientPut struct (struct ("TransactPut", "TRANSACT PUT"), ValueNone)
                 >>>> reformatResult)
-            
+
         let private transactDelete =
             let inline addNoSyncPath x = struct (x, ValueNone)
             EmergencyBrakeRequest.create
             >>> (
                 addNoSyncPath >> (delete' DatabaseTables.delete |> Execute.command "DELETE")
                 >>>> mapFst fstT)
-            
+
         let private transactUpdate =
             EmergencyBrakeRequest.create
             >>> (
@@ -1117,12 +1115,12 @@ module Database =
         let private buildTransaction () =
             let tcs = TaskCompletionSource<bool>()
             let mutable operationCounter = 0
-            
+
             let rollback disposing =
                 if Interlocked.Increment(&operationCounter) = 1 
                 then tcs.SetResult(false)
                 elif not disposing then serverError "Transaction rollback error"
-            
+
             { new IReplicationTransaction
                 with
                 member this.CompleteSignal = tcs.Task
@@ -1132,7 +1130,7 @@ module Database =
                     else serverError "Transaction commit error"
                 member this.Rollback() = rollback false
                 member this.Dispose() = rollback true }
-            
+
         let private logCacheHit logger = function
             | ValueSome _ & x ->
                 Logger.log0 "Cache hit" logger
@@ -1140,14 +1138,14 @@ module Database =
             | ValueNone & x ->
                 Logger.log0 "Cache miss" logger
                 x
-            
+
         let private tryFindPreviousTransactWrite =
             Execute.query "IDEMPOTENCY CHECK" (fun logger idempotencyKey db ->
                 Logger.log1 "Using idempotency key %s" idempotencyKey logger
                 MapUtils.tryFind idempotencyKey db.info.transactWriteResultCache
                 ?|> fstT
                 |> logCacheHit logger)
-            
+
         let private recordTransactWrite =
             Execute.command "IDEMPOTENCY RECORD" (fun logger struct (idempotencyKey, result) db ->
                 Logger.log1 "Recording idempotency key %s" idempotencyKey logger
@@ -1156,16 +1154,16 @@ module Database =
                        Map.add idempotencyKey struct (result, DateTimeOffset.Now) db.info.transactWriteResultCache }
                 |> tpl ())
             >>>> sndT
-        
+
         let private write' (writes: TransactWrites) logger db _ =
-            
+
             let addSize acc (cdc: CdcPacket) =
                 match ChangeResults.deletedItems cdc.changeResult |> List.ofSeq with
                 | [] -> ChangeResults.putItems cdc.changeResult
                 | xs -> xs
                 |> Seq.map Item.size |> Seq.sum
                 |> ((+)acc)
-            
+
             use transction = buildTransaction ()
             let emergencyBrake () = ValueTask<_>(task = transction.CompleteSignal)
             let stats = validateWrites logger writes db
@@ -1185,12 +1183,12 @@ module Database =
                     ?|> flip tpl stats
                     ?|> flip recordTransactWrite logger
                     ?|? id)
-                
+
             transction.Commit()    
             struct (stats,  resultDb)
-        
+
         let write (writes: TransactWrites) logger db =
-            
+
             writes.idempotencyKey
             ?>>= flip1To3 tryFindPreviousTransactWrite logger db
             ?|> flip tpl db

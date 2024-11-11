@@ -41,7 +41,6 @@ let inline (?|?) opt x = ValueOption.defaultValue x opt
 /// <summary>ValueOption.defaultWith</summary>
 let inline (?|>?) opt f = ValueOption.defaultWith f opt
 
-
 /// <summary>Functor map on Result</summary>
 let inline (&|>) x f = Result.map f x
 /// <summary>Extended functor map on Result</summary>

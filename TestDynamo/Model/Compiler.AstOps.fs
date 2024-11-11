@@ -14,7 +14,6 @@ open TestDynamo.Model.Compiler.Lexer
 
 type private AstCompiler = AstNode -> CompilerOutput
 
-
 let private noValidator = Validator.unresolve >> Ok
 
 module Value =

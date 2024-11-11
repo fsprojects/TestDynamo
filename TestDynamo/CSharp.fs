@@ -46,7 +46,7 @@ let toOption = function
 let valToOption (x: System.Nullable<_>) =
     if x.HasValue then ValueSome x.Value
     else ValueNone
-    
+
 let toNullOrEmptyOption = function
     | ""
     | null -> ValueNone

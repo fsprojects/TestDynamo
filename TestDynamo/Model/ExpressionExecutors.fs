@@ -85,7 +85,7 @@ module Fetch =
     type QueryConditionAndProjectItems =
         | QueryItems of QueryItems
         | ExecuteConditionOnMissingItem
-        
+
         with
         static member queryableOnly = function
             | ExecuteConditionOnMissingItem -> ValueNone
@@ -308,7 +308,7 @@ module Fetch =
     let private buildFetch' buildMessage executeMessage (req: FetchInput) =
 
         fun logger struct (index, tableAttributeNames) ->
-            
+
             let keyConfig = Index.getKeyConfig index
 
             let struct (queryAst, openIndex) =

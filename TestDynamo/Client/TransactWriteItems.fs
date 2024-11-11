@@ -15,7 +15,7 @@ open TestDynamo.Client.ItemMapper
 
 let private put (req: Put) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
-    
+
     { item = ItemMapper.itemFromDynamodb "$" req.Item
       conditionExpression =
           { conditionExpression = req.ConditionExpression |> CSharp.emptyStringToNull |> CSharp.toOption
@@ -26,7 +26,7 @@ let private put (req: Put) =
 
 let private delete (req: Delete) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
-    
+
     { key = ItemMapper.itemFromDynamodb "$" req.Key
       conditionExpression =
           { conditionExpression = req.ConditionExpression |> CSharp.emptyStringToNull |> CSharp.toOption
@@ -39,7 +39,7 @@ let private basicNone = Basic None
 
 let private update (req: Update) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
-    
+
     { key = ItemMapper.itemFromDynamodb "$" req.Key
       updateExpression = req.UpdateExpression |> CSharp.emptyStringToNull |> CSharp.toOption
       conditionExpression =
@@ -55,7 +55,7 @@ let private update (req: Update) =
 
 let private condition (req: ConditionCheck) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
-    
+
     { keys = [|ItemMapper.itemFromDynamodb "$" req.Key|]
       maxPageSizeBytes = System.Int32.MaxValue
       conditionExpression =
@@ -68,7 +68,7 @@ let private condition (req: ConditionCheck) =
             expressionAttrValues =
                 req.ExpressionAttributeValues
                 |> Query.expressionAttrValues } } : GetItemArgs
-    
+
 let private thereCanOnlyBeOne (struct (struct (w, x), struct (y, z)) & args) =
     [
         w |> ValueOption.count
@@ -80,11 +80,11 @@ let private thereCanOnlyBeOne (struct (struct (w, x), struct (y, z)) & args) =
     |> function
         | 1 -> ()
         | x -> clientError $"Exactly 1 of [Put; Delete; Update; ConditionCheck] must be set"
-    
+
     args
-    
+
 let private getCommand (x: TransactWriteItem) =
-    
+
     struct (
         struct (
             x.Put |> CSharp.toOption ?|> put,
@@ -93,7 +93,7 @@ let private getCommand (x: TransactWriteItem) =
             x.Update |> CSharp.toOption ?|> update,
             x.ConditionCheck |> CSharp.toOption ?|> condition)) |> thereCanOnlyBeOne
 
-let inputs1 (req: TransactWriteItemsRequest) =
+let inputs (req: TransactWriteItemsRequest) =
     let struct (struct (put, delete), struct (update, condition)) =
         CSharp.mandatory "TransactWriteItemsRequest cannot be null" req
         |> _.TransactItems
@@ -102,7 +102,7 @@ let inputs1 (req: TransactWriteItemsRequest) =
         |> Collection.unzip
         |> mapFst Collection.unzip
         |> mapSnd Collection.unzip
-    
+
     { puts = put |> Maybe.traverse |> List.ofSeq
       deletes = delete |> Maybe.traverse |> List.ofSeq
       updates = update |> Maybe.traverse |> List.ofSeq
@@ -123,8 +123,8 @@ let output _ (modifiedTables: Map<string, Map<string, AttributeValue> list>) =
                 metrics)
             >> Enumerable.ToList)
         |> CSharp.toDictionary id id
-        
+
     let output = Shared.amazonWebServiceResponse<TransactWriteItemsResponse>()
     output.ItemCollectionMetrics <- metrics
-    
+
     output

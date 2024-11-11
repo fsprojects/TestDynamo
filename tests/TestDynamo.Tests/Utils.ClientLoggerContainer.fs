@@ -1,13 +1,10 @@
 module Tests.ClientLoggerContainer
 
 open System
-open System.Collections.Generic
-open System.Threading.Tasks
 open Amazon
 open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
-open TestDynamo.Api.FSharp
 open Microsoft.Extensions.Logging
 
 type Database = TestDynamo.Api.FSharp.Database
@@ -27,13 +24,13 @@ type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logg
         | false, _ -> ValueNone
         | true, (:? IDisposable as l) -> ValueSome l
         | _ -> invalidOp "Logger must be disposable"
-        
+
     do
         TestDynamo.TestDynamoClient.attach (ValueSome logger) host client
-        
+
     new(logger: ILogger, disposeLogger) =
         new ClientContainer(new Database(), new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(Settings.DefaultRegion)), logger, disposeLogger, true)
-        
+
     new(host: Database, logger: ILogger, disposeLogger) =
         new ClientContainer(host, new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(Settings.DefaultRegion)), logger, disposeLogger, false)
 

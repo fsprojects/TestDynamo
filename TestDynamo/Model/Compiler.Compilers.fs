@@ -11,7 +11,6 @@ open TestDynamo.Utils
 
 module private CompileUtils =
 
-
     let private buildCompiler compilerFactory =
         compilerFactory
         >>> flip3To1 ExpressionCompiler.compile

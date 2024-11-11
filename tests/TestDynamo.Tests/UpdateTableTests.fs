@@ -5,7 +5,6 @@ open System.Threading
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
-open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
@@ -246,7 +245,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
             use client = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome defaultDbId) (ValueSome host)
-            
+
             // act
             // assert
             let! response = client.UpdateTableAsync (TableBuilder.empty |> TableBuilder.withTableName defaultTable |> TableBuilder.updateReq)
@@ -615,7 +614,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Update table, delete stream with replication after delete one half of replication, succeeds`` ``cloned host`` ``delete source table`` =
-        
+
         task {
             // arrange
             use writer = new TestLogger(output)

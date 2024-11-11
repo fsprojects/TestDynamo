@@ -29,7 +29,7 @@ type DatabaseCloneData =
     static member empty databaseId =
         { data = Model.DatabaseCloneData.empty
           databaseId = databaseId }
-        
+
     static member emptyDefault =
         DatabaseCloneData.empty DatabaseId.defaultId
 
@@ -90,7 +90,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     let lockedAndLogged operation localLogger f =
         let struct (logger, d) = buildOperationLogger operation localLogger
         use _ = d
-        
+
         MutableValue.mutate (mutate logger f) state
 
     let waitTooLong logger errorMessage iteration timespan =
@@ -104,24 +104,24 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     let tryLockedAndLogged operation errorMessage localLogger f =
         let struct (logger, d) = buildOperationLogger operation localLogger
         use _ = d
-        
+
         MutableValue.retryMutate (waitTooLong logger errorMessage) (mutate logger f) state
 
     let loggedGet operation localLogger f =
         let struct (logger, d) = buildOperationLogger operation localLogger
         use _ = d
-        
+
         MutableValue.get state |> f logger
-    
+
     let subscriberRemovalDisposable remove =
         let remove' logger state = remove logger state |> tpl ()
 
         { new IDisposable with
             member _.Dispose() =
                 lockedAndLogged "REMOVE SUBSCRIBER" ValueNone remove' }
-        
+
     static let noSubscriberChange = ValueTask<_>(()).Preserve()
-    
+
     static let createSubscriberDisposal struct (id: IncrementingId, disposer: IDisposable) =
         { new IStreamSubscriberDisposal with
             member _.Dispose() = disposer.Dispose()
@@ -129,22 +129,22 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
 
     // trigger an update to set debug tables
     do lockedAndLogged "INIT" ValueNone (asLazy (tpl ()))
-    
+
     new() = new Database(ValueNone, DatabaseCloneData.empty DatabaseId.defaultId)
-    
+
     new(cloneData: DatabaseCloneData) =
         new Database(ValueNone, cloneData)
-        
+
     new(logger: ILogger) =
         new Database(ValueSome logger, DatabaseCloneData.empty DatabaseId.defaultId)
-    
+
     new(logger: ILogger, cloneData: DatabaseCloneData) =
         new Database(ValueSome logger, cloneData)
-    
+
     new(databaseId: DatabaseId) =
         let cloneData = DatabaseCloneData.empty databaseId
         new Database(ValueNone, cloneData)
-    
+
     new(databaseId: DatabaseId, logger: ILogger) =
         new Database(ValueSome logger, DatabaseCloneData.empty databaseId)
 
@@ -160,12 +160,12 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
             Logger.log1 "Disposed database %O" id logger
             Database.createDisposed db
             |> tpl ())
-    
+
     /// <summary>
     /// Get a list of DebugTables. All Tables, Indexes and Items will be enumerated  
     /// </summary>
     member _.DebugTables = debugTables.Value
-    
+
     member _.DefaultLogger = globalLogger
 
     member _.Id = MutableValue.get state |> Database.databaseId
@@ -186,7 +186,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// Add a callback which can subscribe to a Table Stream
     /// </summary>
     member this.SubscribeToStream logger table streamConfig (subscriber: DatabaseSynchronizationPacket<TableCdcPacket> -> CancellationToken -> ValueTask<Unit>) =
-                
+
         let sub x c =
             match x with
             | { databaseChange = OnChange (SchemaChange _) }
@@ -194,7 +194,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
             | { databaseChange = TableDeleted _ } -> noSubscriberChange
             | { databaseChange = OnChange (ChangeDataCapture x') } ->
                 subscriber x' c
-            
+
         this.SubscribeToStream_Internal (logger ?|> Either1) table streamConfig false sub
         |> createSubscriberDisposal
 
@@ -329,7 +329,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// </summary>
     member _.Print () =
         loggedGet "PRINT" ValueNone (asLazy Database.print)
-        
+
     /// <summary>
     /// Add a table clone from an existing table  
     /// </summary>
@@ -357,7 +357,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// </param>
     member this.Clone (globalLogger: ILogger) =
         new Database(ValueSome globalLogger, this.BuildCloneData())
-        
+
     /// <summary>
     /// Build some data which can be used to clone this Database at a later state.
     /// The clone data is immutable and can be used to clone multiple other Databases

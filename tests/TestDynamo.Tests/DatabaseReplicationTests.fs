@@ -7,7 +7,6 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -63,9 +62,9 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         }
 
     static let rec replicate' (output: ITestOutputHelper, random) (client: AmazonDynamoDBClient) regionName tableName changeType =
-        
+
         output.WriteLine($"Replicating {tableName}: {(client.GetDatabase()).Id.regionId} => {regionName}")
-        
+
         match changeType with
         | ValueNone ->
             let vs =
@@ -73,10 +72,10 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 |> randomSort random
                 |> Seq.head
                 |> ValueSome
-                
+
             output.WriteLine($"Randomly chosen ChangeType {vs}")
             replicate' (output, random) (client) regionName tableName vs
-            
+
         | ValueSome ChangeType.Update ->
             let req = UpdateTableRequest()
             req.TableName <- tableName
@@ -109,18 +108,18 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         | x -> invalidOp $"{x}"
 
     static let rec replicateWithLevel (output: ITestOutputHelper, random, logLevel) (host: GlobalDatabase, dbId) regionName tableName changeType changeFromDefaultBehaviour  =
-        
+
         task {
             let dbId = { regionId = dbId }
             let logger = new TestLogger(output, logLevel)
             use client = TestDynamoClientBuilder.Create(host, dbId, logger)
             do! replicate'  (output, random) client regionName tableName changeType
-            
+
             let key =
                 { fromDb = dbId
                   toDb = { regionId = regionName }
                   tableName = tableName }
-                
+
             output.WriteLine($"#### {changeFromDefaultBehaviour}")
             changeFromDefaultBehaviour
             ?|> flip (host.UpdateReplication (ValueSome logger) key) true
@@ -794,7 +793,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let updateData1 = update1[someData].S
             let updateData4 = update4[someData].S
-            
+
             let countLogs (msg: string) =
                 writer.Recorded()
                 |> Seq.map sndT
@@ -810,7 +809,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             do! host.AwaitAllSubscribers ValueNone CancellationToken.None
             output.WriteLine("### Recording started")
             writer.Record true
-            
+
             // don't wait for p1 to complete before doing p2
             let p1 = client1.PutItemAsync(table.name, update1)
             let! _ = client4.PutItemAsync(table.name, update4)
@@ -821,18 +820,18 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             output.WriteLine("### Recording stopped")
 
             // assert
-            
+
             // assert that the bug is actually being tested.
             let expectedPropagations =  // 12
                 let midNodes = 2
                 let edgeNodes = 2
                 let totalMessages = 2
                 totalMessages * ((midNodes * 2) + edgeNodes)
-             
+
             Assert.Equal(0, countLogs "Propagating asynchronously")
             Assert.Equal(expectedPropagations, countLogs "Propagating synchronously")
             Assert.True(countLogs "Acquire lock failed" > 0)
-            
+
             let scan (client: AmazonDynamoDBClient) =
                 client.ScanAsync(
                     ScanBuilder.empty
@@ -1297,7 +1296,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
     [<InlineData("UPDATE")>]
     // NOTE: there are similar tests for batch write in batchWriteItemTests
     let ``Write action with failed condition, does not replicate`` action =
-        
+
         let put pk sk table (client: AmazonDynamoDBClient) =
             ItemBuilder.empty
             |> ItemBuilder.withTableName table
@@ -1308,7 +1307,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             |> ItemBuilder.asPutReq
             |> client.PutItemAsync
             |> Io.ignoreTask
-            
+
         let delete pk sk table (client: AmazonDynamoDBClient) =
             ItemBuilder.empty
             |> ItemBuilder.withTableName table
@@ -1318,7 +1317,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             |> ItemBuilder.asDeleteReq
             |> client.DeleteItemAsync
             |> Io.ignoreTask
-            
+
         let update pk sk table (client: AmazonDynamoDBClient) =
             QueryBuilder.empty ValueNone
             |> QueryBuilder.setTableName table
@@ -1330,7 +1329,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             |> QueryBuilder.updateRequest
             |> client.UpdateItemAsync
             |> Io.ignoreTask
-            
+
         let execute pk sk table client =
             task {
                 let! e = 
@@ -1339,10 +1338,10 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                         | "PUT" -> put pk sk table client
                         | "DELETE" -> delete pk sk table client
                         | "UPDATE" -> update pk sk table client)
-                    
+
                 assertError output "ConditionalCheckFailedExceptio" e
             }
-        
+
         task {
             // arrange
             use logger = new TestLogger(output) 
@@ -1359,7 +1358,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let sk = if table.hasSk then item.tableSk |> toString |> ValueSome else ValueNone
             do! execute item.tablePk sk table.name client1
             do! host.AwaitAllSubscribers ValueNone CancellationToken.None
-            
+
             let! replicated =
                 client2.GetItemAsync(
                     table.name,
@@ -1368,7 +1367,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                     |> (sk ?|> (ItemBuilder.withAttribute "TableSk" "N") ?|? id)
                     |> ItemBuilder.attributes
                     |> itemToDynamoDb)
-                
+
             Assert.Equal(replicated.Item["TablePk_Copy"].S, replicated.Item["TablePk"].S)
         }
 
@@ -1432,7 +1431,7 @@ type DatabaseReplicationTests2(output: ITestOutputHelper) =
                     task {
                         use parent = TestDynamoClientBuilder.Create(host, { regionId = parentName})
                         parent.SetProcessingDelay TimeSpan.Zero
-                        
+
                         let msg = $"{tableName} {parentName} => {name}"
                         try
                             output.WriteLine($"### Replicating table {msg}")

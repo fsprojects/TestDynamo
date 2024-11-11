@@ -416,7 +416,7 @@ module ExpressionCompiler =
                 | AstNode.BinaryOperator _
                 | AstNode.UnaryOperator _ -> s + 1
                 | _ -> s) 0 node
-        
+
         if operatorCount > Settings.ExpressionOperatorLimit
         then clientError operatorLimitError
 

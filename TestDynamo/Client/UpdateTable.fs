@@ -18,7 +18,7 @@ type MList<'a> = System.Collections.Generic.List<'a>
 let getDeletionProtectionEnabled =
     getOptionalBool<UpdateTableRequest, bool> "DeletionProtectionEnabled"
 
-let inputs1 (req: UpdateTableRequest) =
+let inputs (req: UpdateTableRequest) =
 
     let replicaInstructions =
         req.ReplicaUpdates
@@ -79,12 +79,6 @@ let inputs1 (req: UpdateTableRequest) =
                       |> fromAttributeDefinitions
                       |> List.ofSeq }
             streamConfig = buildStreamConfig req.StreamSpecification } }
-
-let inputs2 struct (
-    tableName: string,
-    provisionedThroughput: ProvisionedThroughput) =
-
-    UpdateTableRequest (tableName, provisionedThroughput) |> inputs1
 
 let output awsAccountId ddb databaseId (table: TableDetails) =
 

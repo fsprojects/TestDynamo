@@ -2,7 +2,6 @@ namespace TestDynamo.Tests
 
 open Amazon.DynamoDBv2
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Utils
 open Tests.ClientLoggerContainer
 open Tests.Items
@@ -125,11 +124,11 @@ type ProjectionTests(output: ITestOutputHelper) =
                 |> ItemBuilder.asPutReq
                 |> client.Client.PutItemAsync
                 |> Io.ignoreTask
-                
+
             let struct (setProjection, setAttributesToGet) =
                 if not projectAsAttributes then QueryBuilder.setProjectionExpression projection, id
                 else id, projection.Split(",") |> Seq.map (_.Trim()) |> List.ofSeq |> QueryBuilder.setAttributesToGet
-                
+
             // arrange
             // act
             return
@@ -149,7 +148,7 @@ type ProjectionTests(output: ITestOutputHelper) =
         task {
             let! struct (client, struct (keys, queryBuilder)) = prepareProjectionTest projection projectAsAttributes
             use _ = client
-                
+
             // arrange
             // act
             let! result = 
@@ -173,7 +172,7 @@ type ProjectionTests(output: ITestOutputHelper) =
         task {
             let! struct (client, struct(struct(struct (pk, _), _) & keys, queryBuilder)) = prepareProjectionTest projection projectAsAttributes
             use _ = client
-                
+
             // arrange
             // act
             let! result = 
@@ -226,7 +225,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             let testF =
                 if ``is scan`` then projectionScanTest
                 else projectionQueryTest
-            
+
             // act
             let! struct (struct (struct (pk, _), _), result) = testF "TablePk,TheMap,TheList" ``project as attributes to get`` id
 

@@ -4,7 +4,6 @@ open System
 open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
@@ -26,22 +25,22 @@ type DbReplicationKey =
 type GlobalTableLeaf =
     { id: DatabaseId
       children: GlobalTableLeaf list }
-    
+
 type GlobalTableTree =
     { tableName: string
       root: GlobalTableLeaf }
-    
+
     with
-    
+
     static member private depthFirstSearch' f s tree =
         tree.children
         |> List.fold (GlobalTableTree.depthFirstSearch' f) (f s tree)
-        
+
     static member depthFirstSearch f s tree = GlobalTableTree.depthFirstSearch' f s tree.root
-    
+
     static member listIds =
         GlobalTableTree.depthFirstSearch (fun s x -> x.id::s) []
-    
+
     static member private subTree' id tree =
         if tree.id = id then ValueSome tree
         else
@@ -49,27 +48,27 @@ type GlobalTableTree =
             |> Seq.map (GlobalTableTree.subTree' id)
             |> Maybe.traverse
             |> Collection.tryHead
-    
+
     static member subTree id tree =
         GlobalTableTree.subTree' id tree.root
         ?|> fun x -> { tableName = tree.tableName; root = x }
-    
+
     static member databaseIds (tree: GlobalTableTree) =
         seq {
             yield tree.root.id
         }
-    
+
     static member private build' (relationships: Map<DatabaseId, DatabaseId list>) id =
         let children =
             MapUtils.tryFind id relationships
             ?|? []
             |> List.map (GlobalTableTree.build' relationships)
-        
+
         { id = id
           children = children }
-    
+
     static member build tableName (replicationIds: DbReplicationKey seq) =
-        
+
         let struct (nodeChildren, children) =
             replicationIds
             |> Seq.fold (
@@ -77,12 +76,12 @@ type GlobalTableTree =
                     mapFst (MapUtils.collectionMapAdd x.fromDb x.toDb)
                     >> mapSnd (Set.add x.toDb)
                 |> flip) struct (Map.empty, Set.empty)
-        
+
         let root =
             Map.keys nodeChildren
             |> Seq.filter (flip Set.contains children >> not)
             |> List.ofSeq
-            
+
         match root with
         | [x] ->
             { tableName = tableName
@@ -94,7 +93,7 @@ type GlobalDatabaseClone =
     { databases: Api.FSharp.DatabaseCloneData list
       replicationKeys: DbReplicationKey list }
     with
-    
+
     static member empty = {databases = List.empty; replicationKeys = [] }
 
 type private Replication =
@@ -251,7 +250,7 @@ module private CreateReplication =
 
         let logger' = logger |> Either2 |> ValueSome
         Logger.log2 "Buffering data from %O/%O" fromDb tableName logger
-        
+
         let leftSubscription = left.SubscribeToStream_Internal logger' tableName replicationSubscriberConfig true (fun x c ->
             logReplication fromDb toDb x |> ignoreTyped<SubscriberMessage>
             MutableValue.mutate (function
@@ -443,19 +442,19 @@ module GlobalDatabaseState =
         | Disposed -> invalidOp "Global database has been disposed"
 
     let databases = unwrap >> _.databases
-    
+
     let updateReplication replicationId behaviour twoWayUpdate =
         fun logger -> unwrap >> fun state ->
-            
+
             Logger.debug1 "Key %A" replicationId logger
-            
+
             let innerLogger = Either2 logger |> ValueSome
             [
                 MapUtils.tryFind replicationId state.replications
                 |> Maybe.expectSomeErr "Could not find replication %A" replicationId
                 |> tpl replicationId.fromDb
                 |> ValueSome
-                
+
                 if twoWayUpdate
                 then
                     MapUtils.tryFind (DbReplicationKey.rev replicationId) state.replications
@@ -576,7 +575,7 @@ module GlobalDatabaseState =
     /// <summary>Returns tables replicated to or from</summary>
     let isReplicationTable dbId tableName =
         unwrap >> (_.replications.Keys >> Seq.filter (fun k -> k.tableName = tableName && (k.fromDb = dbId || k.toDb = dbId)) >> Seq.isEmpty >> not)
-        
+
     let findReplications tableName state =
         unwrap state |> (fun x ->
             x.replications
@@ -588,12 +587,12 @@ module GlobalDatabaseState =
 
     /// <summary>Returns replicated tables, optionally filtered by a root table</summary>
     let getReplicatedTables logger dbId tableName state =
-        
+
         let subTree =
             dbId
             ?|> GlobalTableTree.subTree
             ?|? ValueSome
-        
+
         findReplications tableName state
         ?>>= subTree
         ?|> (
@@ -621,7 +620,7 @@ module GlobalDatabaseState =
             >> MapUtils.toSeq
             >> Seq.filter (sndT >> _.isPrimary)
             >> Seq.map fstT)
-    
+
     let listReplications rootsOnly =
         if not rootsOnly then listReplications'
         else listReplicationRoots'
@@ -634,7 +633,7 @@ module GlobalDatabaseState =
     let build iLogger (initialDatabases: Api.FSharp.DatabaseCloneData list) =
 
         let logger = DatabaseLogger.buildLogger ValueNone iLogger
-            
+
         let buildDb c =
             Logger.log1 "Creating database %A" c.databaseId logger
             match iLogger with

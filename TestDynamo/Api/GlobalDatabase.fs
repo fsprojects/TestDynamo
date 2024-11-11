@@ -23,16 +23,16 @@ type DatabaseCloneData = TestDynamo.Api.FSharp.DatabaseCloneData
 type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
 
     new(db: FsGlobalDb) = new GlobalDatabase(db, false)
-        
+
     new(
         initialDatabases: GlobalDatabaseCloneData,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        
+
         let db =
             CSharp.toOption logger
             ?|> fun x -> new FsGlobalDb(initialDatabases, x)
             ?|>? fun _ -> new FsGlobalDb(initialDatabases)
-            
+
         new GlobalDatabase(db, true)
 
     new([<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
@@ -40,28 +40,28 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
             CSharp.toOption logger
             ?|> fun x -> new FsGlobalDb(x)
             ?|>? fun _ -> new FsGlobalDb()
-            
+
         new GlobalDatabase(db, true)
-    
+
     new(
         cloneData: DatabaseCloneData,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        
+
         let db =
             CSharp.toOption logger
             ?|> fun x -> new FsGlobalDb(x)
             ?|>? fun _ -> new FsGlobalDb()
-            
+
         new GlobalDatabase(db, true)
 
     member _.CoreDb = db
-    
+
     interface IDisposable with member this.Dispose() = this.Dispose()
 
     member _.Dispose() = if dispose then db.Dispose()
 
     member _.DefaultLogger = db.DefaultLogger
-    
+
     /// <summary>
     /// Get a list of DebugTables. All Databases, Tables, Indexes and Items will be enumerated  
     /// </summary>
@@ -86,20 +86,20 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     /// </summary>
     member _.GetDatabases () = 
         db.GetDatabases()
-    
+
     /// <summary>
     /// Describe a global table as a list of linked tables
     /// Optionally omit tables which replicate TO a specific DB 
     /// </summary>
     member _.TryDescribeGlobalTable(dbId, table, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.TryDescribeGlobalTable (CSharp.toOption logger) dbId table
-    
+
     member this.ListGlobalTables(
         databaseId,
         [<Optional; DefaultParameterValue(null: string)>] start: string,
         [<Optional; DefaultParameterValue(System.Nullable<int>())>] limit,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        
+
         db.ListGlobalTables
             (CSharp.toOption logger)
             struct (
@@ -113,10 +113,10 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     /// </summary>
     member this.DescribeGlobalTable(dbId, table, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.TryDescribeGlobalTable (CSharp.toOption logger) dbId table
-    
+
     member this.IsGlobalTable([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.IsGlobalTable  (CSharp.toOption logger)
-        
+
     /// <param name="rootsOnly">
     /// If true, will only list replications which describe a paren => child operation.
     /// If false, will include all replications, half of which will be child => parent operations
@@ -139,7 +139,7 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     /// </summary>
     member _.BuildCloneData([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.BuildCloneData  (CSharp.toOption logger)
-        
+
     /// <summary>
     /// Change how a replication propagates it's data
     /// </summary>
@@ -167,5 +167,5 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     member _.AwaitAllSubscribers(
         [<Optional; DefaultParameterValue(null: ILogger)>] logger,
         [<Optional; DefaultParameterValue(System.Threading.CancellationToken())>] c) =
-        
+
         db.AwaitAllSubscribers (CSharp.toOption logger) c

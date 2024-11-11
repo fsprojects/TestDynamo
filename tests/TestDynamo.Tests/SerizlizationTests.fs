@@ -7,7 +7,6 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
@@ -120,15 +119,15 @@ type SerializationTests(output: ITestOutputHelper) =
             let ser1 = DatabaseSerializer.Database.ToString(db1, schemaOnly = ``omit data``)
             let db2 = DatabaseSerializer.Database.FromString(ser1)
             let ser2 = DatabaseSerializer.Database.ToString(db2, schemaOnly = ``omit data``)
-            
+
             // assert
             Assert.True(ser1.Length > if ``omit data`` then 200 else 10_000)
             Assert.Equal(ser1, ser2)
-                        
+
             let tableCount (db: Api.FSharp.Database) = List.length db.DebugTables
             let indexCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Indexes |> Seq.length
             let itemCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Values |> Seq.length 
-            
+
             Assert.Equal(tableCount db1, tableCount db2)
             Assert.Equal(indexCount db1, indexCount db2)
             Assert.Equal((if ``omit data`` then 0 else itemCount db1), itemCount db2)
@@ -147,17 +146,17 @@ type SerializationTests(output: ITestOutputHelper) =
             let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1)
             let db2 = DatabaseSerializer.GlobalDatabase.FromString(ser1)
             let ser2 = DatabaseSerializer.GlobalDatabase.ToString(db2)
-            
+
             // assert
             Assert.True(ser1.Length > 10_000)
             Assert.Equal(ser1, ser2)
-                        
+
             let databases (db: GlobalDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
             let dbCount = databases >> Seq.length
             let tableCount = databases >> Seq.sumBy (_.DebugTables >> List.length)
             let indexCount =  databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Indexes >> Seq.length)
             let itemCount =  databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Values >> Seq.length)
-            
+
             Assert.Equal(dbCount db1, dbCount db2)
             Assert.True(dbCount db1 > 1, dbCount db1 |> toString)
             Assert.Equal(tableCount db1, tableCount db2)
@@ -177,24 +176,24 @@ type SerializationTests(output: ITestOutputHelper) =
 
             let dbString = DatabaseSerializer.GlobalDatabase.ToString(preSerialization)
             let dbJson = JsonObject.Parse(dbString)
-            
+
             // add a new db via json
             let newReplica = JsonObject.Parse(System.Text.Json.JsonSerializer.Serialize(
                     {| from = (toDb.GetDatabase()).Id.regionId
                        ``to`` = "somewhere-else"
                        tableName = table.name |}))
-            
+
             let replicas = (dbJson["data"].AsObject()["replications"]).AsArray()
             // position affects how replicas are added. if new replica is inserted, it's processing needs to be delayed
             if ``insert new replicat at top``
             then replicas.Insert(0, newReplica)
             else replicas.Add(newReplica)
-            
+
             let db = DatabaseSerializer.GlobalDatabase.FromString(dbJson.ToString())
             use client1 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
             use client2 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)
             use client3 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "somewhere-else" }, logger)
-            
+
             let put1 =
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName table.name
@@ -202,12 +201,12 @@ type SerializationTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "TableSk" "N" "777"
 
             let put2 = ItemBuilder.withAttribute "TableSk" "N" "888" put1
-            
+
             // act
             let! _ = client1.PutItemAsync (ItemBuilder.asPutReq put1)
             let! _ = client2.PutItemAsync (ItemBuilder.asPutReq put2)
             do! db.AwaitAllSubscribers (ValueSome logger) CancellationToken.None
-            
+
             // assert
             let req =
                 QueryBuilder.empty ValueNone
@@ -215,11 +214,11 @@ type SerializationTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
                 |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.String "&&&")
                 |> QueryBuilder.queryRequest
-                
+
             let! items1 = client1.QueryAsync req
             let! items2 = client2.QueryAsync req
             let! items3 = client3.QueryAsync req
-            
+
             Assert.Equal(2, items1.Count)
             Assert.Equal(2, items2.Count)
             Assert.Equal(2, items3.Count)

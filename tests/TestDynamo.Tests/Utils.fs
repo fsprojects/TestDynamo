@@ -5,7 +5,6 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -182,7 +181,7 @@ let uniqueId = IncrementingId.next >> _.Value
 let commonHost = new Database()
 
 let buildClient output = new ClientContainer(commonHost, new TestLogger(output), true)
-    
+
 let buildTempClient() = new ClientContainer(commonHost, Logger.notAnILogger, false)
 
 let buildClientWithlogLevel logLevel logger = new ClientContainer(commonHost, new TestLogger(logger, level = logLevel), true)

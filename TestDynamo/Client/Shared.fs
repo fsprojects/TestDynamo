@@ -58,11 +58,11 @@ type MList<'a> = System.Collections.Generic.List<'a>
 /// The value of this component is in cached strings
 /// </summary>
 module NameValueEnumerator =
-        
+
     let private next' struct (prefix, i) =
         let t = i + 1
         struct (struct ($"#{prefix}{t}", $":{prefix}{t}"), t)
-    
+
     let private cacheMax = 2000
     let private next =
         let k (x: struct (string * int)) = x
@@ -84,7 +84,7 @@ module GetUtils =
     let buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
         if attributesToGet <> null && attributesToGet.Count > 0 && ValueOption.isSome projectionExpression
         then clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
-        
+
         if attributesToGet <> null && attributesToGet.Count > 0
         then
             attributesToGet

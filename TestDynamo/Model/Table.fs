@@ -1,6 +1,5 @@
 ﻿namespace TestDynamo.Model
 
-open System.Collections.Generic
 open System.Runtime.CompilerServices
 open TestDynamo.Utils
 open TestDynamo
@@ -91,7 +90,7 @@ module Table =
     let internal arnBuilder (Tbl t) = t.info.arn
 
     let private validateAttributeNames inputAttributes table =
-        
+
         let attrNotOnTable =
             attributeNames' table
             |> flip TableKeyAttributeList.contains

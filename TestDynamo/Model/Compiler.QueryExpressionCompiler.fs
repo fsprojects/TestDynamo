@@ -34,7 +34,7 @@ type private PartitionSearch = QueryParams -> Partition -> PartitionBlock seq
 /// </summary>
 [<RequireQualifiedAccess>]
 module QueryExpressionCompiler =
-    
+
     [<Struct; IsReadOnly>]
     type private KeyValues =
         { partitionKey: IndexSearch voption

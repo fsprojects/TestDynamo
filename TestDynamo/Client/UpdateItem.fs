@@ -114,7 +114,7 @@ let private buildFromAttributeUpdates (req: UpdateItemRequest) =
     |> buildFromAttributeUpdates'
     |> flip1To3 AttributeUpdateExpression.asOutput req.UpdateExpression
 
-let inputs1 logger (req: UpdateItemRequest) =
+let inputs logger (req: UpdateItemRequest) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
 
     let struct (filterExpression, struct (addNames, addValues)) =
@@ -126,7 +126,7 @@ let inputs1 logger (req: UpdateItemRequest) =
         buildFromAttributeUpdates req logger
         ?|> mapFst ValueSome
         ?|? struct (CSharp.emptyStringToNull req.UpdateExpression |> CSharp.toOption, struct (Map.empty, Map.empty))
-        
+
     { key = ItemMapper.itemFromDynamodb "$" req.Key
       updateExpression = updateExpression
       conditionExpression =
@@ -145,21 +145,6 @@ let inputs1 logger (req: UpdateItemRequest) =
                 |> MapUtils.concat2 values
                 |> Maybe.expectSome
                 |> addValues } } : UpdateItemArgs
-
-let inputs2 logger struct (
-    tableName: string,
-    key: Dictionary<string, DynamoAttributeValue>,
-    updates: Dictionary<string, AttributeValueUpdate>,
-    returnValue: ReturnValue) =
-
-    UpdateItemRequest (tableName, key, updates, returnValue) |> inputs1 logger
-
-let inputs3 logger struct (
-    tableName: string,
-    key: Dictionary<string, DynamoAttributeValue>,
-    updates: Dictionary<string, AttributeValueUpdate>) =
-
-    UpdateItemRequest (tableName, key, updates) |> inputs1 logger
 
 let inline private newDict () = Dictionary<_, _>()
 let output databaseId items =

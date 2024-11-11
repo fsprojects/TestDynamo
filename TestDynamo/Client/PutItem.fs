@@ -26,7 +26,7 @@ let mapReturnValues (returnValues: ReturnValue) =
         | x -> clientError "Only NONE and ALL_OLD are supported as ReturnValues")
     |> ValueOption.defaultValue None
 
-let inputs1  (req: PutItemRequest) =
+let inputs  (req: PutItemRequest) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
 
     let struct (filterExpression, struct (addNames, addValues)) =
@@ -41,19 +41,6 @@ let inputs1  (req: PutItemRequest) =
             returnValues = mapReturnValues req.ReturnValues
             expressionAttrNames = req.ExpressionAttributeNames |> expressionAttrNames |> addNames
             expressionAttrValues = req.ExpressionAttributeValues |> expressionAttrValues |> addValues } } : PutItemArgs<_>
-
-let inputs2 struct (
-    tableName: string,
-    item: Dictionary<string, DynamoAttributeValue>) =
-
-    PutItemRequest (tableName, item) |> inputs1
-
-let inputs3 struct (
-    tableName: string,
-    item: Dictionary<string, DynamoAttributeValue>,
-    returnValue: ReturnValue) =
-
-    PutItemRequest (tableName, item, returnValue) |> inputs1
 
 let private newDict () = Dictionary<_, _>()
 let output databaseId items =
@@ -128,7 +115,7 @@ module BatchWrite =
     let private maps struct (tableName, req: WriteRequest seq) =
         req |> Seq.map (toBatchWriteValue tableName) |> Maybe.traverse |> List.ofSeq
 
-    let inputs1 awsAccountId defaultDatabaseId (req: BatchWriteItemRequest) =
+    let inputs awsAccountId defaultDatabaseId (req: BatchWriteItemRequest) =
         let totalCount =
             req.RequestItems
             |> CSharp.orEmpty
@@ -151,9 +138,6 @@ module BatchWrite =
             |> MapUtils.fromTuple
 
         { requests = requests }: BatchWriteRequest
-
-    let inputs2 awsAccountId defaultDatabaseId (items: Dictionary<string, List<WriteRequest>>) =
-        BatchWriteItemRequest items |> inputs1 awsAccountId defaultDatabaseId
 
     let asItemCollectionMetrics struct (pkName, pkValue) =
         let icm = ItemCollectionMetrics()

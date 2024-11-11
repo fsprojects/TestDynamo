@@ -5,7 +5,6 @@ open System.Linq
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
@@ -163,22 +162,22 @@ type DeleteItemTests(output: ITestOutputHelper) =
             if ``use legacy inputs``*)
         let conditionTargetsSome = ``item exists`` = ``condition matches``
         let success = ``item exists`` = conditionTargetsSome
-        
+
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
             let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
-            
+
             let pk =
                 if ``item exists``
                 then pk
                 else $"override{uniqueId()}"
-            
+
             let itemOverride =
                 Map.add "TablePk" (Model.AttributeValue.String pk) item
 
@@ -187,11 +186,11 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 itemOverride
                 |> Map.filter (fun k _ -> List.contains k keyCols)
                 |> itemToDynamoDb
-                
+
             let req = DeleteItemRequest()
             req.TableName <- table.name
             req.Key <- keys
-            
+
             if ``use legacy inputs``
             then
                 req.Expected <- Dictionary<_, _>()
@@ -201,12 +200,12 @@ type DeleteItemTests(output: ITestOutputHelper) =
                     c.ComparisonOperator <-
                         if conditionTargetsSome then ComparisonOperator.NOT_NULL else ComparisonOperator.NULL
                     c)
-                
+
                 req.Expected.Add(
                     "TablePk",
                     let c = ExpectedAttributeValue()
                     c.ComparisonOperator <- ComparisonOperator.NE
-                    
+
                     let attr = DynamoAttributeValue()
                     attr.S <- "XX"
                     c.AttributeValueList <- MList<_>([attr])
@@ -219,7 +218,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                     ]
                     |> if rev then List.rev else id
                     |> Str.join " AND "
-                    
+
                 req.ConditionExpression <- expression
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
@@ -227,7 +226,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 req.ExpressionAttributeValues <-
                     Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
                     |> itemToDynamoDb
-                    
+
             req.ReturnValues <- ReturnValue.ALL_OLD
 
             // act
@@ -239,7 +238,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                     Assert.Equal(pk, response.Attributes["TablePk"].S)
                     Assert.Equal(sk, response.Attributes["TableSk"].N |> decimal)
                 else Assert.Empty(response.Attributes)
-                
+
                 let! x = client.GetItemAsync(table.name, keys)
                 Assert.Empty(x.Item)
             else

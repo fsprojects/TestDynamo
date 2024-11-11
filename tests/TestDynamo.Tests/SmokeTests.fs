@@ -72,7 +72,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
             // arrange
             let! tableName = addTable client false
-            
+
             // act
             let! t = client.DescribeTableAsync(tableName)
 
@@ -90,11 +90,11 @@ type SmokeTests(output: ITestOutputHelper) =
                 do! Task.Delay(100)
                 return 7
             }
-            
+
         task {
             let! v1 = doAndReturn7() |> Io.addCancellationTokenNetStandard CancellationToken.None
             Assert.Equal(7, v1)
-            
+
             use cts = new CancellationTokenSource(10)
             let! e = Assert.ThrowsAnyAsync(fun _ -> doAndReturn7() |> Io.addCancellationTokenNetStandard cts.Token |> Io.ignoreTask)
             assertError output "A task was canceled" e
@@ -123,16 +123,16 @@ type SmokeTests(output: ITestOutputHelper) =
                     attr
                 ])
                 r
-            
+
             // act
             let start = DateTimeOffset.Now
             do subject.InvokeSync true request CancellationToken.None |> ignoreTyped<AmazonWebServiceResponse>
-            
+
             // assert
             // + 50ms because Task.Delay is not 100% accurate
             let time = DateTimeOffset.Now + TimeSpan.FromMilliseconds(50) - start 
             Assert.True(time >= delay, time.ToString())
-            
+
             db.GetTable ValueNone "NewTable"
             |> Assert.NotNull
         }
@@ -146,39 +146,35 @@ type SmokeTests(output: ITestOutputHelper) =
             // arrange
             let! tableName1 = addTable client false
             let! tableName2 = addTable client false
-            
+
             let tableNames = [|tableName1; tableName2|] |> Array.sort
-            
+
             // act
             let! t = client.ListTablesAsync()
 
             // assert
             Assert.Equal(2, t.TableNames.Count)
-            
-            
+
             // act
             let! t = client.ListTablesAsync("0000000")
 
             // assert
             Assert.Equal(2, t.TableNames.Count)
-            
-            
+
             // act
             let! t = client.ListTablesAsync(1)
 
             // assert
             Assert.Equal(1, t.TableNames.Count)
             Assert.Equal(tableNames[0], t.TableNames[0])
-            
-            
+
             // act
             let! t = client.ListTablesAsync(t.LastEvaluatedTableName, 10)
 
             // assert
             Assert.Equal(1, t.TableNames.Count)
             Assert.Equal(tableNames[1], t.TableNames[0])
-            
-            
+
             // act
             let! t = client.ListTablesAsync(tableNames[0], 1)
 
@@ -189,7 +185,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
     [<Fact>]
     let ``List global tables smoke test`` () =
-        
+
         let addGlobalTable client =
             task {
                 let! tableName = addTable client true
@@ -209,17 +205,16 @@ type SmokeTests(output: ITestOutputHelper) =
             // arrange
             let! tableName1 = addGlobalTable client
             let! tableName2 = addGlobalTable client
-            
+
             let tableNames = [|tableName1; tableName2|] |> Array.sort
-            
+
             // act
             let req = ListGlobalTablesRequest()
             let! t = client.ListGlobalTablesAsync req
 
             // assert
             Assert.Equal(2, t.GlobalTables.Count)
-            
-            
+
             // act
             let req = ListGlobalTablesRequest()
             req.ExclusiveStartGlobalTableName <- "000000000000"
@@ -227,8 +222,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
             // assert
             Assert.Equal(2, t.GlobalTables.Count)
-            
-            
+
             // act
             let req = ListGlobalTablesRequest()
             req.Limit <- 1
@@ -237,8 +231,7 @@ type SmokeTests(output: ITestOutputHelper) =
             // assert
             Assert.Equal(1, t.GlobalTables.Count)
             Assert.Equal(tableNames[0], t.GlobalTables[0].GlobalTableName)
-            
-            
+
             // act
             let req = ListGlobalTablesRequest()
             req.Limit <- 10
@@ -248,8 +241,7 @@ type SmokeTests(output: ITestOutputHelper) =
             // assert
             Assert.Equal(1, t.GlobalTables.Count)
             Assert.Equal(tableNames[1], t.GlobalTables[0].GlobalTableName)
-            
-            
+
             // act
             let req = ListGlobalTablesRequest()
             req.Limit <- 1
@@ -276,7 +268,7 @@ type SmokeTests(output: ITestOutputHelper) =
             req.ReplicationGroup.Add(Replica())
             req.ReplicationGroup[0].RegionName <- "r2"
             do! client.CreateGlobalTableAsync req |> Io.ignoreTask
-            
+
             // act
             let r =
                 let rr = DescribeGlobalTableRequest()
@@ -299,15 +291,15 @@ type SmokeTests(output: ITestOutputHelper) =
             use commonHost = new GlobalDatabase()
             use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome commonHost)
             let! tableName = addTable client true
-            
+
             let r =
                 let rr = DescribeGlobalTableRequest()
                 rr.GlobalTableName <- tableName
                 rr
-            
+
             // act
             let! err = Assert.ThrowsAnyAsync(fun _ -> client.DescribeGlobalTableAsync(r))
-            
+
             // assert
             assertError output "is not a global table" err
         }

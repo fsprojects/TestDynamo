@@ -1,7 +1,6 @@
 ﻿module TestDynamo.Client.Scan
 
 open System
-open System.Collections.Generic
 open System.Reflection
 open System.Linq.Expressions
 open Amazon.DynamoDBv2.Model
@@ -41,14 +40,14 @@ let private buildSelectTypes' (req: ScanRequest) =
 
 let private buildScanExpression = buildFetchExpression "FilterExpression" "KeyConditions" "s"
 
-let inputs1 limits (req: ScanRequest) =
-    
+let inputs limits (req: ScanRequest) =
+
     let struct (selectTypes, addNames1) = buildSelectTypes' req
     let struct (filterExpression, struct (addNames2, addValues)) =
         buildScanExpression req.ConditionalOperator (CSharp.emptyStringToNull req.FilterExpression |> CSharp.toOption) req.ScanFilter
         ?|> mapFst ValueSome
         ?|? struct (ValueNone, struct (id, id))
-    
+
     { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
       indexName = req.IndexName |> toOption
       queryExpression = ExpressionExecutors.Fetch.ScanFullIndex
@@ -72,28 +71,6 @@ let inputs1 limits (req: ScanRequest) =
       forwards = true
       lastEvaluatedKey = lastEvaluatedKeyIn req.ExclusiveStartKey
       selectTypes = selectTypes } : ExpressionExecutors.Fetch.FetchInput
-
-let inputs2 limits struct (tableName, attributesToGet: List<string>) =
-    let req = ScanRequest()
-    req.TableName <- tableName
-    req.AttributesToGet <- attributesToGet
-
-    inputs1 limits req
-
-let inputs3 limits struct (tableName, scanFilter) =
-    let req = ScanRequest()
-    req.TableName <- tableName
-    req.ScanFilter <- scanFilter
-
-    inputs1 limits req
-
-let inputs4 limits struct (tableName, attributesToGet, scanFilter) =
-    let req = ScanRequest()
-    req.TableName <- tableName
-    req.AttributesToGet <- attributesToGet
-    req.ScanFilter <- scanFilter
-
-    inputs1 limits req
 
 let output databaseId (selectOutput: ExpressionExecutors.Fetch.FetchOutput) =
 

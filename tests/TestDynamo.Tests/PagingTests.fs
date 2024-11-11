@@ -4,7 +4,6 @@ open System.Text
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Model.ExpressionExecutors.Fetch
 open TestDynamo.Utils
 open Tests.ClientLoggerContainer
@@ -121,7 +120,7 @@ type PagingTests(output: ITestOutputHelper) =
             // arrange
             let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
             use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
-            
+
             // act
             let! struct (resultPages, resultScanned) = 
                 QueryBuilder.empty (ValueSome random)

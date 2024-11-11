@@ -213,38 +213,26 @@ module Local =
         let output = Shared.amazonWebServiceResponse<DescribeTableResponse>()
         output.Table <- tableDescription awsAccountId databaseId ValueNone table TableStatus.ACTIVE
         output
-        
+
 module List =
     let private isLimitSet = TestDynamo.Client.Shared.getOptionalBool<ListTablesRequest, int> (nameof Unchecked.defaultof<ListTablesRequest>.Limit)
-    
+
     let getLimit (req: ListTablesRequest) =
         isLimitSet req ?|? Int32.MaxValue
-    
-    let inputs1 (req: ListTablesRequest) =
+
+    let inputs (req: ListTablesRequest) =
         struct (req.ExclusiveStartTableName |> CSharp.toNullOrEmptyOption, getLimit req)
-        
-    let inputs2 () =
-        struct (ValueNone, Int32.MaxValue)
-        
-    let inputs3 name =
-        struct (CSharp.mandatory "exclusiveStartTableName is mandatory" name |> ValueSome, Int32.MaxValue)
-        
-    let inputs4 (struct (name, limit) & x) =
-        struct (CSharp.mandatory "exclusiveStartTableName is mandatory" name |> ValueSome, limit)
-        
-    let inputs5 limit =
-        struct (ValueNone, limit)
 
     let output expectedLimit _ (names: _ seq) =
 
         let output = Shared.amazonWebServiceResponse<ListTablesResponse>()
-        
+
         output.TableNames <- new MList<_>(names |> Seq.map fstT)
         if output.TableNames.Count >= expectedLimit
         then output.LastEvaluatedTableName <- output.TableNames[output.TableNames.Count - 1]
-            
+
         output
-        
+
 module Global =
 
     let globalTableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status =
@@ -268,17 +256,17 @@ module Global =
         let output = Shared.amazonWebServiceResponse<DescribeGlobalTableResponse>()
         output.GlobalTableDescription <- globalTableDescription awsAccountId databaseId cluster table status
         output
-        
+
     module List =
-        
+
         let inputs (req: ListGlobalTablesRequest) =
             struct (
                 (req.RegionName |> CSharp.toNullOrEmptyOption ?|> fun x -> {regionId = x }),
                 req.ExclusiveStartGlobalTableName |> CSharp.toNullOrEmptyOption,
                 if req.Limit < 1 then Int32.MaxValue else req.Limit)
-    
+
         let output expectedLimit _ (tables: NonEmptyList<struct (DatabaseId * Table)> seq) =
-    
+
             let output = Shared.amazonWebServiceResponse<ListGlobalTablesResponse>()
             let globalTables =
                 tables
@@ -295,7 +283,7 @@ module Global =
                             r))
                     t)
                 |> Array.ofSeq
-            
+
             if globalTables.Length >= expectedLimit && expectedLimit <> 0
             then output.LastEvaluatedGlobalTableName <- globalTables[globalTables.Length - 1].GlobalTableName
             output.GlobalTables <- MList<_>(globalTables)

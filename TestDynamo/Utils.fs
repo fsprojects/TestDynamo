@@ -98,7 +98,7 @@ let debug2 y x =
 let inline debug x = x
 let inline debug2 _ x = x
 #endif
-        
+
 type TestDynamoException(msg, ?inner, ?data) =
     inherit Amazon.DynamoDBv2.AmazonDynamoDBException(msg, inner |> Option.defaultValue null)
 
@@ -461,7 +461,7 @@ module Collection =
         Seq.scan (fun s x -> f.Invoke(fstT s, x)) s' xs
         |> Seq.skip 1
         |> Seq.map sndT
-    
+
     let window windowSize (xs: 'a seq): 'a seq seq =
         if windowSize < 1 then invalidOp "Size < 1"
         seq {
@@ -635,7 +635,6 @@ module Collection =
         | struct (_, []) -> ValueNone
         | predicate, head::_ when predicate head -> ValueSome head
         | predicate, _::tail -> tryFindL' struct (predicate, tail)
-        
 
     let private tryFindReadOnlyList' struct (predicate, xs: IReadOnlyList<_>) =
         let mutable i = 0
@@ -645,7 +644,7 @@ module Collection =
             else i <- i + 1
 
         result
-        
+
     let tryFind predicate (xs: 'a seq) =
         match xs with
         | :? List<'a> as l -> tryFindL' struct (predicate, l)
@@ -759,18 +758,18 @@ module Collection =
             counted <- counted + 1
 
         counted < count
-        
+
     type ICachableEnumerable<'a> =
         inherit IEnumerable<'a>
         inherit IDisposable
         abstract member AsList: IReadOnlyList<'a>
-                
+
     module Cachable =
-        
+
         type private CachableSeqEnumerator<'a>(fromSeq: IEnumerator<'a>) =
             let cache = MList<'a>()
             let mutable i = -1
-            
+
             let moveNext() =
                 i <- Interlocked.Increment(&i)
                 if i < cache.Count then true
@@ -779,25 +778,25 @@ module Collection =
                     cache.Add(fromSeq.Current)
                     true
                 else false
-            
+
             member this.complete() =
                 while moveNext() do ()
                 cache :> IReadOnlyList<'a>
-            
+
             interface IDisposable with
                 // owning IEnumerable handles disposal
                 member _.Dispose() = ()
-            
+
             interface IEnumerator<'a> with
                 member _.Current =
                     if i < 0 || i >= cache.Count then Unchecked.defaultof<'a>
                     else cache[i]
-            
+
             interface IEnumerator with
                 member _.MoveNext() = moveNext()
-                    
+
                 member this.Current = (this :> IEnumerator<'a>).Current |> box
-                    
+
                 member _.Reset() =
                     i <- -1
 
@@ -805,25 +804,25 @@ module Collection =
         type private ListOrEnumerator<'a> =
             | IsList of l: IReadOnlyList<'a>
             | IsEnm of struct (IEnumerator<'a> * CachableSeqEnumerator<'a>)
-        
+
         type private CachableSeq<'a> (vals: ListOrEnumerator<'a>) =
-                
+
             interface ICachableEnumerable<'a> with
                 member _.AsList =
                     match vals with
                     | IsList l -> l
                     | IsEnm (_, e) -> e.complete()
-                
+
                 member _.Dispose() =
                     match vals with
                     | IsList _ -> ()
                     | IsEnm struct (x, _) -> x.Dispose()
-                
+
                 member _.GetEnumerator() =
                     match vals with
                     | IsList x -> x.GetEnumerator()
                     | IsEnm struct (_, x) -> x
-                    
+
                 member this.GetEnumerator() =
                     (this :> IEnumerable<'a>).GetEnumerator() :> IEnumerator
 
@@ -831,7 +830,7 @@ module Collection =
             let enm = xs.GetEnumerator()
             let cachable = new CachableSeqEnumerator<'a>(enm)
             new CachableSeq<'a>(struct (enm, cachable) |> IsEnm) :> ICachableEnumerable<'a>
-            
+
         let ofList (xs: IReadOnlyList<'a>) =
             new CachableSeq<'a>(xs |> IsList) :> ICachableEnumerable<'a>
 
@@ -853,7 +852,7 @@ module MapUtils =
             while keys.MoveNext() do
                 yield struct (keys.Current, Map.find keys.Current map)
         }
-        
+
     let ofSeq seq =
         Seq.fold (fun map struct (k, v) -> Map.add k v map) Map.empty seq
 
@@ -895,12 +894,11 @@ module MapUtils =
         elif Map.count map2 = 0 then ValueSome map1
         elif Map.count map2 > Map.count map1 then concat2 map2 map1
         else toSeq map2 |> Seq.fold concat2Folder (ValueSome map1)
-        
+
     let collectionMapAdd k v m =
         match tryFind k m with
         | ValueNone -> Map.add k [v] m
         | ValueSome xs -> Map.add k (v::xs) m
-
 
 [<Struct; IsReadOnly>]
 type Either<'a, 'b> =
@@ -1002,9 +1000,9 @@ module Io =
     let private caf0 (x: Task) = x.ConfigureAwait(false)
     let private cafV (x: ValueTask<'a>) = x.ConfigureAwait(false)
     let private cafV0 (x: ValueTask) = x.ConfigureAwait(false)
-    
+
     let retn (x: 'a) = ValueTask<'a>(x)
-    
+
     let private trySyncResult (task: ValueTask<'a>) =
         if task.IsCompletedSuccessfully then ValueSome task.Result
         elif task.IsCompleted then ValueSome (task.AsTask().Result)
@@ -1148,25 +1146,25 @@ module Io =
                 do! valueTask |> cafV
                 return ()
             } |> ValueTask
-            
+
     let private asAction (f: unit -> unit): System.Action = f
-            
+
     // should not be public, but needs some complex testing
     // very difficult (niche) case where it might be uses organically
     /// <summary>Less efficient version of Task.WaitAsync</summary>
     let addCancellationTokenNetStandard (c: CancellationToken) (t: Task<'a>) =
         let source = TaskCompletionSource<'a>(c)
         let mutable i = 0
-        
+
         let mutable unRegister = Unchecked.defaultof<CancellationTokenRegistration>
         let cancel () = 
             if Interlocked.Increment(&i) = 1
             then
                 source.SetCanceled()
                 unRegister.Dispose()
-        
+
         unRegister <- c.Register(cancel)
-        
+
         task {
             try
                 let! x = t |> caf
@@ -1181,7 +1179,7 @@ module Io =
                     source.SetException e
                     unRegister.Dispose()
         } |> ignoreTyped<Task<unit>>
-        
+
         source.Task
 
     let addCancellationToken (c: CancellationToken) (t: ValueTask<'a>) =

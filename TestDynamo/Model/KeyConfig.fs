@@ -14,7 +14,7 @@ type KeyConfig =
     | Kc of struct (AttributeSelector * AttributeSelector voption)
 
 module KeyConfig =
-    
+
     let describe = function
         | Kc (pk, sk) ->
             let pk' = AttributeSelector.describe pk

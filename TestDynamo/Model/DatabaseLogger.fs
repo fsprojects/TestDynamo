@@ -85,7 +85,7 @@ let logOperationHalfAsync context operation (f: Logger -> 'c -> struct (ValueTas
         Logger.log0 "END" logger
         disposeScope.Dispose()
         x
-    
+
     try
         f l2 input
         |> mapFst (fun x ->

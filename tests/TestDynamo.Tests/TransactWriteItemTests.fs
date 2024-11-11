@@ -7,7 +7,6 @@ open System.Threading
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
 open Tests.Items
@@ -70,13 +69,13 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.fromTask |%|> (asLazy ValueNone)
         else client.DeleteItemAsync req |> Io.fromTask |%|> ValueSome
-        
+
     let getTable () =
         task {
             let! tables = sharedTestData ValueNone // (ValueSome output)                
             return Tables.get false false tables
         }
-        
+
     let getTableAndClient logLevel client =
         task {
             let! table = getTable ()
@@ -88,10 +87,10 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     output.WriteLine("Cloning host")
                     let host = cloneHost writer
                     TestDynamoClientBuilder.Create(host, writer))
-            
+
             return struct (client, table.name)
         }
-        
+
     let setUpTable logLevel client =
         task {
             let! table = getTable ()
@@ -103,9 +102,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     output.WriteLine("Cloning host")
                     let host = cloneHost writer
                     TestDynamoClientBuilder.Create(host, writer))
-                
+
             output.WriteLine("Getting table")
-            
+
             do!
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "S" "UpdateItem"
@@ -113,7 +112,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.asPutReq
                 |> client.PutItemAsync
                 |> Io.ignoreTask
-                
+
             do!
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "S" "DeleteItem"
@@ -121,7 +120,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.asPutReq
                 |> client.PutItemAsync
                 |> Io.ignoreTask
-                
+
             do!
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "S" "ConditionItem"
@@ -129,17 +128,17 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.asPutReq
                 |> client.PutItemAsync
                 |> Io.ignoreTask
-            
+
             return struct (client, table.name)
         }
-        
+
     let getFromWriteReq (client: AmazonDynamoDBClient) (req: TransactWriteItemsRequest) =
         task {
             let pkOnly (item: Dictionary<string, DynamoAttributeValue>) =
                 let k = Dictionary<_, _>()
                 k.Add("TablePk", item["TablePk"])
                 k
-            
+
             let items =
                 req.TransactItems
                 |> Seq.collect (fun x ->
@@ -156,10 +155,10 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     |> Io.map (tpl struct (table, attributeFromDynamodb "$" key["TablePk"])))
                 |> Io.traverse
                 |> Io.map (Seq.map (sndT >> fun x -> x.Item |> itemFromDynamodb "$") >> List.ofSeq)
-                
+
             return! items.AsTask()
         }
-        
+
     let attrStr x =
         let attr = DynamoAttributeValue()
         attr.S <- x
@@ -172,12 +171,12 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             put.TableName <- tableName
             put.Item <- Dictionary()
             put.Item.Add("TablePk", "PutItem" |> attrStr)
-        
+
             let delete = Delete()
             delete.TableName <- tableName
             delete.Key <- Dictionary()
             delete.Key.Add("TablePk", "DeleteItem" |> attrStr)
-        
+
             let update = Update()
             update.TableName <- tableName
             update.Key <- Dictionary()
@@ -185,7 +184,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             update.UpdateExpression <- "SET AValue = :v"
             update.ExpressionAttributeValues <- Dictionary()
             update.ExpressionAttributeValues.Add(":v", attrStr "xxx")
-        
+
             let condition = ConditionCheck()
             condition.TableName <- tableName
             condition.Key <- Dictionary()
@@ -193,13 +192,13 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             condition.ConditionExpression <- "TablePk = :pk"
             condition.ExpressionAttributeValues <- Dictionary()
             condition.ExpressionAttributeValues.Add(":pk", "ConditionItem" |> attrStr)
-            
+
             let reqItems: ReqWrapper =
                 { put = put
                   delete = delete
                   update = update
                   condition = condition } |> f
-            
+
             let req = TransactWriteItemsRequest()
             req.TransactItems <- MList<_>()
             if reqItems.put <> null
@@ -207,28 +206,28 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 let t = TransactWriteItem()
                 t.Put <- reqItems.put
                 t)
-            
+
             if reqItems.delete <> null
             then req.TransactItems.Add(
                 let t = TransactWriteItem()
                 t.Delete <- reqItems.delete
                 t)
-            
+
             if reqItems.update <> null
             then req.TransactItems.Add(
                 let t = TransactWriteItem()
                 t.Update <- reqItems.update
                 t)
-            
+
             if reqItems.condition <> null
             then req.TransactItems.Add(
                 let t = TransactWriteItem()
                 t.ConditionCheck <- reqItems.condition
                 t)
-            
+
             return req
         }
-        
+
     let writeAndGet req (client: AmazonDynamoDBClient) tableName =
         task {
             do! client.TransactWriteItemsAsync req |> Io.ignoreTask
@@ -239,7 +238,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
     let executeWrite clientContainer idemotencyKey writeInitialData f =
 
         task {
-            
+
             let! struct (client, tableName) =
                 if writeInitialData then setUpTable LogLevel.Debug clientContainer
                 else getTableAndClient LogLevel.Debug clientContainer
@@ -251,16 +250,16 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
     let verifyWriteFailed client =
 
         task {
-            
+
             let! struct (client, tableName) = setUpTable LogLevel.Debug client
             let! defaultReq = buildReq client tableName id
-            
+
             let! result = getFromWriteReq client defaultReq
             let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             sprintf "%A" result |> output.WriteLine
             Assert.NotEqual(ValueNone, deleted)
             Assert.Equal(ValueNone, created)
@@ -270,14 +269,14 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
     let executeFailedWrite clientContainer f =
 
         task {
-            
+
             let! struct (client, tableName) = setUpTable LogLevel.Debug clientContainer
             let! req = buildReq client tableName f
-            
+
             output.WriteLine("########### Act")
             let! e = Assert.ThrowsAnyAsync(fun _ ->
                 client.TransactWriteItemsAsync req |> Io.ignoreTask)
-                
+
             do! verifyWriteFailed (ValueSome client)
             return e
         }
@@ -289,13 +288,13 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             // arrange
             // act
             let! result = executeWrite ValueNone ValueNone true id
-            
+
             // assert
             let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             sprintf "%A" result |> output.WriteLine
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
@@ -311,13 +310,13 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let! result = executeWrite ValueNone ValueNone true (fun x ->
                 x.delete.Key["TablePk"] <- attrStr "NonExistent"
                 x)
-            
+
             // assert
             let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             sprintf "%A" result |> output.WriteLine
             Assert.NotEqual(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
@@ -337,13 +336,13 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 x.condition.ConditionExpression <- if ``condition on key`` then "attribute_not_exists(TablePk)" else "attribute_not_exists(MissingAttr)"
                 x.condition.ExpressionAttributeValues.Clear()   
                 x)
-            
+
             // assert
             let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
             Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
@@ -366,9 +365,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 | "update" -> req.update.ConditionExpression <- "attribute_exists(NotExists)"
                 | "condition" -> req.condition.ConditionExpression <- req.condition.ConditionExpression + " AND attribute_exists(NotExists)"
                 | x -> invalidOp x
-                
+
                 req)
-            
+
             // assert
             assertError output "The conditional request failed" e
         }
@@ -389,16 +388,16 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 | "delete" -> req.delete.Key
                 | "put" -> req.put.Item
                 | x -> invalidOp x
-            
+
             // arrange
             // act
             let! e = executeFailedWrite ValueNone (fun req ->
                 let from = get req from
                 let ``to`` = get req ``to``
-                
+
                 ``to``["TablePk"] <- from["TablePk"]
                 req)
-            
+
             // assert
             assertError output "Duplicate request on item" e
         }
@@ -410,12 +409,12 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
         // duplicating put, delete, update
         // not duplicating condition (requires more complex data)
         let count = if ``is control`` then 33 else 34
-        
+
         task {
             let! struct (client, tableName) = setUpTable LogLevel.Warning ValueNone
             let req = TransactWriteItemsRequest()
             req.TransactItems <- MList<_>()
-            
+
             let put id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -425,7 +424,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     put.Item.Add("TablePk", $"PutItem{id}" |> attrStr)
                     t.Put <- put
                     t)
-                
+
             let delete id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -435,7 +434,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     delete.Key.Add("TablePk", $"DeleteItem{id}" |> attrStr)
                     t.Delete <- delete
                     t)
-                
+
             let update id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -448,7 +447,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     update.ExpressionAttributeValues.Add(":v", attrStr "xxx")
                     t.Update <- update
                     t)
-                
+
             let condition id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -461,7 +460,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     condition.ExpressionAttributeValues.Add(":pk", "ConditionItem" |> attrStr)
                     t.ConditionCheck <- condition
                     t)
-                
+
             [
                 put
                 delete
@@ -471,7 +470,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             |> Collection.prepend (condition())
             |> List.ofSeq
             |> ignoreTyped<unit list>
-            
+
             // arrange
             // act
             if ``is control``
@@ -479,7 +478,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             else 
                 let! e = Assert.ThrowsAnyAsync(fun _ ->
                     client.TransactWriteItemsAsync req |> Io.ignoreTask)
-                
+
                 // assert
                 assertError output "Maximum items in a transact write is" e
         }
@@ -487,7 +486,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
     let ``Transact write, items over 4MB, fails`` ``is control`` =
-        
+
         let bigDataSize = 300_000
         let recordsNeededToOverflow = 4_000_000.0 / float bigDataSize
         let bigData = Array.create bigDataSize 0uy
@@ -495,12 +494,12 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let attr = DynamoAttributeValue()
             attr.B <- new MemoryStream(buffer = bigData)
             attr
-        
+
         task {
             let! struct (client, tableName) = setUpTable LogLevel.Warning ValueNone
             let req = TransactWriteItemsRequest()
             req.TransactItems <- MList<_>()
-            
+
             let put id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -511,7 +510,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     put.Item.Add("BigData", bigDataAttribute ())
                     t.Put <- put
                     t)
-                
+
             let update id =
                 req.TransactItems.Add(
                     let t = TransactWriteItem()
@@ -546,11 +545,11 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             else 
                 let! e = Assert.ThrowsAnyAsync(fun _ ->
                     client.TransactWriteItemsAsync req |> Io.ignoreTask)
-                
+
                 // assert
                 assertError output "The maximum size of a transact write is" e
         }
-        
+
     let setUpGlobalTable() =
         task {
             // arrange
@@ -560,19 +559,19 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
 
             let struct (host, fromRegion) = cloneGlobalHost()
             let toRegion = {regionId = "to-region" }
-            
+
             let _ = host
             let client1 = TestDynamoClientBuilder.Create(host, fromRegion, writer)
             let client2 = TestDynamoClientBuilder.Create(host, toRegion, writer)
             let clientContainer = new ClientContainer(host.GetDatabase writer' fromRegion, writer, false)
-            
+
             let addStreamsReq = UpdateTableRequest()
             addStreamsReq.TableName <- table.name
             addStreamsReq.StreamSpecification <- StreamSpecification()
             addStreamsReq.StreamSpecification.StreamEnabled <- true
             addStreamsReq.StreamSpecification.StreamViewType <- StreamViewType.NEW_AND_OLD_IMAGES
             do! client1.UpdateTableAsync(addStreamsReq) |> Io.ignoreTask
-            
+
             let createTableReq = CreateGlobalTableRequest()
             createTableReq.GlobalTableName <- table.name
             createTableReq.ReplicationGroup <- System.Collections.Generic.List()
@@ -580,7 +579,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             createTableReq.ReplicationGroup[0].RegionName <- toRegion.regionId
             do! client1.CreateGlobalTableAsync(createTableReq) |> Io.ignoreTask
             do! host.AwaitAllSubscribers writer' CancellationToken.None
-            
+
             return struct (host, client1, client2, clientContainer)
         }
 
@@ -597,7 +596,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             use _ = client1
             use _ = client2
             use _ = clientContainer
-            
+
             // act
             let! e = executeFailedWrite (ValueSome clientContainer.Client) (fun req ->
                 match ``error type`` with
@@ -607,18 +606,18 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     req.condition.ConditionExpression <- "attribute_exists(XXYYZZ)"
                     req.condition.ExpressionAttributeValues.Clear()
                 | x -> invalidOp x
-                
+
                 req)
-            
+
             do! host.AwaitAllSubscribers writer' CancellationToken.None
-            
+
             // assert
             let msg = 
                 match ``error type`` with
                 | "KEY_ERR" -> "Invalid key specification for write request"
                 | "CONDITION" -> "ConditionalCheckFailedException"
                 | x -> invalidOp x
-                
+
             assertError output msg e
             do! verifyWriteFailed (ValueSome client2)
         }
@@ -635,11 +634,11 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             use _ = client1
             use _ = client2
             use _ = clientContainer
-            
+
             // act
             do! executeWrite (ValueSome clientContainer.Client) ValueNone true id |> Io.ignoreTask
             do! host.AwaitAllSubscribers writer' CancellationToken.None
-            
+
             // assert
             let! req = buildReq client1 table.name id
             let! written = getFromWriteReq client2 req
@@ -647,7 +646,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
             Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
@@ -663,22 +662,22 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             use _ = client
             use _ = _client2
             use _ = clientContainer
-            
+
             let key = System.Guid.NewGuid().ToString() |> ValueSome
-            
+
             // act
             do! executeWrite (ValueSome clientContainer.Client) key false id |> Io.ignoreTask
             let! written = executeWrite (ValueSome clientContainer.Client) key false (fun x ->
                 // validate that this is never run
                 x.condition.ConditionExpression <- "an invalid expression that would fail" 
                 x)
-            
+
             // assert
             let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) written |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
-            
+
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
             Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])

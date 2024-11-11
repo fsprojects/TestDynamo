@@ -77,7 +77,7 @@ let mutable MaxReplicationTime = TimeSpan.FromSeconds 10
 let mutable DefaultRegion = "default-region"
 
 module TransactReadSettings =
-    
+
     /// <summary>
     /// The max number of batch write items in a single request
     /// Default 100
@@ -90,19 +90,19 @@ module TransactWriteSettings =
     /// Default (1, 1)
     /// </summary>
     let mutable SizeRangeEstimateResponse = struct (1.0, 1.0)
-    
+
     /// <summary>
     /// The max number of batch write items in a single request
     /// Default 100
     /// </summary>
     let mutable MaxItemsPerRequest = 100
-    
+
     /// <summary>
     /// The max size of data in a batch write request
     /// Default 4MB
     /// </summary>
     let mutable MaxRequestDataBytes = 4_000_000
-    
+
     /// <summary>
     /// The amount of time to keep a ClientRequestToken (idempotency key) before it expires. The real dynamodb value
     /// for this key is 10minutes
@@ -111,7 +111,7 @@ module TransactWriteSettings =
     let mutable ClientRequestTokenTTL = TimeSpan.FromSeconds(10)
 
 module AmazonWebServiceResponse =
-    
+
     /// <summary>
     /// <para>
     /// A constant value to put as the ContentLength in all dynamodb responses
@@ -121,7 +121,7 @@ module AmazonWebServiceResponse =
     /// </para> 
     /// </summary>
     let mutable ResponseContentLength = 100
-    
+
     /// <summary>
     /// <para>
     /// A constant value to put as the HttpStatusCode in all dynamodb responses
@@ -131,7 +131,7 @@ module AmazonWebServiceResponse =
     /// </para> 
     /// </summary>
     let mutable HttpStatusCode = HttpStatusCode.OK
-    
+
     /// <summary>
     /// <para>
     /// A constant value to put as the ChecksumAlgorithm in all dynamodb responses
@@ -141,7 +141,7 @@ module AmazonWebServiceResponse =
     /// </para> 
     /// </summary>
     let mutable ChecksumAlgorithm = CoreChecksumAlgorithm.NONE
-    
+
     /// <summary>
     /// <para>
     /// A constant value to put as the ChecksumValidationStatus in all dynamodb responses
@@ -151,7 +151,7 @@ module AmazonWebServiceResponse =
     /// </para> 
     /// </summary>
     let mutable ChecksumValidationStatus = ChecksumValidationStatus.NOT_VALIDATED
-    
+
     /// <summary>
     /// <para>
     /// A generator to create the RequestId in all dynamodb responses

@@ -16,7 +16,6 @@ module TableKeyAttributeList =
 
     let empty = Tk []
 
-
     let getType x (Tk xs) = Seq.filter (fstT >> (=) x) xs |> Seq.map sndT |> Collection.tryHead
 
     let contains = getType >>> ValueOption.isSome

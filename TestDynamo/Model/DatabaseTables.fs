@@ -25,7 +25,7 @@ type ConditionAndProject<'returnValues> =
       expressionAttrValues: Map<string, AttributeValue>
       expressionAttrNames: Map<string, string>
       returnValues: 'returnValues }
-    
+
     with
     static member empty tableName returnValues =
         { tableName = tableName
@@ -131,7 +131,7 @@ module DatabaseTables =
     let empty = H Map.empty
 
     let logOperation x = DatabaseLogger.logOperation "Tables" x
-    
+
     let private tableNotFound name (H tables) =
         let tableNames =
             match tables.Keys |> Seq.map (sprintf " * %s") |> Str.join "\n" with

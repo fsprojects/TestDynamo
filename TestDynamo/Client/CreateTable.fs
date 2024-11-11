@@ -3,7 +3,6 @@
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo.Client
 open TestDynamo.Client.DescribeTable.Local
@@ -45,7 +44,7 @@ let addLsi key oldV newV =
     | ValueNone -> newV
     | ValueSome _ -> clientError $"Duplicate key definition {key}"
 
-let inputs1 (req: CreateTableRequest) =
+let inputs (req: CreateTableRequest) =
 
     let indexes =
         Seq.map (fun x -> { isLocal = false; data = buildGsiSchema' x } |> tpl x.IndexName) req.GlobalSecondaryIndexes
@@ -64,14 +63,6 @@ let inputs1 (req: CreateTableRequest) =
 
     { tableConfig = tableConfig
       createStream = buildStreamConfig req.StreamSpecification |> ValueOption.isSome }
-
-let inputs2 struct (
-    tableName: string,
-    keySchema: MList<KeySchemaElement>,
-    attributeDefinitions: MList<AttributeDefinition>,
-    provisionedThroughput: ProvisionedThroughput) =
-
-    CreateTableRequest (tableName, keySchema, attributeDefinitions, provisionedThroughput) |> inputs1
 
 let output awsAccountId databaseId (table: TableDetails) =
 

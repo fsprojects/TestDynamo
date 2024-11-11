@@ -10,7 +10,7 @@ open TestDynamo.Api.FSharp
 
 type MList<'a> = System.Collections.Generic.List<'a>
 
-let inputs1 (req: CreateGlobalTableRequest) =
+let inputs (req: CreateGlobalTableRequest) =
 
     let replicaInstructions =
         req.ReplicationGroup

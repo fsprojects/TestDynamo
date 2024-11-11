@@ -8,7 +8,6 @@ open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
-open TestDynamo.Client
 open TestDynamo.Data.BasicStructures
 open Tests.ClientLoggerContainer
 open Tests.Items
@@ -357,9 +356,9 @@ type GetItemTests(output: ITestOutputHelper) =
                 if ``global`` then TestDynamoClientBuilder.Create(dHost, host.Id)
                 else
                     TestDynamoClientBuilder.Create(cloneHost writer)
-                    
+
             client.SetAwsAccountId "12233445"
-                    
+
             let req =
                 let r = BatchGetItemRequest()
                 let k = KeysAndAttributes()

@@ -150,7 +150,6 @@ module PrecedenceProcessor =
             assert false
             NodePrecedence.spaceOperator
 
-
     /// <summary>
     /// Create a priority queue from this processor. Priority is based on precedence and index
     /// </summary>
@@ -165,7 +164,7 @@ module PrecedenceProcessor =
 
             struct (prioritize t, i'))
         |> Seq.map fstT
-        
+
     type private ForErrorsCache<'a>() =
         static member forErrors = Logger.describable (fun (x: PrecedenceProcessorState<'a>) ->
             let unmergedAst = x.processed |> List.sortBy _.fromToken

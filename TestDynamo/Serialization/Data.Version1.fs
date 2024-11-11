@@ -12,7 +12,7 @@ type SerializableIndexType =
     | Primary = 1
     | GlobalSecondary = 2
     | LocalSecondary = 3
-    
+
 type SerializableProjectionType =
     | All = 1
     | Keys = 2
@@ -20,27 +20,27 @@ type SerializableProjectionType =
 
 type AttributeDescription = (struct (string * AttributeType))
 type SerializableKeyConfig = (struct (AttributeDescription * AttributeDescription voption))
-    
+
 type SerializableIndexInfo(
       indexType: SerializableIndexType,
       indexName: string voption,
       keyConfig: SerializableKeyConfig,
       projection: SerializableProjectionType,
       projectionAttributes: string array) =
-    
+
       member _.indexType = indexType
       member _.indexName = indexName
       member _.keyConfig = keyConfig
       member _.projection = projection
       member _.projectionAttributes = projectionAttributes
-    
+
 type SerializableIndex(
     info: SerializableIndexInfo,
     items: Map<string, AttributeValue> array) =
-    
+
     member _.info = info
     member _.items = items
-    
+
 type SerializableTableInfo(
       name: string,
       hasDeletionProtection: bool,
@@ -53,18 +53,18 @@ type SerializableTable(
     info: SerializableTableInfo,
     primaryIndex: SerializableIndex,
     secondaryIndexes: SerializableIndexInfo list) =
-    
+
     member _.info = info
     member _.primaryIndex = primaryIndex
     member _.secondaryIndexes = secondaryIndexes
-        
+
 type SerializableDatabase(
     databaseId: DatabaseId,
     tables: SerializableTable list) =
-    
+
     member _.databaseId = databaseId
     member _.tables = tables
-    
+
 type SerializableReplication(
     from: DatabaseId,
     ``to``: DatabaseId,
@@ -72,27 +72,27 @@ type SerializableReplication(
     member _.from = from
     member _.``to`` = ``to``
     member _.tableName = tableName
-    
+
 type SerializableGlobalDatabase(
     databases: SerializableDatabase list,
     replications: SerializableReplication list) =
-    
+
     member _.databases = databases
     member _.replications = replications
-    
+
 module ToSerializable =
     module Database =
-    
+
         let serializeableIndexMetadata (idx: Index) =
-            
+
             let sk =
                 Index.keyConfig idx
                 |> KeyConfig.sortKeyDefinition
-                
+
             let pk =
                 Index.keyConfig idx
                 |> KeyConfig.partitionKeyDefinition
-            
+
             SerializableIndexInfo(
                     if Index.isGsi idx then SerializableIndexType.GlobalSecondary
                     elif Index.isLsi idx then SerializableIndexType.LocalSecondary
@@ -111,40 +111,40 @@ module ToSerializable =
                     | Keys x -> x)
 
         let serializeableIndex idx =
-            
+
             let vals =
                 Index.scan ValueNone true true idx
                 |> Seq.collect (Partition.scan ValueNone true)
                 |> Seq.collect PartitionBlock.toSeq
                 |> Seq.map Item.attributes
                 |> Array.ofSeq
-            
+
             SerializableIndex(serializeableIndexMetadata idx, vals)
-        
+
         let emptyIndex idx =
             SerializableIndex(serializeableIndexMetadata idx, [||])
-        
+
         let serializableTable schemaOnly streamsEnabled (table: Table) =
-            
+
             let primaryIndex =
                 if schemaOnly
                 then emptyIndex
                 else serializeableIndex
-            
+
             let name = Table.name table
             SerializableTable(
                 SerializableTableInfo(
                     name,
                     Table.hasDeletionProtection table,
                     streamsEnabled name),
-                
+
                 Table.primaryIndex table |> primaryIndex,
-                
+
                 Table.indexes table
                 |> MapUtils.toSeq
                 |> Seq.map (sndT >> serializeableIndexMetadata)
                 |> List.ofSeq)
-        
+
         let toSerializable omitTables schemaOnly (db: Api.FSharp.Database) =
             let streamsEnabled = db.StreamsEnabled
             SerializableDatabase(
@@ -154,47 +154,47 @@ module ToSerializable =
                 |> Seq.map (
                     sndT >> _.table >> serializableTable schemaOnly streamsEnabled)
                 |> List.ofSeq)
-        
+
     module GlobalDatabase =
-        
+
         let toSerializable schemaOnly (db: GlobalDatabase) =
-            
+
             let replications =
                 db.ListReplications ValueNone true
                 |> Seq.map (fun r -> SerializableReplication(r.fromDb, r.toDb, r.tableName))
                 |> List.ofSeq
-                    
+
             let tableOmissions databaseId =
                 replications
                 |> Seq.filter (_.``to`` >> (=) databaseId)
                 |> Seq.map _.tableName
                 |> Array.ofSeq
-                
+
             let databases =
                 db.GetDatabases()
                 |> Map.values
                 |> Seq.map (fun db -> Database.toSerializable (tableOmissions db.Id) schemaOnly db)
                 |> List.ofSeq
-                
+
             SerializableGlobalDatabase(databases, replications)
 
 module FromSerializable =
-    
+
     module Database =
-            
+
         let private indexCols (i: SerializableIndexInfo) =
             struct (i.keyConfig |> fstT |> fstT, i.keyConfig |> sndT ?|> fstT)
-        
+
         let private asTableAttributes (t: SerializableTable) =
             t.primaryIndex.info.keyConfig::(t.secondaryIndexes |> List.map _.keyConfig) 
             |> List.collect (fun struct (partitionKey, sortKey) -> [ ValueSome partitionKey; sortKey])
             |> Maybe.traverse
             |> Seq.distinctBy fstT
             |> List.ofSeq
-        
+
         let private indexIsLocal (i: SerializableIndexInfo) =
             i.indexType = SerializableIndexType.LocalSecondary
-                                
+
         let private asTableConfig (t: SerializableTable) =
             let secondaryIndexes =
                 t.secondaryIndexes
@@ -211,7 +211,7 @@ module FromSerializable =
                             | SerializableProjectionType.Keys, attr -> List.ofArray attr |> ValueSome
                             | _ -> serverError "Invalid projection" }}))
                 |> MapUtils.ofSeq
-            
+
             { createStream = t.info.streamsEnabled
               tableConfig =
                   { name = t.info.name
@@ -219,7 +219,7 @@ module FromSerializable =
                     indexes = secondaryIndexes
                     attributes = asTableAttributes t
                     addDeletionProtection = t.info.hasDeletionProtection } }
-        
+
         let private asPutItemArgs (t: SerializableTable) =
             t.primaryIndex.items
             |> Seq.map (fun item ->
@@ -230,34 +230,34 @@ module FromSerializable =
                         expressionAttrValues = Map.empty
                         expressionAttrNames = Map.empty
                         returnValues = BasicReturnValues.None } })
-        
+
         let copyFromromSerializble globalLogger (fromJson: SerializableDatabase) (db: Api.FSharp.Database) =
-                        
+
             fromJson.tables
             |> Seq.map asTableConfig
             |> Seq.fold (fun _ ->
                 db.AddTable globalLogger
                 >> ignoreTyped<TableDetails>) ()
-            
+
             fromJson.tables
             |> Seq.collect asPutItemArgs
             |> Seq.fold (fun _ ->
                 db.Put globalLogger
                 >> ignoreTyped<Map<string,AttributeValue> voption>) ()
-        
+
         let fromSerializable globalLogger (fromJson: SerializableDatabase) =
-            
+
             let db = new Api.FSharp.Database(fromJson.databaseId)
             copyFromromSerializble globalLogger fromJson db
             db
 
     module GlobalDatabase =
-        
+
         let dbHasTable (db: GlobalDatabase) dbId tableName =
             db.TryGetDatabase dbId
             ?>>= fun db -> db.TryDescribeTable ValueNone tableName
             |> ValueOption.isSome
-        
+
         let rec private tryAddReplications = function
             | struct ([]: SerializableReplication list, struct (db: GlobalDatabase, logger)) -> struct (db, [])
             | r::tail, (db, logger) when dbHasTable db r.from r.tableName ->
@@ -265,12 +265,12 @@ module FromSerializable =
                   replicaInstructions = [Create r.``to``] }
                 |> db.UpdateTable r.from logger r.tableName
                 |> ignoreTyped<TableDetails>
-                
+
                 tryAddReplications (tail, (db, logger))
             | r::tail, dbl ->
                 tryAddReplications (tail, dbl)
                 |> mapSnd (Collection.prependL r)
-        
+
         let rec addReplications args =
             let repCount = args |> fstT |> List.length
             match tryAddReplications args with
@@ -282,18 +282,18 @@ module FromSerializable =
                 |> Str.join "\n"
                 |> sprintf "Error adding replications\n%s"
                 |> invalidOp
-        
+
         let fromSerializable globalLogger (fromJson: SerializableGlobalDatabase) =
-            
+
             let db =
                 globalLogger
                 ?|> fun logger -> new Api.FSharp.GlobalDatabase(logger = logger)
                 ?|>? fun _ -> new Api.FSharp.GlobalDatabase()
-            
+
             fromJson.databases
             |> List.fold (fun _ x ->
                 db.GetDatabase globalLogger x.databaseId
                 |> Database.copyFromromSerializble globalLogger x) ()
-            
+
             addReplications (fromJson.replications, (db, globalLogger))
             db

@@ -19,7 +19,7 @@ type UpdateTableData =
     { tableName: string
       globalTableData: UpdateGlobalTableData
       tableData: UpdateSingleTableData }
-    
+
 type GlobalDatabaseCloneData =
     { data: GlobalDatabaseClone }
 
@@ -33,7 +33,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
 
     static let validateError id =
         $" * Duplicate database in setup data {id}"
-        
+
     do
         let err =
             initialDatabases.data.databases
@@ -43,11 +43,11 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
             |> Seq.map fstT
             |> Seq.map validateError
             |> Str.join "\n"
-            
+
         match err with
         | "" -> ()
         | e -> $"Invalid database input\n{e}" |> invalidOp
-    
+
     let state: MutableValue<GlobalDatabaseState> =
         initialDatabases.data.databases
         |> GlobalDatabaseState.build logger
@@ -66,7 +66,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
         MutableValue.mutate (fun state ->
             let struct (l, d) = buildLogger operationName localLogger
             use _ = d
-            
+
             let struct (x, h) = f l state
             struct (x, h)) state
 
@@ -79,7 +79,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     let loggedGet operationName localLogger f =
         let struct (l, d) = buildLogger operationName localLogger
         use _ = d
-        
+
         MutableValue.get state |> f l
 
     let buildReplicationDisposable worker =
@@ -109,7 +109,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     new(?logger: ILogger) =
         let data =
             { data = GlobalDatabaseClone.empty }
-            
+
         new GlobalDatabase(data, Maybe.fromRef logger)
 
     new(cloneData: Api.FSharp.DatabaseCloneData, ?logger: ILogger) =
@@ -128,7 +128,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
             |> tpl ())
 
     member _.DefaultLogger = defaultLogger
-    
+
     /// <summary>
     /// Get a list of DebugTables. All Databases, Tables, Indexes and Items will be enumerated  
     /// </summary>
@@ -153,7 +153,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     /// List all databases that have been created so far  
     /// </summary>
     member _.GetDatabases () = MutableValue.get state |> GlobalDatabaseState.databases
-    
+
     /// <summary>
     /// Describe a global table as a list of linked tables
     /// Optionally omit tables which replicate TO a specific DB 
@@ -165,19 +165,19 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
         |> function
             | [] -> ValueNone
             | xs -> NonEmptyList.ofList xs |> ValueSome
-    
+
     member this.ListGlobalTables logger struct (databaseId, start: string voption, limit) =
         let predicate =
             start
             ?|> fun s x -> compare s (fstT x) < 0
             ?|? asLazy true
-            
+
         let dbIdFilter =
             databaseId
             ?|> (fun dbId ->
                 Seq.filter (sndT >> NonEmptyList.unwrap >> List.filter (fstT >> (=) dbId) >> Seq.isEmpty >> not))
             ?|? id
-                
+
         MutableValue.get state
         |> GlobalDatabaseState.listReplicatedTables
         |> Seq.map (tplDouble >> mapSnd (this.DescribeGlobalTable logger ValueNone))
@@ -204,12 +204,12 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
         db.TryDescribeTable defaultLogger name
         ?|> fun x -> LazyDebugTable(name, x.table)
         |> ValueOption.defaultWith (fun _ -> invalidArg (nameof name) $"Invalid table \"{name}\" on database \"{databaseId}\"")
-    
+
     member this.IsGlobalTable logger =
         ValueSome
         >> this.TryDescribeGlobalTable logger
         >>> ValueOption.isSome
-        
+
     member _.ListReplications logger rootsOnly =
         loggedGet "LIST REPLICATIONS" logger (fun _ db ->
             GlobalDatabaseState.listReplications true db)
@@ -233,7 +233,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     member _.BuildCloneData logger =
         loggedGet "BUILD CLONE DATA" logger GlobalDatabaseState.getCloneData
         |> fun x -> { data = x; }
-        
+
     /// <summary>
     /// Change how a replication propagates it's data
     /// </summary>

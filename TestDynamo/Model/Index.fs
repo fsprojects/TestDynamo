@@ -192,13 +192,13 @@ module ProjectionType =
         | All -> ValueNone
         | Keys x -> ValueSome x
         | Attributes x -> ValueSome x
-    
+
 type IndexInfo =
     { compositeName: string
       indexType: IndexType
       keyConfig: KeyConfig
       projection: ProjectionType
-      
+
       /// <summary>Primary indexes do not have an arn</summary>
       arn: (struct (AwsAccountId * RegionId) -> string) voption }
 
@@ -208,7 +208,7 @@ type IndexInfo =
         | Primary -> true
         | GlobalSecondary _ -> false
         | LocalSecondary _ -> false
-        
+
     member this.isLocal =
         match this.indexType with
         | Primary -> false
@@ -240,7 +240,7 @@ type Index =
     with
 
     override this.ToString() = match this with Idx x -> x.info.compositeName
-    
+
 type IndexKeys = (struct (string * string voption))
 
 [<Struct; IsReadOnly>]

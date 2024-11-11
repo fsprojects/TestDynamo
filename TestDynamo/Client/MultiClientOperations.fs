@@ -229,16 +229,16 @@ module MultiClientOperations =
             |> ValueOption.defaultValue eagerTableResult
 
         let updateTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateTableRequest) =            
-            UpdateTable.inputs1 req
+            UpdateTable.inputs req
             |> updateTable' databaseOp globalOp
             |> UpdateTable.output awsAccountId ddb databaseId
 
         let createGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: CreateGlobalTableRequest) =            
-            CreateGlobalTable.inputs1 req
+            CreateGlobalTable.inputs req
             |> updateTable' databaseOp globalOp
             |> CreateGlobalTable.output awsAccountId ddb databaseId
 
         let updateGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateGlobalTableRequest) =            
-            UpdateGlobalTable.inputs1 req
+            UpdateGlobalTable.inputs req
             |> updateTable' databaseOp globalOp
             |> UpdateGlobalTable.output awsAccountId ddb databaseId

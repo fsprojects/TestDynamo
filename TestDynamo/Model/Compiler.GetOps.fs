@@ -65,7 +65,7 @@ let private op operator leftRight itemData =
 
 type private BinaryOp = (struct ((ItemData -> AttributeValue voption) * (ItemData -> AttributeValue voption))) -> ItemData -> AttributeValue voption
 let eq: BinaryOp = op ((=)0)
-    
+
 let private neq': BinaryOp = op ((<>)0)
 let lt: BinaryOp = op (flip (<)0)
 let lte: BinaryOp = op (flip (<=)0)
@@ -76,7 +76,7 @@ let gte: BinaryOp = op (flip (>=)0)
 let neq: BinaryOp = fun struct (left, right) itemData ->
     let l = left itemData
     let r = right itemData
-    
+
     match struct (l, r) with
     | ValueNone, ValueSome _ -> trueResult
     | ValueSome _, ValueNone -> trueResult

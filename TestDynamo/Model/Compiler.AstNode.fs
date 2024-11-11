@@ -183,7 +183,6 @@ module AstNode =
             let f' = OptimizedClosures.FSharpFunc<_, _, _, _>.Adapt f
             find struct(f', [(astNode, 0)], acc)
 
-
     /// <summary>
     /// Apply function with an accumulator to each node in the tree
     /// If the function returns None, do not process any more children

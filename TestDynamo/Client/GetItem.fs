@@ -22,9 +22,9 @@ let buildProjection =
     >>> ValueOption.map (mapFst (ValueSome >> ProjectedAttributes))
     >>> ValueOption.defaultValue struct (AllAttributes, id)
 
-let inputs1 (req: GetItemRequest) =
+let inputs (req: GetItemRequest) =
     let struct (returnValues, exprAttrNames) = buildProjection (CSharp.toOption req.ProjectionExpression) req.AttributesToGet
-    
+
     { keys = [|itemFromDynamodb "$" req.Key|]
       maxPageSizeBytes = Int32.MaxValue
       conditionExpression =
@@ -37,21 +37,6 @@ let inputs1 (req: GetItemRequest) =
                 |> exprAttrNames
             returnValues = returnValues }} : GetItemArgs
 
-let inputs2 struct (tableName, key) =
-    let req = GetItemRequest()
-    req.TableName <- tableName
-    req.Key <- key
-
-    inputs1 req
-
-let inputs3 struct (tableName, key, consistentRead) =
-    let req = GetItemRequest()
-    req.TableName <- tableName
-    req.Key <- key
-    req.ConsistentRead <- consistentRead
-
-    inputs1 req
-
 let output databaseId (selectOutput: GetResponseData) =
 
     let output = Shared.amazonWebServiceResponse<Amazon.DynamoDBv2.Model.GetItemResponse>()
@@ -61,7 +46,7 @@ let output databaseId (selectOutput: GetResponseData) =
 
 module Transaction =
 
-    let private inputs1' (req: Get) =
+    let private inputs' (req: Get) =
 
         { keys = [|itemFromDynamodb "$" req.Key|]
           maxPageSizeBytes = Int32.MaxValue
@@ -76,11 +61,11 @@ module Transaction =
                     |> ValueOption.map (ValueSome >> ProjectedAttributes)
                     |> ValueOption.defaultValue AllAttributes }} : GetItemArgs
 
-    let inputs1 (req: TransactGetItemsRequest) =
+    let inputs (req: TransactGetItemsRequest) =
         if req.TransactItems <> null && req.TransactItems.Count > Settings.TransactReadSettings.MaxItemsPerRequest
         then clientError $"The limit on TransactGetItems is {Settings.TransactReadSettings.MaxItemsPerRequest} records. You can change this value by modifying {nameof Settings}.{nameof Settings.TransactReadSettings}.{nameof Settings.TransactReadSettings.MaxItemsPerRequest}"
 
-        req.TransactItems |> CSharp.sanitizeSeq |> Seq.map (_.Get >> inputs1')
+        req.TransactItems |> CSharp.sanitizeSeq |> Seq.map (_.Get >> inputs')
 
     let private output' (selectOutput: GetResponseData) =
 
@@ -140,9 +125,9 @@ module Batch =
         |> ValueOption.defaultWith (fun _ -> $"Cannot parse table name or ARN {key}" |> clientError)
 
     let toBatchGetValue (x: KeysAndAttributes): BatchGetValue =
-        
+
         let struct (returnValues, addExprAttrNames) = buildProjection (CSharp.toOption x.ProjectionExpression) x.AttributesToGet
-        
+
         { keys = x.Keys |> CSharp.orEmpty |> Seq.map (itemFromDynamodb "$") |> Array.ofSeq
           consistentRead = x.ConsistentRead
           projectionExpression =
@@ -191,7 +176,7 @@ module Batch =
                 suppressMessage
             ] |> Str.join "" |> clientError
 
-    let inputs1 awsAccountId defaultDatabaseId (req: BatchGetItemRequest) =
+    let inputs awsAccountId defaultDatabaseId (req: BatchGetItemRequest) =
         let totalCount =
             req.RequestItems
             |> CSharp.orEmpty
@@ -216,19 +201,6 @@ module Batch =
             |> MapUtils.fromTuple
 
         { requests = requests }
-
-    let inputs2 awsAccountId defaultDatabaseId struct (requestItems, returnConsumedCapacity) =
-        let req = BatchGetItemRequest()
-        req.RequestItems <- requestItems
-        req.ReturnConsumedCapacity <- returnConsumedCapacity
-
-        inputs1 awsAccountId defaultDatabaseId req
-
-    let inputs3 awsAccountId defaultDatabaseId requestItems =
-        let req = BatchGetItemRequest()
-        req.RequestItems <- requestItems
-
-        inputs1 awsAccountId defaultDatabaseId req
 
     let output _ (selectOutput: BatchGetResponse) =
 

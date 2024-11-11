@@ -7,7 +7,6 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
-open TestDynamo.Client
 open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries
@@ -777,25 +776,25 @@ type PutItemTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typedefof<ThreeFlags>)>]
     let ``Put item, with various condition expression scenarios`` ``item exists`` ``condition matches`` ``use legacy inputs`` =
-        
+
         let conditionTargetsSome = ``item exists`` = ``condition matches``
         let success = ``item exists`` = conditionTargetsSome
-        
+
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
             let client = TestDynamoClient.createClient ValueNone (ValueSome host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
-            
+
             let pk =
                 if ``item exists``
                 then pk
                 else $"override{uniqueId()}"
-            
+
             let itemOverride =
                 Map.add "TablePk" (Model.AttributeValue.String pk) item
                 |> Map.add "TablePk_Copy" (Model.AttributeValue.String "override")
@@ -805,7 +804,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 itemOverride
                 |> Map.filter (fun k _ -> List.contains k keyCols)
                 |> itemToDynamoDb
-                
+
             let req = PutItemRequest()
             req.TableName <- table.name
             req.Item <- itemToDynamoDb itemOverride
@@ -818,17 +817,17 @@ type PutItemTests(output: ITestOutputHelper) =
                     c.ComparisonOperator <-
                         if conditionTargetsSome then ComparisonOperator.NOT_NULL else ComparisonOperator.NULL
                     c)
-                
+
                 req.Expected.Add(
                     "TablePk",
                     let c = ExpectedAttributeValue()
                     c.ComparisonOperator <- ComparisonOperator.NE
-                    
+
                     let attr = DynamoAttributeValue()
                     attr.S <- "XX"
                     c.AttributeValueList <- MList<_>([attr])
                     c)
-                
+
             else
                 req.ConditionExpression <- 
                     if conditionTargetsSome
@@ -837,11 +836,11 @@ type PutItemTests(output: ITestOutputHelper) =
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
                     |> CSharp.toDictionary id id
-                        
+
                 req.ExpressionAttributeValues <-
                     Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
                     |> itemToDynamoDb
-                
+
             req.ReturnValues <- ReturnValue.ALL_OLD
 
             // act
@@ -866,7 +865,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 then Assert.True(x.Item["TablePk_Copy"].S <> "override")
                 else Assert.True(x.Item.Count = 0)
         }
-    
+
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Batch write item, invalid region, throws`` ``global`` ``invalid region``: Task<unit> =
@@ -882,7 +881,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 if ``global``
                 then TestDynamoClient.createGlobalClient ValueNone (ValueSome host.Id) (ValueSome dHost)
                 else TestDynamoClientBuilder.Create(writer)
-                
+
             let req =
                 let r = BatchWriteItemRequest()
                 let k = WriteRequest()

@@ -7,8 +7,6 @@ open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Api
-open TestDynamo.Client
 open TestDynamo.Lambda
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -40,7 +38,7 @@ type Change =
 [<Struct>]
 type ChangeData =
     { changes: Change list }
-    
+
 type TableSubscriberTests(output: ITestOutputHelper) =
 
     let mapTask f x =
@@ -85,7 +83,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 | ValueNone, ValueNone -> false)
         |> Seq.collect asPutsAndDeletes
         |> Either.partition
-        
+
     let random = randomBuilder output
 
     [<Fact>]
@@ -131,7 +129,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -209,7 +207,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -230,7 +228,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let data2 = { data1 with indexPk = 777M }
 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data1) |> Io.ignoreTask
-            
+
             // act
             let func = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
@@ -242,7 +240,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // assert
             let r = Assert.Single(record) |> sndT
             let t = Assert.Single(r.Records)
-            
+
             Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data1, LambdaSubscriberUtils.itemFromDynamoDb t.Dynamodb.OldImage)
             Assert.Equal<Map<string, AttributeValue>>(TableItem.asItem data2, LambdaSubscriberUtils.itemFromDynamoDb t.Dynamodb.NewImage)
         }
@@ -265,7 +263,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -370,7 +368,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -459,7 +457,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -544,7 +542,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let streamSettings =
                 if ``add delay`` then { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -601,7 +599,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let streamSettings =
                 if ``add delay`` then { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -672,7 +670,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
         task {
             use writer = new TestLogger(output)
             let writer' = ValueSome (writer :> Microsoft.Extensions.Logging.ILogger)
-            
+
             // arrange
             let streamSettings =
                 { delay = RunSynchronously; subscriberTimeout = TimeSpan.Zero }
@@ -723,7 +721,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -740,33 +738,33 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                   indexSk = pk
                   binaryData = "hello"
                   boolData = true }
-            
+
             let invalidPut1 () =
                 let data = TableItem.asAttributes data
                 data["TablePk"].S <- null
                 data["TablePk"].N <- "55"
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.PutItemAsync(table.name, data) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "Item not valid for table"
-            
+
             let invalidPut2 () =
                 let req = PutItemRequest()
                 req.Item <- TableItem.asAttributes data
                 req.TableName <- table.name
                 req.ConditionExpression <- "attribute_exists(XXXXXXX)"
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.PutItemAsync(req) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "ConditionalCheckFailedException"
-            
+
             let invalidDelete1 () =
                 let data = TableItem.asAttributes data
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.DeleteItemAsync(table.name, data) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "Found non key attributes"
-            
+
             let invalidDelete2 () =
                 let data = TableItem.asAttributes data
                 let req = DeleteItemRequest()
@@ -775,11 +773,11 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 if table.hasSk then req.Key["TableSk"] <- data["TableSk"]
                 req.TableName <- table.name
                 req.ConditionExpression <- "attribute_exists(XXXXXXX)"
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.DeleteItemAsync(req) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "ConditionalCheckFailedException"
-            
+
             let invalidDelete3 () =
                 let data = TableItem.asAttributes data
                 let req = DeleteItemRequest()
@@ -788,9 +786,9 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 req.Key["TablePk"].S <- "invalid"
                 if table.hasSk then req.Key["TableSk"] <- data["TableSk"]
                 req.TableName <- table.name
-                
+
                 client.DeleteItemAsync(req) |> Io.ignoreTask
-            
+
             let invalidUpdate1 () =
                 let data = TableItem.asAttributes data
                 let req = UpdateItemRequest()
@@ -800,30 +798,30 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 req.TableName <- table.name
                 req.ConditionExpression <- "attribute_exists(XXXXXXX)"
                 req.UpdateExpression <- "REMOVE uuuuu"
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.UpdateItemAsync(req) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "ConditionalCheckFailedException"
-            
+
             let invalidUpdate2 () =
                 let data = TableItem.asAttributes data
                 let req = DeleteItemRequest()
                 req.Key <- Dictionary()
                 if table.hasSk then req.Key["TableSk"] <- data["TableSk"]
                 req.TableName <- table.name
-                
+
                 Assert.ThrowsAnyAsync(fun _ -> client.DeleteItemAsync(req) |> Io.ignoreTask)
                 |> ValueTask<Exception>
                 |%|> assertError output "Could not find partition key attribute"
-            
+
             // act
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                
+
                 Subscriptions.Add(host, table.name, sub)
-                
+
             do! invalidPut1()
             do! invalidPut2()
             do! invalidDelete1()
@@ -842,7 +840,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
@@ -868,7 +866,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 keys
 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data1) |> Io.ignoreTask
-            
+
             // act
             let recordNew = System.Collections.Generic.List<_>()
             let recordOld = System.Collections.Generic.List<_>()
@@ -876,16 +874,16 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 let sub = asFunc2 (fun x _ ->
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                
+
                 Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
-                
+
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                
+
                 Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
-                
+
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
@@ -919,7 +917,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                   boolData = true }
 
             let data2 = { data1 with indexSk = "something new" }
-            
+
             let settings1 = { SubscriberBehaviour.defaultOptions with delay = TimeSpan.FromSeconds(0.1) |> RunAsynchronously }
             let settings2 = { SubscriberBehaviour.defaultOptions with delay = RunSynchronously }
 
@@ -929,9 +927,9 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 let sub = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-                
+
                 Subscriptions.Add(host, table.name, sub, behaviour = settings1)
-                
+
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
             host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
@@ -945,7 +943,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 |> Seq.collect (sndT >> _.Records)
                 |> Seq.map (_.Dynamodb.NewImage["IndexSk"].S)
                 |> List.ofSeq
-            
+
             Assert.Equal<string>([pk; "something new"], adds)
-            
+
         }

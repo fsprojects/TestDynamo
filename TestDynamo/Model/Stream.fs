@@ -26,13 +26,13 @@ type EmergencyBrake = ValueTask<bool>
 type EmergencyBrakeRequest<'request> =
     { request: 'request
       emergencyBrake: EmergencyBrake }
-    
+
 module EmergencyBrakeRequest =
     let private noBrake' = ValueTask<_>(true).Preserve()
     let noBrake x = { request = x; emergencyBrake = noBrake' }
     let inline create emergencyBrake x = { request = x; emergencyBrake = emergencyBrake }
     let inline map f x = { request = f x.request; emergencyBrake = x.emergencyBrake }
-    
+
 [<Struct; IsReadOnly>]
 type SubscriberChange =
     | SubscriberDeleted of SubscriberId
@@ -125,7 +125,7 @@ type SubscriberBehaviour =
     static member defaultOptions =
         { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously
           subscriberTimeout = TimeSpan.FromSeconds(30) }
-        
+
     /// <summary>
     ///  1) Code propagates asynchronously
     ///  2) Errors in subscribers are cached and propagated when awaited
@@ -133,7 +133,7 @@ type SubscriberBehaviour =
     /// </summary>
     static member RunSynchronously(timeout) =
         { subscriberTimeout = timeout; delay = RunSynchronously }
-        
+
     /// <summary>
     ///  1) Code propagates synchronously if possible. May propagate async if thread lock cannot be found on the current thread
     ///  2) Errors in subscribers propagate back to the DynamoDb client which executed the request 
@@ -141,7 +141,7 @@ type SubscriberBehaviour =
     /// </summary>
     static member RunSynchronouslyAndPropagateToEventTrigger(timeout) =
         { subscriberTimeout = timeout; delay = RunSynchronouslyAndPropagateToEventTrigger }
-        
+
     /// <summary>
     ///  1) Code propagates synchronously if possible. May propagate async if thread lock cannot be found on the current thread
     ///  2) Errors in subscribers are cached and propagated when awaited
@@ -204,7 +204,7 @@ module private StreamSubscriber =
         } |> ValueTask<unit>
 
     let private noDelay = ValueTask<unit>(()).Preserve() |> asLazy
-    
+
     type private ErrorHandler = (SubscriberMessage -> ValueTask<unit>) -> SubscriberMessage -> ValueTask<struct (SubscriberMessage * exn) voption>
     let private errorHandling (f: SubscriberMessage -> ValueTask<unit>) x =
 
@@ -222,7 +222,7 @@ module private StreamSubscriber =
             struct (cts, cts.Token)
 
     let private dataCancelled = ValueTask<_>(ValueNone).Preserve()
-    
+
     let prepareSubscriberFunction behaviour subscriberId (subscriber: SubscriberInputFn): SubscriberFn =
 
         // just execute subscriber with cts.
@@ -247,7 +247,7 @@ module private StreamSubscriber =
                     } |> ValueTask<SubscriberError voption>
             finally
                 if dispose <> null then dispose.Dispose()
-                
+
         let execute errHandling logger message =
             match message with
             | ValueNone ->
@@ -270,7 +270,7 @@ module private StreamSubscriber =
                 | { delay = RunSynchronously } ->
                     Logger.debug0 "Propagating synchronously" logger
                     struct (noErrorHandling, noDelay)
-                
+
             ValueTask<_>(tpl)
             <|%| delay ()
             <|%| change
@@ -367,12 +367,12 @@ type private StreamInfo =
     { tableName: string
       streamLabel: string
       arn: struct (AwsAccountId * RegionId) -> string }
-    
+
 [<Struct; IsReadOnly>]
 type private StreamData =
     { subscribers: StreamSubscriber list
       info: StreamInfo }
-    
+
 type RegionId = string
 type AwsAccountId = string
 
@@ -435,7 +435,7 @@ module Stream =
             |> uncurry Collection.concat2
             |> Seq.sortBy _.id.Value
             |> List.ofSeq
-        
+
         Str { data with subscribers = subscribers }
 
     let arn location = function
@@ -543,7 +543,7 @@ module TableStreams =
             let str =
                 if enabled then Stream.empty tableName |> ValueSome
                 else ValueNone
-            
+
             Map.add tableName str x
             |> Strs
         |> logOperation "ADD STREAM"
@@ -614,7 +614,7 @@ module TableStreams =
                     >> flip (Map.add table) streams
                     >> Strs)
         |> logOperation "ADD STREAM SUBSCRIBER"
-    
+
     let onChange changeResult =
         fun logger -> function
         | Strs x ->
@@ -622,7 +622,7 @@ module TableStreams =
                 Option.map (ValueOption.map (Stream.onChange logger changeResult))) x
             |> Strs
         |> logOperation "ON DATA CHANGE"
-    
+
     /// <summary>Returns any unhandled errors and a task to wait for streams to complete</summary>
     let deleteTable table =
         fun logger ->

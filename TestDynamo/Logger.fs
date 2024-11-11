@@ -27,7 +27,7 @@ module Logger =
             override this.Log(logLevel, eventId, state, ``exception``, formatter) = ()
             override this.IsEnabled(logLevel) = false
             override this.BeginScope(state) = null }
-        
+
     let inline describable<'a> describe (x: 'a) = {describe = describe; table = x}
     let inline undescribe {table = x} = x
 
@@ -37,7 +37,7 @@ module Logger =
     let correlate id (L struct (struct (template, settings), iLogger)) =
         let debugdTemplate = $"{id,3}/{template}"
         L struct (struct (debugdTemplate, settings), iLogger)
-            
+
     let isEnabled level (L (_, l)) = l.IsEnabled level
 
     let id (L struct (struct (_, id), _)) = id

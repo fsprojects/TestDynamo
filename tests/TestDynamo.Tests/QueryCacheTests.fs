@@ -5,7 +5,6 @@ open System.Text.RegularExpressions
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open TestDynamo
-open TestDynamo.Client
 open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries

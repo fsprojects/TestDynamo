@@ -56,12 +56,12 @@ type Exploration(output: ITestOutputHelper) =
                 |> TableBuilder.updateReq
                 |> clientFrom.UpdateTableAsync
                 |> Io.ignoreTask
-                
+
             let key =
                 { fromDb = dbFrom
                   toDb = dbTo
                   tableName = tableName }
-                
+
             host.UpdateReplication (ValueSome writer) key subscriberBehaviour true
 
             let! putResponse =

@@ -390,7 +390,7 @@ let private updateExpressionPreProcessor: Token seq -> Token seq seq =
                 >> SyntheticToken)
             |> ValueOption.defaultValue tk
         | x -> x)
-    
+
     // Assumes that verbs ("ADD", "REMOVE", "DELETE", "SET") are reserved terms and cannot be the names
     // of properties. This is not the case for "REMOVE"
     // Update expression: "SET x.remove = :p" is now not allowed

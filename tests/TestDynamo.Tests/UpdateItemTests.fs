@@ -5,7 +5,6 @@ open System.Text
 open System.Text.Json
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Model
 open Tests.ClientLoggerContainer
 open Tests.Items
@@ -227,7 +226,6 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let setVal = AttributeValue.String "1234"
             let addVal = AttributeValue.Number 1M
-            let deleteVal = AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet
             let! updateBase = put req client
 
             let updateReq =
@@ -238,12 +236,14 @@ type UpdateItemTests(output: ITestOutputHelper) =
                         name,
                         let u = AttributeValueUpdate()
                         u.Action <- AttributeAction.FindValue(action)
-                        u.Value <- attributeToDynamoDb value
+                        match value with
+                        | ValueSome x -> u.Value <- attributeToDynamoDb x
+                        | ValueNone -> ()
                         u)
 
-                add "PUT" "SetMe" setVal
-                add "ADD" "AddMe" addVal
-                add "DELETE" "DeleteMe" deleteVal
+                add "PUT" "SetMe" (ValueSome setVal)
+                add "ADD" "AddMe" (ValueSome addVal)
+                add "DELETE" "DeleteMe" ValueNone
 
                 ub
 
@@ -254,9 +254,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let expected =
                 Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
                 |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                |> Map.add "AddMe" (AttributeValue.Number 6M)
                 |> Map.add "SetMe" setVal
-                |> Map.add "AddMe" (AttributeValue.Number 6M) 
-                |> Map.add "DeleteMe" (AttributeSet.create [AttributeValue.String "X"] |> AttributeValue.HashSet)
 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
         }
@@ -1481,25 +1480,25 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typedefof<ThreeFlags>)>]
     let ``Update, with condition, behaves correctly`` ``item exists`` ``condition matches`` ``use legacy inputs`` =
-        
+
         let conditionTargetsSome = ``item exists`` = ``condition matches``
         let success = ``item exists`` = conditionTargetsSome
-        
+
         task {
             use writer = new TestLogger(output)
-            
+
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
             let client = TestDynamoClientBuilder.Create(host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
-            
+
             let pk =
                 if ``item exists``
                 then pk
                 else $"override{uniqueId()}"
-            
+
             let itemOverride =
                 Map.add "TablePk" (Model.AttributeValue.String pk) item
 
@@ -1508,16 +1507,16 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 itemOverride
                 |> Map.filter (fun k _ -> List.contains k keyCols)
                 |> itemToDynamoDb
-                
+
             let req = UpdateItemRequest()
             req.TableName <- table.name
             req.Key <- keys
-            
+
             req.UpdateExpression <- "SET xxx = :y"
             req.ExpressionAttributeValues <-
                 Map.add ":y" (Model.AttributeValue.String "pp") Map.empty
                 |> itemToDynamoDb
-            
+
             if ``use legacy inputs``
             then
                 req.Expected <- Dictionary<_, _>()
@@ -1527,12 +1526,12 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     c.ComparisonOperator <-
                         if conditionTargetsSome then ComparisonOperator.NOT_NULL else ComparisonOperator.NULL
                     c)
-                
+
                 req.Expected.Add(
                     "TablePk",
                     let c = ExpectedAttributeValue()
                     c.ComparisonOperator <- ComparisonOperator.NE
-                    
+
                     let attr = DynamoAttributeValue()
                     attr.S <- "XX"
                     c.AttributeValueList <- MList<_>([attr])
@@ -1542,13 +1541,13 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     if conditionTargetsSome
                     then "attribute_exists(#attr) AND TablePk <> :v"
                     else "attribute_not_exists(#attr) AND TablePk <> :v"
-                    
+
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
                     |> CSharp.toDictionary id id
-                    
+
                 req.ExpressionAttributeValues.Add(":v", (Model.AttributeValue.String "XX") |> attributeToDynamoDb)
-                    
+
             req.ReturnValues <- ReturnValue.ALL_OLD
 
             // act
@@ -1560,7 +1559,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     Assert.Equal(pk, response.Attributes["TablePk"].S)
                     Assert.Equal(sk, response.Attributes["TableSk"].N |> decimal)
                 else Assert.Empty(response.Attributes)
-                
+
                 let! x = client.GetItemAsync(table.name, keys)
                 Assert.Equal("pp", x.Item["xxx"].S)
             else
@@ -1583,12 +1582,12 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            
+
             let reqBase =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
-                
+
             let expected = ItemBuilder.attributes reqBase
 
             let req =
@@ -1616,12 +1615,12 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            
+
             let reqBase =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
-                
+
             let expected =
                 ItemBuilder.attributes reqBase
                 |> Map.add "AList" (CompressedList [|AttributeValue.String "v1";AttributeValue.String "v2"|] |> AttributeList)
@@ -1641,7 +1640,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)
         }
-        
+
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
     let ``Exploratory: What happens here? "SET x.y = :p" if x is not a map (or list)`` ``is list`` deep = 
@@ -1652,14 +1651,14 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            
+
             let req =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
                 |> ItemBuilder.withAttribute "AVal" "N" "2"
                 |> ItemBuilder.withAttribute "DeepVal" "M" """[["AVal", "N", "2"]]"""
-                
+
             let! updateBase = put req client
 
             // act
@@ -1672,10 +1671,10 @@ type UpdateItemTests(output: ITestOutputHelper) =
                    else QueryBuilder.setUpdateExpression "SET AVal.C = :x"
                 |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.String "v2")
                 |> flip updateExpectErrorAndAssertNotModified client
-                
+
             assertError output "Cannot set" e
         }
-        
+
     [<Fact>]
     let ``Exploratory: What happens here? "SET x = x + :p" if x has no value`` () = 
         task {
@@ -1685,12 +1684,12 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            
+
             let req =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
-                
+
             let! updateBase = put req client
 
             // act
@@ -1699,7 +1698,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression "SET x = x + :x"
                 |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 55M)
                 |> flip updateExpectErrorAndAssertNotModified client
-                
+
             assertError output "Both operands of a + operation must be numbers" e
         }
 
@@ -1713,20 +1712,20 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            
+
             let req =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
                 |> ItemBuilder.withAttribute "TableSk" "N" sk
                 |> ItemBuilder.withAttribute "val1" "N" "55"
-                
+
             let expected =
                 ItemBuilder.attributes req
                 |> Map.add "val1" (AttributeValue.Number 66M)
                 |> Map.add "val2" (AttributeValue.Number 55M)
-                
+
             let! updateBase = put req client
-            
+
             let terms =
                 [
                     "val1 = :x"
@@ -1741,6 +1740,6 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression $"SET {terms}"
                 |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 66M)
                 |> flip update client
-                
+
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)
         }
