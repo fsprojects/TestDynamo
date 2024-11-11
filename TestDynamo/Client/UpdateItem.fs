@@ -35,11 +35,7 @@ type private AttributeUpdateClause =
     { expression: string
       actualAttributeName: string
       name: string
-      valueLabel: string
-      value: DynamoAttributeValue }
-
-let private attributeUpdatesWarning =
-    $"AttributeUpdates is deprecated. You can supress this warning with the {nameof Settings.SupressErrorsAndWarnings}.{nameof Settings.SupressErrorsAndWarnings.DeprecatedFeatures} setting"
+      value: struct (string * DynamoAttributeValue) voption }
 
 [<Struct; IsReadOnly>]
 type private AttributeUpdateExpression =
@@ -59,26 +55,28 @@ type private AttributeUpdateExpression =
             if System.String.IsNullOrEmpty(reqUpdateExpression) |> not
             then clientError "Legacy AttributeUpdates parameter cannot be used with an UpdateExpression"
 
-            if not Settings.SupressErrorsAndWarnings.DeprecatedFeatures
-            then logger.LogWarning attributeUpdatesWarning
-
             x.clauses
             |> Seq.fold (fun struct (names, values) x ->
-                struct (Map.add x.name x.actualAttributeName names, Map.add x.valueLabel (attributeFromDynamodb "$" x.value) values)) struct (Map.empty, Map.empty)
+                struct (
+                    Map.add x.name x.actualAttributeName names,
+                    x.value
+                    ?|> (
+                        mapSnd (attributeFromDynamodb "$")
+                        >> uncurry (flip3To1 Map.add values))
+                    ?|? values)) struct (Map.empty, Map.empty)
             |> tpl x.expression
             |> ValueSome
 
-let private attributeUpdate expr struct (name, value) (update: KeyValuePair<string, AttributeValueUpdate>) =
+let private attributeUpdate setValue expr struct (name, value) (update: KeyValuePair<string, AttributeValueUpdate>) =
 
     { expression = sprintf expr name value
       actualAttributeName = update.Key
       name = name
-      valueLabel = value
-      value = update.Value.Value }
+      value = if setValue then ValueSome struct (value, update.Value.Value) else ValueNone }
 
-let private putAttributeUpdate = attributeUpdate "%s = %s"
-let private addAttributeUpdate = attributeUpdate "%s %s"
-let private deleteAttributeUpdate = attributeUpdate "%s %s" 
+let private putAttributeUpdate = attributeUpdate true "%s = %s"
+let private addAttributeUpdate = attributeUpdate true "%s %s"
+let private deleteAttributeUpdate = flip tpl "" >> attributeUpdate false "%s%s"
 
 let private combineUpdates name (updates: AttributeUpdateClause seq) =
     updates
@@ -95,13 +93,20 @@ let private buildFromAttributeUpdates': Dictionary<string,AttributeValueUpdate> 
         let v = (CSharp.mandatory "AttributeValueUpdate.Value.Action" v.Action)
         let v = (CSharp.mandatory "AttributeValueUpdate.Value.Action.Value" v.Value)
         v.ToUpper())
-    >> Collection.zip (NameValueEnumerator.infiniteNames())
+    >> Seq.collect (function
+        | "PUT", x -> Seq.map Choice1Of3 x
+        | "ADD", x -> Seq.map Choice2Of3 x
+        | "DELETE", x -> Seq.map Choice3Of3 x
+        | x, _ -> clientError $"Unknown attribute update value \"{x}\"")
+    >> Collection.zip (NameValueEnumerator.infiniteNames "p")
     >> Seq.map (fun struct (nameValue, x) ->
         match x with
-        | "PUT", x -> Seq.map (putAttributeUpdate nameValue) x |> combineUpdates "SET"
-        | "ADD", x -> Seq.map (addAttributeUpdate nameValue) x |> combineUpdates "ADD"
-        | "DELETE", x -> Seq.map (deleteAttributeUpdate nameValue) x |> combineUpdates "DELETE"
-        | x, _ -> clientError $"Unknown attribute update value \"{x}\"")
+        | Choice1Of3 x -> putAttributeUpdate nameValue x |> tpl "SET"
+        | Choice2Of3 x -> addAttributeUpdate nameValue x |> tpl "ADD"
+        | Choice3Of3 x -> deleteAttributeUpdate (fstT nameValue) x |> tpl "REMOVE")
+    >> Collection.groupBy fstT
+    >> Collection.mapSnd (Seq.map sndT)
+    >> Seq.map (fun struct (k, vs) -> combineUpdates k vs)
     >> AttributeUpdateExpression.concat
 
 let private buildFromAttributeUpdates (req: UpdateItemRequest) =
@@ -112,8 +117,10 @@ let private buildFromAttributeUpdates (req: UpdateItemRequest) =
 let inputs1 logger (req: UpdateItemRequest) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
 
-    if dictionaryHasValue req.Expected then notSupported "Legacy Expected parameter is not supported"
-    if req.ConditionalOperator <> null then notSupported "Legacy ConditionalOperator parameter is not supported"
+    let struct (filterExpression, struct (addNames, addValues)) =
+        buildUpdateConditionExpression req.ConditionalOperator (CSharp.emptyStringToNull req.ConditionExpression |> CSharp.toOption) req.Expected
+        ?|> mapFst ValueSome
+        ?|? struct (ValueNone, struct (id, id))
 
     let struct (updateExpression, struct (names, values)) =
         buildFromAttributeUpdates req logger
@@ -123,21 +130,21 @@ let inputs1 logger (req: UpdateItemRequest) =
     { key = ItemMapper.itemFromDynamodb "$" req.Key
       updateExpression = updateExpression
       conditionExpression =
-          { conditionExpression = req.ConditionExpression |> filterExpression
+          { conditionExpression = filterExpression
             tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
             returnValues = mapReturnValues req.ReturnValues
             expressionAttrNames =
                 req.ExpressionAttributeNames
                 |> expressionAttrNames
                 |> MapUtils.concat2 names
-                // should not be clashes, keys are guids
-                |> Maybe.expectSome 
+                |> Maybe.expectSome
+                |> addNames
             expressionAttrValues =
                 req.ExpressionAttributeValues
                 |> expressionAttrValues
                 |> MapUtils.concat2 values
-                // should not be clashes, keys are guids
-                |> Maybe.expectSome } } : UpdateItemArgs
+                |> Maybe.expectSome
+                |> addValues } } : UpdateItemArgs
 
 let inputs2 logger struct (
     tableName: string,

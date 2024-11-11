@@ -29,16 +29,18 @@ let mapReturnValues (returnValues: ReturnValue) =
 let inputs1  (req: PutItemRequest) =
     // ReturnValuesOnConditionCheckFailure https://aws.amazon.com/blogs/database/handle-conditional-write-errors-in-high-concurrency-scenarios-with-amazon-dynamodb/
 
-    if req.Expected <> null && req.Expected.Count <> 0 then notSupported "Legacy Expected parameter is not supported"
-    if req.ConditionalOperator <> null then notSupported "Legacy ConditionalOperator parameter is not supported"
+    let struct (filterExpression, struct (addNames, addValues)) =
+        buildUpdateConditionExpression req.ConditionalOperator (CSharp.emptyStringToNull req.ConditionExpression |> CSharp.toOption) req.Expected
+        ?|> mapFst ValueSome
+        ?|? struct (ValueNone, struct (id, id))
 
     { item = ItemMapper.itemFromDynamodb "$" req.Item
       conditionExpression =
-          { conditionExpression = req.ConditionExpression |> filterExpression
+          { conditionExpression = filterExpression
             tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
             returnValues = mapReturnValues req.ReturnValues
-            expressionAttrNames = req.ExpressionAttributeNames |> expressionAttrNames
-            expressionAttrValues = req.ExpressionAttributeValues |> expressionAttrValues } } : PutItemArgs<_>
+            expressionAttrNames = req.ExpressionAttributeNames |> expressionAttrNames |> addNames
+            expressionAttrValues = req.ExpressionAttributeValues |> expressionAttrValues |> addValues } } : PutItemArgs<_>
 
 let inputs2 struct (
     tableName: string,

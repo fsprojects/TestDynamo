@@ -157,9 +157,10 @@ type DeleteItemTests(output: ITestOutputHelper) =
         }
 
     [<Theory>]
-    [<ClassData(typedefof<ThreeFlags>)>]
-    let ``Delete item, with various condition expression scenarios`` ``item exists`` ``condition matches`` rev = // rev is a test for the ll2 compiler
-        
+    [<ClassData(typedefof<FourFlags>)>]
+    let ``Delete item, with various condition expression scenarios`` ``item exists`` ``condition matches`` ``use legacy inputs`` rev = // rev is a test for the ll2 compiler
+        (*
+            if ``use legacy inputs``*)
         let conditionTargetsSome = ``item exists`` = ``condition matches``
         let success = ``item exists`` = conditionTargetsSome
         
@@ -187,24 +188,46 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 |> Map.filter (fun k _ -> List.contains k keyCols)
                 |> itemToDynamoDb
                 
-            let expression =
-                [
-                    if conditionTargetsSome then "attribute_exists(#attr)" else "attribute_not_exists(#attr)" 
-                    "TablePk <> :v"
-                ]
-                |> if rev then List.rev else id
-                |> Str.join " AND "
-                
             let req = DeleteItemRequest()
             req.TableName <- table.name
             req.Key <- keys
-            req.ConditionExpression <- expression
-            req.ExpressionAttributeNames <-
-                Map.add "#attr" "TablePk" Map.empty
-                |> CSharp.toDictionary id id
-            req.ExpressionAttributeValues <-
-                Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
-                |> itemToDynamoDb
+            
+            if ``use legacy inputs``
+            then
+                req.Expected <- Dictionary<_, _>()
+                req.Expected.Add(
+                    "TableSk",
+                    let c = ExpectedAttributeValue()
+                    c.ComparisonOperator <-
+                        if conditionTargetsSome then ComparisonOperator.NOT_NULL else ComparisonOperator.NULL
+                    c)
+                
+                req.Expected.Add(
+                    "TablePk",
+                    let c = ExpectedAttributeValue()
+                    c.ComparisonOperator <- ComparisonOperator.NE
+                    
+                    let attr = DynamoAttributeValue()
+                    attr.S <- "XX"
+                    c.AttributeValueList <- MList<_>([attr])
+                    c)
+            else
+                let expression =
+                    [
+                        if conditionTargetsSome then "attribute_exists(#attr)" else "attribute_not_exists(#attr)" 
+                        "TablePk <> :v"
+                    ]
+                    |> if rev then List.rev else id
+                    |> Str.join " AND "
+                    
+                req.ConditionExpression <- expression
+                req.ExpressionAttributeNames <-
+                    Map.add "#attr" "TableSk" Map.empty
+                    |> CSharp.toDictionary id id
+                req.ExpressionAttributeValues <-
+                    Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
+                    |> itemToDynamoDb
+                    
             req.ReturnValues <- ReturnValue.ALL_OLD
 
             // act

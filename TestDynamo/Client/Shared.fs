@@ -59,22 +59,23 @@ type MList<'a> = System.Collections.Generic.List<'a>
 /// </summary>
 module NameValueEnumerator =
         
-    let private next' i =
+    let private next' struct (prefix, i) =
         let t = i + 1
-        struct (struct ($"#t{t}", $":t{t}"), t)
+        struct (struct ($"#{prefix}{t}", $":{prefix}{t}"), t)
     
-    let private cacheMax = 200
+    let private cacheMax = 2000
     let private next =
-        let k (x: int) = x
-        memoize (ValueSome (100, cacheMax + 1)) k next' >> sndT
+        let k (x: struct (string * int)) = x
+        memoize (ValueSome (cacheMax / 2, cacheMax + 1)) k next' >> sndT
 
-    let infiniteNames () =
+    let infiniteNames prefix =
         seq {
-            let mutable i = cacheMax
-            let mutable tkn = next 0
+            // allow for about 10 prefixes to be cached @ 200 items each
+            let mutable i = cacheMax / 10
+            let mutable tkn = next struct (prefix, 0)
             while true do
                 yield fstT tkn
-                tkn <- (if i > 0 then next else next') (sndT tkn)
+                tkn <- (if i > 0 then next else next') (struct (prefix, sndT tkn))
                 i <- i - 1
         }
 
@@ -87,7 +88,7 @@ module GetUtils =
         if attributesToGet <> null && attributesToGet.Count > 0
         then
             attributesToGet
-            |> Collection.zip (NameValueEnumerator.infiniteNames())
+            |> Collection.zip (NameValueEnumerator.infiniteNames "p")
             |> Seq.map (fun struct (struct (id, _), attr) -> struct (id, struct (id, attr)))
             |> Collection.unzip
             |> mapFst (Str.join ",")

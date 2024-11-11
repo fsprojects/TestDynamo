@@ -171,14 +171,14 @@
 
 ### Inputs
 
+ * ✅ ConditionalOperator
  * ✅ ConditionExpression
+ * ✅ Expected
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
  * ✅ Key
  * ✅ ReturnValues
  * ✅ TableName
- * ConditionalOperator - This operation is deprecated by AWS
- * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure
@@ -347,11 +347,11 @@
 
 ### Inputs
 
+ * ✅ AttributesToGet
  * ✅ ExpressionAttributeNames
  * ✅ Key
  * ✅ ProjectionExpression
  * ✅ TableName
- * AttributesToGet - This operation is deprecated by AWS
  * ConsistentRead
  * ReturnConsumedCapacity
 
@@ -390,14 +390,14 @@
 
 ### Inputs
 
+ * ✅ ConditionalOperator
  * ✅ ConditionExpression
+ * ✅ Expected
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
  * ✅ Item
  * ✅ ReturnValues
  * ✅ TableName
- * ConditionalOperator - This operation is deprecated by AWS
- * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure
@@ -412,22 +412,22 @@
 
 ### Inputs
 
+ * ✅ AttributesToGet
+ * ✅ ConditionalOperator
  * ✅ ExclusiveStartKey
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
  * ✅ FilterExpression
  * ✅ IndexName
  * ✅ KeyConditionExpression
+ * ✅ KeyConditions
  * ✅ Limit
  * ✅ ProjectionExpression
+ * ✅ QueryFilter
  * ✅ ScanIndexForward
  * ✅ Select
  * ✅ TableName
- * AttributesToGet - This operation is deprecated by AWS
- * ConditionalOperator - This operation is deprecated by AWS
  * ConsistentRead
- * KeyConditions - This operation is deprecated by AWS
- * QueryFilter - This operation is deprecated by AWS
  * ReturnConsumedCapacity
 
 ### Outputs
@@ -558,15 +558,15 @@
 ### Inputs
 
  * ✅ AttributeUpdates
+ * ✅ ConditionalOperator
  * ✅ ConditionExpression
+ * ✅ Expected
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
  * ✅ Key
  * ✅ ReturnValues
  * ✅ TableName
  * ✅ UpdateExpression
- * ConditionalOperator - This operation is deprecated by AWS
- * Expected - This operation is deprecated by AWS
  * ReturnConsumedCapacity
  * ReturnItemCollectionMetrics
  * ReturnValuesOnConditionCheckFailure

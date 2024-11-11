@@ -280,8 +280,8 @@ Dictionary<string, object> Done()
             ExpressionAttributeNames = true,
             ExpressionAttributeValues = true,
             ReturnValues = true,
-            ConditionalOperator = deprecated,
-            Expected = deprecated
+            ConditionalOperator = true,
+            Expected = true
         },
         DeleteItemResponse = new
         {
@@ -361,8 +361,8 @@ Dictionary<string, object> Done()
             ConditionExpression = true,
             ExpressionAttributeNames = true,
             ExpressionAttributeValues = true,
-            Expected = deprecated,
-            ConditionalOperator = deprecated
+            Expected = true,
+            ConditionalOperator = true
         },
         PutItemResponse = new
         {
@@ -503,10 +503,10 @@ Dictionary<string, object> Done()
             ExclusiveStartKey = true,
             ProjectionExpression = true,
             Select = true,
-            AttributesToGet = deprecated,
-            KeyConditions = deprecated,
-            QueryFilter = deprecated,
-            ConditionalOperator = deprecated
+            AttributesToGet = true,
+            KeyConditions = true,
+            QueryFilter = true,
+            ConditionalOperator = true
         },
         QueryResponse = new
         {
@@ -585,7 +585,7 @@ Dictionary<string, object> Done()
             ProjectionExpression = true,
             Key = true,
             ExpressionAttributeNames = true,
-            AttributesToGet = deprecated
+            AttributesToGet = true
         },
         GetItemResponse = new
         {
@@ -651,8 +651,8 @@ Dictionary<string, object> Done()
             ReturnValues = true,
             ExpressionAttributeNames = true,
             ExpressionAttributeValues = true,
-            Expected = deprecated,
-            ConditionalOperator = deprecated
+            Expected = true,
+            ConditionalOperator = true
         },
         UpdateItemResponse = new
         {

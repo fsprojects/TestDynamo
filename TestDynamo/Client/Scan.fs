@@ -6,6 +6,7 @@ open System.Reflection
 open System.Linq.Expressions
 open Amazon.DynamoDBv2.Model
 open TestDynamo
+open TestDynamo.Utils
 open TestDynamo.Model
 open TestDynamo.Client
 open TestDynamo.Client.ItemMapper
@@ -38,15 +39,21 @@ let getScanIndexForward: QueryRequest -> bool =
 let private buildSelectTypes' (req: ScanRequest) =
     buildSelectTypes req.Select (req.ProjectionExpression |> CSharp.emptyStringToNull |> CSharp.toOption) req.AttributesToGet req.IndexName
 
+let private buildScanExpression = buildFetchExpression "FilterExpression" "KeyConditions" "s"
+
 let inputs1 limits (req: ScanRequest) =
     
-    let struct (selectTypes, addNames) = buildSelectTypes' req
-
+    let struct (selectTypes, addNames1) = buildSelectTypes' req
+    let struct (filterExpression, struct (addNames2, addValues)) =
+        buildScanExpression req.ConditionalOperator (CSharp.emptyStringToNull req.FilterExpression |> CSharp.toOption) req.ScanFilter
+        ?|> mapFst ValueSome
+        ?|? struct (ValueNone, struct (id, id))
+    
     { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
       indexName = req.IndexName |> toOption
       queryExpression = ExpressionExecutors.Fetch.ScanFullIndex
-      filterExpression = req.FilterExpression |> emptyStringToNull |> toOption
-      pageSize = if req.IsLimitSet then req.Limit else Int32.MaxValue 
+      filterExpression = filterExpression
+      pageSize = if req.IsLimitSet then req.Limit else Int32.MaxValue
       updateExpression = ValueNone 
       limits = limits
       expressionAttrNames =
@@ -54,12 +61,14 @@ let inputs1 limits (req: ScanRequest) =
           |> toOption
           ?|> (toMap id id)
           |> ValueOption.defaultValue Map.empty
-          |> addNames
+          |> addNames1
+          |> addNames2
       expressionAttrValues =
           req.ExpressionAttributeValues
           |> toOption
           ?|> (toMap id (attributeFromDynamodb "$"))
           |> ValueOption.defaultValue Map.empty
+          |> addValues
       forwards = true
       lastEvaluatedKey = lastEvaluatedKeyIn req.ExclusiveStartKey
       selectTypes = selectTypes } : ExpressionExecutors.Fetch.FetchInput

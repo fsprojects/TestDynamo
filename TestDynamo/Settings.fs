@@ -259,8 +259,3 @@ module SupressErrorsAndWarnings =
     /// </para>
     /// </summary>
     let mutable AwsAccountIdErrors = false
-
-    /// <summary>
-    /// Ignore any errors related to the usage of deprecated AWS features
-    /// </summary>
-    let mutable DeprecatedFeatures = false

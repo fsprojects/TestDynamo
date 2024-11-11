@@ -12,6 +12,9 @@ type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 type MList<'a> = List<'a>
 
 let rec attributeFromDynamodb name (attr: DynamoAttributeValue) =
+    if attr = null
+    then AttributeValue.Null
+    else
     match struct (
         attr.IsBOOLSet,
         attr.S,
