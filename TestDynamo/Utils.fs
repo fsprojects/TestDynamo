@@ -452,6 +452,16 @@ module Collection =
                     yield enm2.Current
         }
 
+    /// <summary>
+    /// Like Seq.scan, but simplifies state interaction and returns 1 result per item
+    /// </summary>
+    let scan (f: 's -> 'a -> struct ('s * 'b)) (s: 's) (xs: 'a seq) =
+        let f = OptimizedClosures.FSharpFunc<_, _, _>.Adapt f
+        let s' = struct (s, Unchecked.defaultof<'b>)
+        Seq.scan (fun s x -> f.Invoke(fstT s, x)) s' xs
+        |> Seq.skip 1
+        |> Seq.map sndT
+    
     let window windowSize (xs: 'a seq): 'a seq seq =
         if windowSize < 1 then invalidOp "Size < 1"
         seq {

@@ -52,6 +52,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let op = KeysAndAttributes()
             op.Keys.Add(req.Key)
             op.ProjectionExpression <- req.ProjectionExpression
+            op.AttributesToGet <- req.AttributesToGet
             op.ExpressionAttributeNames <- req.ExpressionAttributeNames
             op
 
@@ -132,6 +133,48 @@ type GetItemTests(output: ITestOutputHelper) =
                     let keyCols = if table.hasSk then ["TablePk_Copy"; "IndexSk_Copy"] else ["TablePk"]
                     Map.filter (fun k _ -> List.contains k keyCols)
                 else id
+                |> apply item
+
+            Assert.Equal<Map<string, AttributeValue>>(expected, actual)    
+        }
+
+    [<Theory>]
+    [<ClassData(typedefof<OneFlag>)>]
+    let ``Get item, with attributes to get, works correctly`` ``batch get`` =
+
+        task {
+            use writer = new TestLogger(output)
+
+            // arrange
+            let! tables = sharedTestData ValueNone // (ValueSome output)
+            use host = cloneHost writer
+            let client = TestDynamoClientBuilder.Create(host)
+            let table = Tables.get true true tables
+            let struct (pk, struct (sk, item)) = randomItem table.hasSk random
+
+            let keys1 =
+                let keyCols = if table.hasSk then ["TablePk"; "TableSk"] else ["TablePk"]
+                item
+                |> Map.filter (fun k _ -> List.contains k keyCols)
+                |> itemToDynamoDb
+
+            let req = GetItemRequest()
+            req.TableName <- table.name
+            req.Key <- keys1
+            req.AttributesToGet <- MList<_>([
+                "TablePk_Copy"
+                "IndexSk_Copy"
+                "blablabla"
+            ])
+
+            // act
+            let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` false client req
+
+            // assert
+            let actual = response |> itemFromDynamodb "$"
+            let expected =
+                let keyCols = if table.hasSk then ["TablePk_Copy"; "IndexSk_Copy"] else ["TablePk"]
+                Map.filter (fun k _ -> List.contains k keyCols)
                 |> apply item
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)    

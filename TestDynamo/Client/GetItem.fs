@@ -5,6 +5,7 @@ open System.Linq
 open System.Runtime.CompilerServices
 open Amazon.DynamoDBv2.Model
 open TestDynamo
+open TestDynamo.Client.Shared
 open TestDynamo.Model
 open TestDynamo.Client
 open TestDynamo.Client.ItemMapper
@@ -16,27 +17,10 @@ open TestDynamo.Data.Monads.Operators
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 type MList<'a> = System.Collections.Generic.List<'a>
 
-let buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
-    if attributesToGet <> null && attributesToGet.Count > 0 && ValueOption.isSome projectionExpression
-    then clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
-    
-    if attributesToGet <> null && attributesToGet.Count > 0
-    then
-        attributesToGet
-        |> Seq.map (fun x ->
-            // TODO: uniqueid factory
-            let id = Guid.NewGuid().ToString().Replace("-", "") |> sprintf "#x%s"
-            struct (id, struct (id, x)))
-        |> Collection.unzip
-        |> mapFst (
-            Str.join ","
-            >> ValueSome
-            >> ProjectedAttributes)
-    else
-        projectionExpression
-        |> ValueOption.map (ValueSome >> ProjectedAttributes)
-        |> ValueOption.defaultValue AllAttributes
-        |> flip tpl List.empty
+let buildProjection =
+    GetUtils.buildProjection
+    >>> ValueOption.map (mapFst (ValueSome >> ProjectedAttributes))
+    >>> ValueOption.defaultValue struct (AllAttributes, id)
 
 let inputs1 (req: GetItemRequest) =
     let struct (returnValues, exprAttrNames) = buildProjection (CSharp.toOption req.ProjectionExpression) req.AttributesToGet
@@ -50,7 +34,7 @@ let inputs1 (req: GetItemRequest) =
             expressionAttrNames =
                 req.ExpressionAttributeNames
                 |> expressionAttrNames
-                |> flip (Seq.fold (fun s struct (k, v) -> Map.add k v s)) exprAttrNames
+                |> exprAttrNames
             returnValues = returnValues }} : GetItemArgs
 
 let inputs2 struct (tableName, key) =
@@ -156,10 +140,17 @@ module Batch =
         |> ValueOption.defaultWith (fun _ -> $"Cannot parse table name or ARN {key}" |> clientError)
 
     let toBatchGetValue (x: KeysAndAttributes): BatchGetValue =
+        
+        let struct (returnValues, addExprAttrNames) = buildProjection (CSharp.toOption x.ProjectionExpression) x.AttributesToGet
+        
         { keys = x.Keys |> CSharp.orEmpty |> Seq.map (itemFromDynamodb "$") |> Array.ofSeq
           consistentRead = x.ConsistentRead
-          projectionExpression = x.ProjectionExpression |> CSharp.toOption
-          expressionAttrNames = x.ExpressionAttributeNames |> expressionAttrNames }
+          projectionExpression =
+              match returnValues with
+              | Count -> ValueNone
+              | AllAttributes -> ValueNone
+              | ProjectedAttributes x -> x
+          expressionAttrNames = x.ExpressionAttributeNames |> expressionAttrNames |> addExprAttrNames }
 
     let fromBatchGetValue (x: BatchGetValue): KeysAndAttributes =
         let out = KeysAndAttributes()

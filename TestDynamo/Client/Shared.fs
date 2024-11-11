@@ -1,10 +1,13 @@
 ﻿module TestDynamo.Client.Shared
 
 open System.Net
+open Amazon.DynamoDBv2.Model
 open Amazon.Runtime
 open System
 open System.Linq.Expressions
 open System.Reflection
+open TestDynamo.Utils
+open TestDynamo.Data.Monads.Operators
 
 let amazonWebServiceResponse<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse> () =
     let x = new 'a()
@@ -49,6 +52,50 @@ let getOptionalBool<'obj, 'value> name =
         | true -> value.Invoke x |> ValueSome
 
 type MList<'a> = System.Collections.Generic.List<'a>
+
+/// <summary>
+/// Tools to generate a list of names like: (#t1, :t1), (#t2, :t2), ...
+/// The value of this component is in cached strings
+/// </summary>
+module NameValueEnumerator =
+        
+    let private next' i =
+        let t = i + 1
+        struct (struct ($"#t{t}", $":t{t}"), t)
+    
+    let private cacheMax = 200
+    let private next =
+        let k (x: int) = x
+        memoize (ValueSome (100, cacheMax + 1)) k next' >> sndT
+
+    let infiniteNames () =
+        seq {
+            let mutable i = cacheMax
+            let mutable tkn = next 0
+            while true do
+                yield fstT tkn
+                tkn <- (if i > 0 then next else next') (sndT tkn)
+                i <- i - 1
+        }
+
+module GetUtils =
+
+    let buildProjection projectionExpression (attributesToGet: IReadOnlyList<string>) =
+        if attributesToGet <> null && attributesToGet.Count > 0 && ValueOption.isSome projectionExpression
+        then clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
+        
+        if attributesToGet <> null && attributesToGet.Count > 0
+        then
+            attributesToGet
+            |> Collection.zip (NameValueEnumerator.infiniteNames())
+            |> Seq.map (fun struct (struct (id, _), attr) -> struct (id, struct (id, attr)))
+            |> Collection.unzip
+            |> mapFst (Str.join ",")
+            |> mapSnd (flip (Seq.fold (fun s struct (k, v) -> Map.add k v s)))
+            |> ValueSome
+        else
+            projectionExpression
+            ?|> flip tpl id
 
 // [<IsReadOnly; Struct>]
 // type NullFixer<'a> =

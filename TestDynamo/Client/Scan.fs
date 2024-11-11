@@ -36,9 +36,11 @@ let getScanIndexForward: QueryRequest -> bool =
     fun x -> isSet.Invoke x |> not || x.ScanIndexForward
 
 let private buildSelectTypes' (req: ScanRequest) =
-    buildSelectTypes req.Select req.ProjectionExpression req.IndexName
+    buildSelectTypes req.Select (req.ProjectionExpression |> CSharp.emptyStringToNull |> CSharp.toOption) req.AttributesToGet req.IndexName
 
 let inputs1 limits (req: ScanRequest) =
+    
+    let struct (selectTypes, addNames) = buildSelectTypes' req
 
     { tableName = req.TableName |> CSharp.mandatory "TableName is mandatory"
       indexName = req.IndexName |> toOption
@@ -52,6 +54,7 @@ let inputs1 limits (req: ScanRequest) =
           |> toOption
           ?|> (toMap id id)
           |> ValueOption.defaultValue Map.empty
+          |> addNames
       expressionAttrValues =
           req.ExpressionAttributeValues
           |> toOption
@@ -59,7 +62,7 @@ let inputs1 limits (req: ScanRequest) =
           |> ValueOption.defaultValue Map.empty
       forwards = true
       lastEvaluatedKey = lastEvaluatedKeyIn req.ExclusiveStartKey
-      selectTypes = buildSelectTypes' req } : ExpressionExecutors.Fetch.FetchInput
+      selectTypes = selectTypes } : ExpressionExecutors.Fetch.FetchInput
 
 let inputs2 limits struct (tableName, attributesToGet: List<string>) =
     let req = ScanRequest()

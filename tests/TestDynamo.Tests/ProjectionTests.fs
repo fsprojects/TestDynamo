@@ -79,13 +79,13 @@ type ProjectionTests(output: ITestOutputHelper) =
                 Assert.Equal(0, r.Count)
         }
 
-    let projectionTest projection alterReq =
+    let prepareProjectionTest projection projectAsAttributes =
 
         task {
             let! data = sharedTestData ValueNone //(ValueSome output)
             let table = Tables.get true true data
-            use logger = new TestLogger(output)
-            let client = TestDynamoClientBuilder.Create(cloneHost logger)
+            let logger = new TestLogger(output)
+            let client = new ClientContainer(cloneHost logger, logger, true)
             let pk = $"id-{IncrementingId.next()}"
             let sk = (IncrementingId.next()).Value |> decimal
             let iPk = (IncrementingId.next()).Value |> decimal
@@ -123,28 +123,73 @@ type ProjectionTests(output: ITestOutputHelper) =
                 |> ItemBuilder.addAttribute "TheMap" map
                 |> ItemBuilder.addAttribute "TheList" list
                 |> ItemBuilder.asPutReq
-                |> client.PutItemAsync
+                |> client.Client.PutItemAsync
                 |> Io.ignoreTask
-
+                
+            let struct (setProjection, setAttributesToGet) =
+                if not projectAsAttributes then QueryBuilder.setProjectionExpression projection, id
+                else id, projection.Split(",") |> Seq.map (_.Trim()) |> List.ofSeq |> QueryBuilder.setAttributesToGet
+                
             // arrange
             // act
-            let! result = 
+            return
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setFilterExpression "TablePk = :p"
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setSelect Select.SPECIFIC_ATTRIBUTES
-                |> QueryBuilder.setProjectionExpression projection
+                |> setProjection
+                |> setAttributesToGet
+                |> tpl struct (struct (pk, sk), struct (iPk, iSk))
+                |> tpl client
+        }
+
+    let projectionScanTest projection projectAsAttributes alterReq =
+
+        task {
+            let! struct (client, struct (keys, queryBuilder)) = prepareProjectionTest projection projectAsAttributes
+            use _ = client
+                
+            // arrange
+            // act
+            let! result = 
+                queryBuilder
                 |> alterReq
                 |> QueryBuilder.scanRequest
-                |> client.ScanAsync
+                |> client.Client.ScanAsync
 
             // assert
             Assert.Equal(1, result.Items.Count)
             let output =
                 result.Items[0]
                 |> itemFromDynamodb "$"
-                |> tpl struct (struct (pk, sk), struct (iPk, iSk))
+                |> tpl keys
+
+            return output
+        }
+
+    let projectionQueryTest projection projectAsAttributes alterReq =
+
+        task {
+            let! struct (client, struct(struct(struct (pk, _), _) & keys, queryBuilder)) = prepareProjectionTest projection projectAsAttributes
+            use _ = client
+                
+            // arrange
+            // act
+            let! result = 
+                queryBuilder
+                |> QueryBuilder.setKeyConditionExpression (QueryBuilder.getFilterExpression queryBuilder |> Maybe.expectSome)
+                |> QueryBuilder.removeFilterExpression
+                |> alterReq
+                |> QueryBuilder.queryRequest
+                |> client.Client.QueryAsync
+
+            // assert
+            Assert.Equal(1, result.Items.Count)
+            let output =
+                result.Items[0]
+                |> itemFromDynamodb "$"
+                |> tpl keys
 
             return output
         }
@@ -172,13 +217,18 @@ type ProjectionTests(output: ITestOutputHelper) =
         |> CompressedList
         |> AttributeList
 
-    [<Fact>]
-    let ``Scan on table, with root props, projects correctly`` () =
+    [<Theory>]
+    [<ClassData(typedefof<TwoFlags>)>]
+    let ``Scan or query on table, with root props, projects correctly`` ``is scan`` ``project as attributes to get`` =
 
         task {
             // arrange
+            let testF =
+                if ``is scan`` then projectionScanTest
+                else projectionQueryTest
+            
             // act
-            let! struct (struct (struct (pk, _), _), result) = projectionTest "TablePk,TheMap,TheList" id
+            let! struct (struct (struct (pk, _), _), result) = testF "TablePk,TheMap,TheList" ``project as attributes to get`` id
 
             // assert
             Assert.Collection(
@@ -201,7 +251,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             let! struct (_, result) =
-                projectionTest "TheMap.Branch,TheList[1]" id
+                projectionScanTest "TheMap.Branch,TheList[1]" false id
 
             // assert
             Assert.Collection(
@@ -221,7 +271,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             let! struct (_, result) =
-                projectionTest "TheMap.#zero[1],TheList[0].Branch" (QueryBuilder.setExpressionAttrName "#zero" "0")
+                projectionScanTest "TheMap.#zero[1],TheList[0].Branch" false (QueryBuilder.setExpressionAttrName "#zero" "0")
 
             // assert
             Assert.Collection(
@@ -241,7 +291,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             // assert
-            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionTest "TheMap, TheMap" id)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionScanTest "TheMap, TheMap" false id)
             assertError output "An attribute or attribute path was updated or projected multiple times" e 
         }
 
@@ -252,7 +302,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             // assert
-            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionTest "TheMap, TheMap.TheBranch" id)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionScanTest "TheMap, TheMap.TheBranch" false id)
             assertError output "An attribute or attribute path was updated or projected multiple times" e 
         }
 
@@ -263,7 +313,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             // assert
-            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionTest "TheMap.TheBranch, TheMap.TheBranch" id)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionScanTest "TheMap.TheBranch, TheMap.TheBranch" false id)
             assertError output "An attribute or attribute path was updated or projected multiple times" e 
         }
 
@@ -274,7 +324,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             // assert
-            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionTest "TheList[1],TheList[1]" id)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionScanTest "TheList[1],TheList[1]" false id)
             assertError output "An attribute or attribute path was updated or projected multiple times" e 
         }
 
@@ -285,7 +335,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             // assert
-            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionTest "TablePk.x" id)
+            let! e = Assert.ThrowsAnyAsync(fun _ -> projectionScanTest "TablePk.x" false id)
             assertError output "Table scalar attribute TablePk is not a map" e 
         }
 
@@ -297,8 +347,8 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             let! struct (_, result) =
-                if rev then projectionTest "TheList[0],TheList[1]" id
-                else projectionTest "TheList[1],TheList[0]" id
+                if rev then projectionScanTest "TheList[0],TheList[1]" false id
+                else projectionScanTest "TheList[1],TheList[0]" false id
 
             // assert
             Assert.Collection(
@@ -315,7 +365,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             // arrange
             // act
             let! struct (_, result) =
-                projectionTest "TheMap.#zero,TheMap.Branch" (QueryBuilder.setExpressionAttrName "#zero" "0")
+                projectionScanTest "TheMap.#zero,TheMap.Branch" false (QueryBuilder.setExpressionAttrName "#zero" "0")
 
             // assert
             Assert.Collection(
@@ -331,7 +381,7 @@ type ProjectionTests(output: ITestOutputHelper) =
         task {
             // arrange
             // act
-            let! struct (struct (struct (pk, _), _), result) = projectionTest "TablePk,Unknown1,TheMap.Unknown2,TheList[123]" id
+            let! struct (struct (struct (pk, _), _), result) = projectionScanTest "TablePk,Unknown1,TheMap.Unknown2,TheList[123]" false id
 
             // assert
             Assert.Collection(

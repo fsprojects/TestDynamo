@@ -5,6 +5,7 @@ open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Client
+open TestDynamo.Client.Shared
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -67,11 +68,7 @@ type private AttributeUpdateExpression =
             |> tpl x.expression
             |> ValueSome
 
-let private attributeUpdate expr (update: KeyValuePair<string, AttributeValueUpdate>) =
-    // strings should probably be cached here, however, this is deprecated functionality
-    let identifier = "v" + System.Guid.NewGuid().ToString().Replace("-", "")
-    let name = "#" + identifier
-    let value = ":" + identifier
+let private attributeUpdate expr struct (name, value) (update: KeyValuePair<string, AttributeValueUpdate>) =
 
     { expression = sprintf expr name value
       actualAttributeName = update.Key
@@ -94,14 +91,16 @@ let private buildFromAttributeUpdates': Dictionary<string,AttributeValueUpdate> 
 
     CSharp.orEmpty
     >> Collection.groupBy (fun x ->
-        let v = (CSharp.mandatory "AttributeValueUpdate value" x.Value)
-        let v = (CSharp.mandatory "AttributeValueUpdate.Action" v.Action)
-        let v = (CSharp.mandatory "AttributeValueUpdate.Action.Value" v.Value)
+        let v = (CSharp.mandatory "AttributeValueUpdate.Value" x.Value)
+        let v = (CSharp.mandatory "AttributeValueUpdate.Value.Action" v.Action)
+        let v = (CSharp.mandatory "AttributeValueUpdate.Value.Action.Value" v.Value)
         v.ToUpper())
-    >> Seq.map (function
-        | "PUT", x -> Seq.map putAttributeUpdate x |> combineUpdates "SET"
-        | "ADD", x -> Seq.map addAttributeUpdate x |> combineUpdates "ADD"
-        | "DELETE", x -> Seq.map deleteAttributeUpdate x |> combineUpdates "DELETE"
+    >> Collection.zip (NameValueEnumerator.infiniteNames())
+    >> Seq.map (fun struct (nameValue, x) ->
+        match x with
+        | "PUT", x -> Seq.map (putAttributeUpdate nameValue) x |> combineUpdates "SET"
+        | "ADD", x -> Seq.map (addAttributeUpdate nameValue) x |> combineUpdates "ADD"
+        | "DELETE", x -> Seq.map (deleteAttributeUpdate nameValue) x |> combineUpdates "DELETE"
         | x, _ -> clientError $"Unknown attribute update value \"{x}\"")
     >> AttributeUpdateExpression.concat
 
@@ -120,7 +119,7 @@ let inputs1 logger (req: UpdateItemRequest) =
         buildFromAttributeUpdates req logger
         ?|> mapFst ValueSome
         ?|? struct (CSharp.emptyStringToNull req.UpdateExpression |> CSharp.toOption, struct (Map.empty, Map.empty))
-
+        
     { key = ItemMapper.itemFromDynamodb "$" req.Key
       updateExpression = updateExpression
       conditionExpression =

@@ -1,6 +1,7 @@
 module Tests.Requests.Queries
 
 open System
+open System.Linq
 open System.Text.RegularExpressions
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
@@ -23,6 +24,7 @@ type QueryBuilder =
       conditionExpression: string voption
       keyConditionExpression: string voption
       projectionExpression: string voption
+      attributesToGet: string list voption
       updateKey: Map<string, AttributeValue> voption
       updateExpression: string voption
       attributeUpdates: Map<string, AttributeValueUpdate> voption
@@ -37,6 +39,7 @@ type QueryBuilder =
           tableName = ValueNone
           indexName = ValueNone
           updateKey = ValueNone
+          attributesToGet = ValueNone
           select = ValueNone
           returnValues = ValueNone
           conditionExpression =  ValueNone
@@ -58,9 +61,19 @@ type QueryBuilder =
 
     static member setFilterExpression exp x = { x with filterExpression = ValueSome exp }: QueryBuilder
 
+    static member removeFilterExpression x = { x with filterExpression = ValueNone }: QueryBuilder
+
+    static member getFilterExpression x = x.filterExpression
+
     static member setConditionExpression exp x = { x with conditionExpression = ValueSome exp }: QueryBuilder
 
     static member setKeyConditionExpression exp x = { x with keyConditionExpression = ValueSome exp }: QueryBuilder
+
+    static member addExpressionAttributeValue name value x =
+        let vs = x.expressionAttrValues ?|? Map.empty |> Map.add name value
+        { x with expressionAttrValues =  ValueSome vs }: QueryBuilder
+
+    static member setAttributesToGet attr x = { x with attributesToGet =  ValueSome attr }: QueryBuilder
 
     static member setUpdateKey key x = { x with updateKey =  ValueSome key }: QueryBuilder
 
@@ -176,6 +189,7 @@ type QueryBuilder =
         x.limit ?|> (fun l -> output.Limit <- l) |> ValueOption.defaultValue ()
         output.KeyConditionExpression <- CSharp.fromOption x.keyConditionExpression
         output.ProjectionExpression <- CSharp.fromOption x.projectionExpression
+        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> CSharp.fromOption
         output.ExpressionAttributeNames <- x.expressionAttrNames ?|> (CSharp.toDictionary id id) |> CSharp.fromOption
 
         output.ExpressionAttributeValues <-
@@ -222,6 +236,7 @@ type QueryBuilder =
         output.IndexName <- CSharp.fromOption x.indexName
         output.FilterExpression <- CSharp.fromOption x.filterExpression
         output.ProjectionExpression <- CSharp.fromOption x.projectionExpression
+        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> CSharp.fromOption
         x.limit ?|> (fun l -> output.Limit <- l) |> ValueOption.defaultValue ()
         output.ExpressionAttributeNames <- x.expressionAttrNames ?|> (CSharp.toDictionary id id) |> CSharp.fromOption
         output.ExpressionAttributeValues <-
@@ -244,6 +259,7 @@ type QueryBuilder =
         match x.filterExpression with | ValueSome _ -> invalidOp "filterExpression" | ValueNone -> ()
         match x.keyConditionExpression with | ValueSome _ -> invalidOp "keyConditionExpression" | ValueNone -> ()
         match x.projectionExpression with | ValueSome _ -> invalidOp "projectionExpression" | ValueNone -> ()
+        match x.attributesToGet with | ValueSome _ -> invalidOp "attributesToGet" | ValueNone -> ()
         match x.forwards with | ValueSome _ -> invalidOp "forwards" | ValueNone -> ()
         match x.limit with | ValueSome _ -> invalidOp "limit" | ValueNone -> ()
 
