@@ -106,7 +106,7 @@ type SmokeTests(output: ITestOutputHelper) =
             // arrange
             let db = new ApiDb()
             let delay = TimeSpan.FromSeconds(0.2)
-            let subject = ObjPipelineInterceptor(db |> Either1, delay, ValueNone)
+            let subject = ObjPipelineInterceptor(db |> Either1, delay, ValueNone, ValueNone)
             let request =
                 let r = CreateTableRequest()
                 r.TableName <- "NewTable"
@@ -200,7 +200,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             use host = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome host)
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
 
             // arrange
             let! tableName1 = addGlobalTable client
@@ -259,7 +259,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
 
             let! tableName = addTable client true
             let req = CreateGlobalTableRequest()
@@ -289,7 +289,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
             let! tableName = addTable client true
 
             let r =
@@ -302,6 +302,42 @@ type SmokeTests(output: ITestOutputHelper) =
 
             // assert
             assertError output "is not a global table" err
+        }
+
+    [<Fact>]
+    let ``Interceptor tests`` () =
+
+        task {
+            // arrange
+            use commonHost = new GlobalDatabase()
+            let expected = DescribeTableResponse()
+            let interceptor =
+                { new IRequestInterceptor with
+                    member _.Intercept db req c =
+                        Assert.Equal("r1", db.Id.regionId)
+                        
+                        let req = Assert.IsType<DescribeTableRequest>(req)
+                        if req.TableName = "ttt"
+                        then ValueTask<_>(result = expected)
+                        else Unchecked.defaultof<_> }
+            
+            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
+
+            let r =
+                let rr = DescribeTableRequest()
+                rr.TableName <- "ttt"
+                rr
+
+            // act 1
+            let! response = client.DescribeTableAsync(r)
+
+            // assert 1
+            Assert.Equal(response, response)
+            r.TableName <- "uuu"
+
+            // act 2
+            let! e = Assert.ThrowsAnyAsync(fun _ -> client.DescribeTableAsync(r))
+            assertError output "Table uuu not found" e
         }
 
     [<Theory>]

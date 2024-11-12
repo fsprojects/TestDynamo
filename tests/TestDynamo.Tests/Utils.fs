@@ -187,7 +187,7 @@ let buildTempClient() = new ClientContainer(commonHost, Logger.notAnILogger, fal
 let buildClientWithlogLevel logLevel logger = new ClientContainer(commonHost, new TestLogger(logger, level = logLevel), true)
 
 let buildClientFromLogger logger =
-    TestDynamoClient.createClient (ValueSome logger) (ValueSome commonHost)
+    TestDynamoClient.createClient (ValueSome logger) (ValueSome commonHost) ValueNone
 let printFullList xs =
     Seq.mapi (fun i -> if i = 0 then id else sprintf "  %s;") xs
     |> Str.join "\n"

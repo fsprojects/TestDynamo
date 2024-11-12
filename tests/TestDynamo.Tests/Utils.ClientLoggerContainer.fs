@@ -10,11 +10,11 @@ open Microsoft.Extensions.Logging
 type Database = TestDynamo.Api.FSharp.Database
 
 type TestDynamoClientBuilder() =
-    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient (ValueSome logger) (ValueSome id) (ValueSome db)
-    static member Create(db, id) = TestDynamoClient.createGlobalClient (ValueNone) (ValueSome id) (ValueSome db)
-    static member Create(db, logger) = TestDynamoClient.createClient (ValueSome logger) (ValueSome db)
-    static member Create(db) = TestDynamoClient.createClient (ValueNone) (ValueSome db)
-    static member Create(logger) = TestDynamoClient.createClient (ValueSome logger) (ValueNone)
+    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient (ValueSome logger) (ValueSome id) ValueNone (ValueSome db)
+    static member Create(db, id) = TestDynamoClient.createGlobalClient (ValueNone) (ValueSome id) ValueNone (ValueSome db)
+    static member Create(db, logger) = TestDynamoClient.createClient (ValueSome logger) (ValueSome db) ValueNone
+    static member Create(db) = TestDynamoClient.createClient (ValueNone) (ValueSome db) ValueNone
+    static member Create(logger) = TestDynamoClient.createClient (ValueSome logger) ValueNone (ValueNone)
 
 /// <summary>A wrapper around a database, client and logger which will dispose of items correctly</summary>
 type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logger: ILogger, disposeLogger: bool, disposeHost: bool) =
@@ -26,7 +26,7 @@ type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logg
         | _ -> invalidOp "Logger must be disposable"
 
     do
-        TestDynamo.TestDynamoClient.attach (ValueSome logger) host client
+        TestDynamo.TestDynamoClient.attach (ValueSome logger) host ValueNone client
 
     new(logger: ILogger, disposeLogger) =
         new ClientContainer(new Database(), new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(Settings.DefaultRegion)), logger, disposeLogger, true)

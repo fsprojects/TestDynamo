@@ -28,8 +28,8 @@ type Exploration(output: ITestOutputHelper) =
                   subscriberTimeout = System.TimeSpan.FromSeconds(2) }
 
             use host = new GlobalDatabase(logger = writer)
-            use clientFrom = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome dbFrom) (ValueSome host)
-            use clientTo = TestDynamoClient.createGlobalClient(ValueSome writer) (ValueSome dbTo) (ValueSome host)
+            use clientFrom = TestDynamoClient.createGlobalClient (ValueSome writer) (ValueSome dbFrom) ValueNone (ValueSome host)
+            use clientTo = TestDynamoClient.createGlobalClient(ValueSome writer) (ValueSome dbTo) ValueNone (ValueSome host)
             TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientFrom
             TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientTo
 

@@ -19,11 +19,30 @@ type Stream = System.IO.Stream
 module private ObjPipelineInterceptorUtils = 
     let cast<'a when 'a :> AmazonWebServiceResponse> (x: 'a) = x :> AmazonWebServiceResponse
 
+/// <summary>
+/// A request interceptor which can be used to override client functionality
+/// </summary>
+[<AllowNullLiteral>]
+type IRequestInterceptor =
+    /// <summary>
+    /// Intercept a request. If this method returns a non-null object, the object will
+    /// be used as the response of the request. If null is returned, then the request will continue
+    /// as normal
+    /// </summary>
+    abstract member Intercept: database: ApiDb -> request: obj -> CancellationToken -> ValueTask<obj>
+
 type ObjPipelineInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
     artificialDelay: TimeSpan,
+    interceptor: IRequestInterceptor voption,
     defaultLogger: ILogger voption) =
 
+    static let noInterceptorResult = ValueTask<obj>(result = null).Preserve()
+    static let noInterceptor =
+        { new IRequestInterceptor with
+            member _.Intercept _ _ _ = noInterceptorResult }
+    
+    let interceptor = interceptor ?|? noInterceptor
     let db =
         match database with
         | Either1 x -> x
@@ -81,7 +100,7 @@ type ObjPipelineInterceptor(
     let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
     let mutable outerHandler = Unchecked.defaultof<IPipelineHandler>
 
-    let invoke' overrideDelay cancellationToken: AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> = function
+    let invoke'' overrideDelay cancellationToken: AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> = function
         | :? BatchGetItemRequest as request ->
             let update = MultiClientOperations.BatchGetItem.batchGetItem database
             request
@@ -162,6 +181,16 @@ type ObjPipelineInterceptor(
 
             flip (execute overrideDelay id update (asLazy id)) request cancellationToken
         | x -> x.GetType().Name |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
+        
+    let invoke' overrideDelay cancellationToken req =
+        let interceptorResult = interceptor.Intercept db req cancellationToken
+        if interceptorResult = Unchecked.defaultof<ValueTask<_>>
+            then noInterceptorResult
+            else interceptorResult
+        |%>>= function
+            | null -> invoke'' overrideDelay cancellationToken req
+            | :? AmazonWebServiceResponse as r -> ValueTask<_>(result = r)
+            | _ -> invalidOp $"Intercept response must be null or inherit from {nameof AmazonWebServiceRequest}"
 
     let invoke = invoke' ValueNone
 

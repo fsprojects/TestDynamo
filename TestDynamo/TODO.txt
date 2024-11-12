@@ -1,6 +1,5 @@
 
 Features
- * Important: Allow custom handler for missing functionality
  * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception)
  * Search for ReturnValuesOnConditionCheckFailure
  * Add any missing service quotas https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
@@ -9,6 +8,9 @@ Features
     * If TTL is ever set, the UserIdentity property must be set. It has comments on how
  * Object store
  * Remove dependency on dynamodb. Replace with compilation
+
+Docs
+ * Document interceptor
 
 Tests
  * Segregated tests for different framework versions

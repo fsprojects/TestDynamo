@@ -64,7 +64,7 @@ type TestDynamoClient =
         >> Either.map2Of2 (fstT >> _.DefaultLogger)
         >> Either.reduce
 
-    static let attach' (logger: ILogger voption) db (client: AmazonDynamoDBClient) =
+    static let attach' (logger: ILogger voption) db interceptor (client: AmazonDynamoDBClient) =
 
         let db = Either.map2Of2 (flip tpl ({ regionId = client.Config.RegionEndpoint.SystemName }: Model.DatabaseId)) db
         let id =
@@ -86,7 +86,7 @@ type TestDynamoClient =
         if not attachedAlready
         then
             let runtimePipeline = getRuntimePipeline client
-            runtimePipeline.AddHandler(ObjPipelineInterceptor(db, Settings.DefaultClientResponseDelay, logger ?|> ValueSome ?|? defaultLogger db))
+            runtimePipeline.AddHandler(ObjPipelineInterceptor(db, Settings.DefaultClientResponseDelay, interceptor, logger ?|> ValueSome ?|? defaultLogger db))
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database
@@ -94,10 +94,11 @@ type TestDynamoClient =
     [<Extension>]
     static member CreateClient(
         database: CsApiDb,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let client = new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(Settings.DefaultRegion))
-        TestDynamoClient.Attach(client, database, logger)
+        TestDynamoClient.Attach(client, database, interceptor, logger)
         client
 
     /// <summary>
@@ -107,10 +108,11 @@ type TestDynamoClient =
     static member CreateClient(
         database: GlobalCsApiDb,
         databaseId: TestDynamo.Model.DatabaseId,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let client = new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(databaseId.regionId))
-        TestDynamoClient.Attach(client, database, logger)
+        TestDynamoClient.Attach(client, database, interceptor, logger)
         client
 
     /// <summary>
@@ -119,18 +121,20 @@ type TestDynamoClient =
     [<Extension>]
     static member CreateClient(
         database: GlobalCsApiDb,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        TestDynamoClient.CreateClient(database, {regionId = Settings.DefaultRegion}, logger)
+        TestDynamoClient.CreateClient(database, {regionId = Settings.DefaultRegion}, interceptor, logger)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new Database
     /// </summary>
     static member CreateClient(
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let database = new ApiDb()
         let client = new DisposingAmazonDynamoDBClient(database.Id, database :> IDisposable)
-        TestDynamoClient.attach (CSharp.toOption logger) database client
+        TestDynamoClient.attach (CSharp.toOption logger) database (interceptor |> CSharp.toOption) client
         client :> AmazonDynamoDBClient
 
     /// <summary>
@@ -138,58 +142,60 @@ type TestDynamoClient =
     /// </summary>
     static member CreateGlobalClient(
         databaseId: TestDynamo.Model.DatabaseId,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let database = new GlobalApiDb()
         let client = new DisposingAmazonDynamoDBClient(databaseId, database :> IDisposable)
-        TestDynamoClient.attachGlobal (logger |> CSharp.toOption) database client
+        TestDynamoClient.attachGlobal (logger |> CSharp.toOption) database (interceptor |> CSharp.toOption) client
         client :> AmazonDynamoDBClient
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new GlobalDatabase
     /// </summary>
     static member CreateGlobalClient(
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        TestDynamoClient.CreateGlobalClient({regionId = Settings.DefaultRegion}, logger)
+        TestDynamoClient.CreateGlobalClient({regionId = Settings.DefaultRegion}, interceptor, logger)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database or a new Database
     /// </summary>
-    static member createClient logger (database: ApiDb voption) =
+    static member createClient logger (database: ApiDb voption) (interceptor: IRequestInterceptor voption) =
 
         match database with
         | ValueSome database ->
             let client = new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(database.Id.regionId))
-            TestDynamoClient.attach logger database client
+            TestDynamoClient.attach logger database interceptor client
             client
         | ValueNone ->
             let database = new ApiDb()
             let client = new DisposingAmazonDynamoDBClient(database.Id, database :> IDisposable)
-            TestDynamoClient.attach logger database client
+            TestDynamoClient.attach logger database interceptor client
             client :> AmazonDynamoDBClient
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase or a new GlobalDatabase
     /// </summary>
-    static member createGlobalClient logger (dbId: TestDynamo.Model.DatabaseId voption) (database: GlobalApiDb voption) =
+    static member createGlobalClient logger (dbId: TestDynamo.Model.DatabaseId voption) (interceptor: IRequestInterceptor voption) (database: GlobalApiDb voption) =
 
         let regionId = dbId ?|> _.regionId ?|? Settings.DefaultRegion
         match database with
         | ValueSome database ->
             let client = new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(regionId))
-            TestDynamoClient.attachGlobal logger database client
+            TestDynamoClient.attachGlobal logger database interceptor client
             client
         | ValueNone ->
             let database = new GlobalApiDb()
             let client = new DisposingAmazonDynamoDBClient({regionId = regionId}, database :> IDisposable)
-            TestDynamoClient.attachGlobal logger database client
+            TestDynamoClient.attachGlobal logger database interceptor client
             client :> AmazonDynamoDBClient
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given Database  
     /// </summary>
-    static member attach (logger: ILogger voption) db (client: AmazonDynamoDBClient) =
-        attach' logger (Either1 db) client
+    static member attach (logger: ILogger voption) db (interceptor: IRequestInterceptor voption) (client: AmazonDynamoDBClient) =
+        attach' logger (Either1 db) interceptor client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given Database
@@ -198,15 +204,16 @@ type TestDynamoClient =
     static member Attach (
         client: AmazonDynamoDBClient,
         db: TestDynamo.Api.Database,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
-        TestDynamoClient.attach (CSharp.toOption logger) db.CoreDb client
+        TestDynamoClient.attach (CSharp.toOption logger) db.CoreDb (CSharp.toOption interceptor) client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
     /// </summary>
-    static member attachGlobal (logger: ILogger voption) db (client: AmazonDynamoDBClient) =
-        Either2 db |> flip (attach' logger) client
+    static member attachGlobal (logger: ILogger voption) db (interceptor: IRequestInterceptor voption) (client: AmazonDynamoDBClient) =
+        Either2 db |> flip1To3 (attach' logger) interceptor client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
@@ -215,9 +222,10 @@ type TestDynamoClient =
     static member Attach (
         client: AmazonDynamoDBClient,
         db: TestDynamo.Api.GlobalDatabase,
+        [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
-        TestDynamoClient.attachGlobal (CSharp.toOption logger) db.CoreDb client
+        TestDynamoClient.attachGlobal (CSharp.toOption logger) db.CoreDb (CSharp.toOption interceptor) client
 
     /// <summary>
     /// Set an artificial delay on all requests.  
