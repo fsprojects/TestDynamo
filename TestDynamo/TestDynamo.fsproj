@@ -68,16 +68,12 @@
     <Compile Include="Client\Scan.fs" />
     <Compile Include="Client\MultiClientOperations.fs" />
     <Compile Include="Client\ObjPipelineInterceptor.fs" />
-    <Compile Include="Serialization\Converters.fs" />
-    <Compile Include="Serialization\Data.Version1.fs" />
-    <Compile Include="Serialization\DatabaseSerializer.fs" />
     <Compile Include="TestDynamoClient.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 
 </Project>

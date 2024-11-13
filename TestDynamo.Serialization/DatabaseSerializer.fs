@@ -65,7 +65,7 @@ module private BaseSerializer =
 
     module StreamsAsync =
 
-        let write indent stream c data =
+        let write indent (stream: Stream) c data =
             let opts = options indent
             JsonSerializer.SerializeAsync(utf8Json = stream, value = VersionedData<_>(data, VersionedData<_>.currentVersion), options = opts, cancellationToken = c)
 

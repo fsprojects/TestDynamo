@@ -6,11 +6,7 @@ Features
  * When building a DynamoDBEvent.DynamodbStreamRecord
     * EventVersion is not set
     * If TTL is ever set, the UserIdentity property must be set. It has comments on how
- * Object store
  * Remove dependency on dynamodb. Replace with compilation
-
-Docs
- * Document interceptor
 
 Tests
  * Segregated tests for different framework versions

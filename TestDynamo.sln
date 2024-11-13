@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestDynamo.Tests.CSharp", "
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestDynamo.Lambda", "TestDynamo.Lambda\TestDynamo.Lambda.fsproj", "{C50B0FBA-582B-44BE-A766-278C35D6ADC4}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestDynamo.Serialization", "TestDynamo.Serialization\TestDynamo.Serialization.fsproj", "{B7FCD7A0-EA50-47CF-ABD9-70CA8D27844E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{C50B0FBA-582B-44BE-A766-278C35D6ADC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C50B0FBA-582B-44BE-A766-278C35D6ADC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C50B0FBA-582B-44BE-A766-278C35D6ADC4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7FCD7A0-EA50-47CF-ABD9-70CA8D27844E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7FCD7A0-EA50-47CF-ABD9-70CA8D27844E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7FCD7A0-EA50-47CF-ABD9-70CA8D27844E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7FCD7A0-EA50-47CF-ABD9-70CA8D27844E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
