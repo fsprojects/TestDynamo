@@ -19,7 +19,7 @@ It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and r
 
 ## Installation
 
-TODO
+`dotnet add package TestDynamo`
 
 ## The basics
 
@@ -358,6 +358,8 @@ client.SetAwsAccountId("12345678");
 ```
 
 ### Database Serializers
+
+Database serializers are available from the `TestDynamo.Serialization` nuget package
 
 Database serializers can serialize or deserialize an entire database or global database to facilitate data driven testing
 
