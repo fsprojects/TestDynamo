@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.IO
 open System.Linq
+open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
@@ -196,25 +197,28 @@ module LambdaSubscriberUtils =
             then completedTask
             else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
 
+[<Extension>]
 type Subscriptions() =
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
-    static member  Add (
+    [<Extension>]
+    static member AddSubscription (
         database: TestDynamo.Api.FSharp.Database,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.Add(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.AddSubscription(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    static member  Add (
+    [<Extension>]
+    static member AddSubscription (
         database: TestDynamo.Api.FSharp.Database,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
@@ -240,20 +244,22 @@ type Subscriptions() =
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
-    static member  Add (
+    [<Extension>]
+    static member AddSubscription (
         client: AmazonDynamoDBClient,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.Add(client, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.AddSubscription(client, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    static member Add (
+    [<Extension>]
+    static member AddSubscription (
         client: AmazonDynamoDBClient,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
@@ -261,25 +267,27 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.Add(client.GetDatabase(), tableName, subscriber, behaviour, streamViewType, awsAccountId)
+        Subscriptions.AddSubscription(client.GetDatabase(), tableName, subscriber, behaviour, streamViewType, awsAccountId)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
-    static member Add (
+    [<Extension>]
+    static member AddSubscription (
         database: TestDynamo.Api.Database,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.Add(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.AddSubscription(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    static member  Add (
+    [<Extension>]
+    static member  AddSubscription (
         database: TestDynamo.Api.Database,
         tableName,
         subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,

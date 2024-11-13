@@ -315,12 +315,12 @@ type SmokeTests(output: ITestOutputHelper) =
                 { new IRequestInterceptor with
                     member _.Intercept db req c =
                         Assert.Equal("r1", db.Id.regionId)
-                        
+
                         let req = Assert.IsType<DescribeTableRequest>(req)
                         if req.TableName = "ttt"
                         then ValueTask<_>(result = expected)
                         else Unchecked.defaultof<_> }
-            
+
             use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
 
             let r =

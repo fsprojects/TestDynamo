@@ -7,10 +7,43 @@ using TestDynamo.Api;
 using TestDynamo.Client;
 using TestDynamo.Model;
 using AttributeValue = Amazon.DynamoDBv2.Model.AttributeValue;
-using ILogger = Amazon.Runtime.Internal.Util.ILogger;
+using Database = TestDynamo.Api.Database;
+using Microsoft.Extensions.Logging;
 
 namespace TestDynamo.Tests.CSharp;
 
+/// <summary>
+/// An interceptor which implements the CreateBackup operation
+/// </summary>
+public class CreateBackupInterceptor : IRequestInterceptor
+{
+    public ValueTask<object> Intercept(Api.FSharp.Database database, object request, CancellationToken c)
+    {
+        // ignore other requests by returning default
+        // if the interception is an async process, you can also return 
+        // a ValueTask that resolves to null
+        if (request is not CreateBackupRequest typedRequest)
+            return default;
+
+        // wrap the database in something that is more C# friendly
+        var csDatabase = new Api.Database(database);
+        
+        // check whether this is a valid request or not
+        var table = csDatabase.TryDescribeTable(typedRequest.TableName);
+        if (table.IsNone)
+            throw new AmazonDynamoDBException("Cannot find table");
+
+        var response = new CreateBackupResponse
+        {
+            BackupDetails = new BackupDetails
+            {
+                BackupStatus = BackupStatus.AVAILABLE
+            }
+        };
+
+        return new ValueTask<object>(response);
+    }
+}
 public class UnitTest1
 {
     [Fact]

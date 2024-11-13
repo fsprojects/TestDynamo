@@ -233,7 +233,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let func = asFunc2 (fun x _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
-            use _ = Subscriptions.Add(host, table.name, func)
+            use _ = Subscriptions.AddSubscription(host, table.name, func)
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
@@ -820,7 +820,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.Add(host, table.name, sub)
+                Subscriptions.AddSubscription(host, table.name, sub)
 
             do! invalidPut1()
             do! invalidPut2()
@@ -875,14 +875,14 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
+                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
 
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.Add(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
+                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
@@ -928,7 +928,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.Add(host, table.name, sub, behaviour = settings1)
+                Subscriptions.AddSubscription(host, table.name, sub, behaviour = settings1)
 
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
             host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2

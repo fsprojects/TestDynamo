@@ -30,7 +30,7 @@ using TestDynamo;
 public async Task GetPersonById_WithValidId_ReturnsPerson()
 {
    // arrange
-   using var client = TestDynamoClient.Create();
+   using var client = TestDynamoClient.CreateClient();
 
    // create a table and add some items
    await client.CreateTableAsync(...);
@@ -39,10 +39,10 @@ public async Task GetPersonById_WithValidId_ReturnsPerson()
    var testSubject = new MyBeatlesService(client);
 
    // act
-   var person = testSubject.GetBeatle("Ringo");
+   var beatle = testSubject.GetBeatle("Ringo");
 
    // assert
-   Assert.Equal("Starr", person.SecondName);
+   Assert.Equal("Starr", beatle.SecondName);
 }
 ```
 
@@ -59,20 +59,18 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
     * [Streaming and Subscriptions](#streaming-and-subscriptions) can model lambdas subscribed to dynamodb streams
  * [`Api.GlobalDatabase`](#global-database) models an AWS account spread over multiple regions. It contains `Api.Database`s.
     * [Global databases](#global-database-cloning) can be cloned too
- * [`ITestDynamoClient`](#itestdynamoclient) is the entry point for dynamodb operations. It implements `IAmazonDynamoDb`.
+ * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
     * Check the [features](./Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
-
-### ITestDynamoClient
-
-`ITestDynamoClient` is a client which can be used by test classes
+ * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to patch unsupported features 
+ * [Logging](#logging) can be configured at the database level or the `AmazonDynamoDBClient` level
 
 ```C#
 using TestDynamo;
 
-using var client = TestDynamoClient.Create();
+using var client = TestDynamoClient.CreateClient();
 var myService = new MyService(client);
 
 ...
@@ -80,21 +78,21 @@ var myService = new MyService(client);
 
 ### Using Expressions
 
-All [dynamodb expression types](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.html) are suppoerted
+All [dynamodb expression types](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.html) are supported
 
 ### Database
 
 The database is the core of TestDynamo and it models a single region and it's tables. The database 
 is both fast and lightweight, built from simple data structures.
 
-Databases can be injected into an `ITestDynamoClient` to then be passed into a test
+Databases can be injected into an `AmazonDynamoDBClient` to then be passed into a test
 
 
 ```C#
 using TestDynamo;
 
 using var db = new Api.Database(new DatabaseId("us-west-1"));
-using var client = TestDynamoClient.Create(db);
+using var client = db.CreateClient();
 ```
 
 ### Schema and Item Change
@@ -124,7 +122,7 @@ database
 
 Databases are built for cloning. This allows you to create and populate a database once, and then clone it to be used 
 in any test with full isolation. TestDynamo uses immutable data structures for most things, which means that nothing is 
-actually copied during a clone and cloning has almost no overhead.
+actually copied during a clone so cloning has almost no overhead.
 
 ```C#
 using TestDynamo;
@@ -157,7 +155,7 @@ public async Task TestSomething()
    // clone the database to get working copy
    // without altering the original
    using var database = _sharedRootDatabase.Clone();
-   using var client = TestDynamo.Create(database);
+   using var client = database.CreateClient();
 
    // act
    ...
@@ -169,7 +167,7 @@ public async Task TestSomething()
 
 ### Debug Properties
 
-Use the handy debug properties in your debugger of choice
+Use the handy debug properties on `Api.Database` and `Api.GlobalDatabase` in your debugger of choice
 
 ![Debugger](./Docs/DbDebugger.png "Debugger")
 
@@ -189,18 +187,18 @@ var ringo = database
 ### Streaming and Subscriptions
 
 If streams are enabled on tables they can be used for global table 
-replication and custom subscribers. TestDynamo differes from dynamodb as follows
+replication and custom subscribers. TestDynamo differs from dynamodb as follows
 
  * There is no limit to the number of subscribers that you can have on a stream
- * Strem settings (e.g. `NEW_AND_OLD_IMAGES`) are configured per subsriber. If these values are set on a stream they will be ignored
+ * Strem settings (e.g. `NEW_AND_OLD_IMAGES`) are configured per subscriber. If these values are set on a stream they will be ignored
 
 To subscribe to changes with a lambda stream subscription syntax you can import the `TestDynamo.Lambda` package from nuget
 
 ```C#
+using TestDynamo;
 using TestDynamo.Lambda;
 
-var subscription = Subscriptions.Add(
-   database,
+var subscription = database.AddSubscription(
    "Beatles",
    (dynamoDbStreamsEvent, cancellationToken) =>
    {
@@ -250,11 +248,11 @@ var subscription = database
 subscription.Dispose();
 ```
 
-Subscriptions synchonicity error handling and can be customized with `SubscriberBehaviour` through the 
-`Scubscribe` and `LambdaStreamSubscriber` methods. 
+Subscriptions synchonicity and error handling can be customized with `SubscriberBehaviour` through the 
+`SubscribeToStream` and `AddSubscription` methods. 
 
 Subscriptions can be executed synchonously or asynchonously. For example, if a subscription 
-is configured to execute synchronously, and a PUT request is executed, the `ITestDynamoClient` will not return
+is configured to execute synchronously, and a PUT request is executed, the `AmazonDynamoDBClient` will not return
 a PUT response until the subscriber has completed it's work. If the subscription is asynchronous, then subscriber
 execution is disconnected from the event trigger.
 
@@ -264,16 +262,16 @@ method is called
 
 #### AwaitAllSubscribers
 
-The `Api.Database`, `Api.GlobalDatabase` and `ITestDynamoClient` have `AwaitAllSubscribers` methods to pause test execution
+The `Api.Database`, `Api.GlobalDatabase` and `AmazonDynamoDBClient` have `AwaitAllSubscribers` methods to pause test execution
 until all subscribers have executed. This method will throw any exceptions that were experienced within subscribers and were not
-propagated synchronously
+propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is an extension method.
 
 ### Global Database
 
-The global database models an aws account with a collection of regions. Each region is an [`Api.Database`](#database). It is used test global table functionality 
+The global database models an AWS account with a collection of regions. Each region is an [`Api.Database`](#database). It is used to test global table functionality 
 
 Creating global tables is a synchonous operation. The global table will 
-be ready to use as soon as the `ITestDynamo` client returns a response.
+be ready to use as soon as the `AmazonDynamoDBClient` client returns a response.
 
 ```C#
 using TestDynamo;
@@ -281,11 +279,11 @@ using TestDynamo;
 using var globalDatabase = new GlobalDatabase();
 
 // create a global table from ap-south-2
-using var apSouth2Client = TestDynamoClient.Create(globalDatabase, new DatabaseId("ap-south-2"));
+using var apSouth2Client = globalDatabase.CreateClient(new DatabaseId("ap-south-2"));
 await apSouth2Client.CreateGlobalTableAsync(...);
 
 // create a local table in cn-north-1
-using var cnNorthClient = TestDynamoClient.Create(globalDatabase, new DatabaseId("cn-north-1"));
+using var cnNorthClient = globalDatabase.CreateClient(new DatabaseId("cn-north-1"));
 await cnNorthClient.CreateTableAsync(...);
 ```
 
@@ -300,8 +298,64 @@ using var db2 = globalDatabase.Clone();
 
 #### AwaitAllSubscribers
 
-The `Api.GlobalDatabase` and `ITestDynamoClient` have `AwaitAllSubscribers` methods to pause test execution
-until all data has been replicated between databases
+The `Api.GlobalDatabase` and `AmazonDynamoDBClient` have `AwaitAllSubscribers` methods to pause test execution
+until all data has been replicated between databases. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is an extension method.
+
+### TestDynamoClient
+
+`TestDynamoClient` links an `AmazonDynamoDBClient` to an `Api.Database` or an `Api.GlobalDatabase`. It has several useful extension methods
+
+#### Create methods
+
+```C#
+using TestDynamo;
+
+// create a client with an empty database
+using var client1 = TestDynamoClient.CreateClient();
+
+// create a client from an existing database
+using var db1 = new Api.Database();
+using var client21 = db1.CreateClient();
+
+using var db2 = new Api.GlobalDatabase();
+using var client22 = db2.CreateClient();
+
+// attach a database to an existing client
+using var db3 = new Api.Database();
+using var client3 = new AmazonDynamoDBClient();
+client3.Attach(db3);
+```
+
+#### Get methods
+
+```C#
+using TestDynamo;
+
+using var client1 = TestDynamoClient.CreateClient();
+
+// get the underlying database from a client
+var db1 = client.GetDatabase();
+
+// get a debug table from a client
+var beatles = client.GetTable("Beatles");
+```
+
+#### Set methods
+
+```C#
+using TestDynamo;
+
+using var client = TestDynamoClient.CreateClient();
+
+// set an artificial processing delay
+client.SetProcessingDelay(TimeSpan.FromSeconds(0.1));
+
+// set paging settings for database
+client.SetScanLimits(...);
+
+// set the AWS account id for the client
+client.SetAwsAccountId("12345678");
+```
 
 ### Database Serializers
 
@@ -322,10 +376,10 @@ using var db2 = DatabaseSerializer.Database.FromFile(@"C:\Tests\TestData.json");
 ### Locking and Atomic transactions
 
 Test dynamo is more consistant than DynamoDb. In general, all operations on a single database (region) are atomic. 
-Within the `ITestDynamo` client, BatchRead and BatchWrite operations are executed as several independant operations in order
+Within the `AmazonDynamoDBClient` client, BatchRead and BatchWrite operations are executed as several independant operations in order
 to simulate non consistency.
 
-The bigges difference you will see are
+The biggest differences you will see are
 
  * Reads are always atomic
  * Writes from tables to global secondary indexes are always atomic
@@ -335,3 +389,52 @@ The bigges difference you will see are
 [Client request tokens](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax) are used in transact write operations as an idempotency key. If 2 requests have the
 same client request token, the second one will not be executed. By default AWS keeps client request tokens for 10 minutes. TestDynamo
 keeps client request tokens for 10 seconds. This cache time can be updated in `Settings`.
+
+### Interceptors
+
+Interceptors can be added to intercept and override certain database functionality.
+
+```C#
+using TestDynamo;
+using TestDynamo.Client;
+
+/// <summary>
+/// An interceptor which implements the CreateBackup operation
+/// </summary>
+public class CreateBackupInterceptor : IRequestInterceptor
+{
+    public ValueTask<object> Intercept(Api.FSharp.Database database, object request, CancellationToken c)
+    {
+        // ignore other requests by returning default
+        // if the interception is an async process, you can also return 
+        // a ValueTask that resolves to null
+        if (request is not CreateBackupRequest typedRequest)
+            return default;
+
+        // wrap the database in something that is more C# friendly
+        var csDatabase = new Api.Database(database);
+        
+        // check whether this is a valid request or not
+        var table = csDatabase.TryDescribeTable(typedRequest.TableName);
+        if (table.IsNone)
+            throw new AmazonDynamoDBException("Cannot find table");
+
+        var response = new CreateBackupResponse
+        {
+            BackupDetails = new BackupDetails
+            {
+                BackupStatus = BackupStatus.AVAILABLE
+            }
+        };
+
+        return new ValueTask<object>(response);
+    }
+}
+
+using var client = TestDynamoClient.CreateClient(new CreateBackupInterceptor());
+var createBackupResponse = await client.CreateBackupAsync(...);
+```
+
+### Logging
+
+Logging is implemented by `Microsoft.Extensions.Logging.ILogger`. Databases can be created with loggers. Clients can also be created with loggers, which will override the datase logging

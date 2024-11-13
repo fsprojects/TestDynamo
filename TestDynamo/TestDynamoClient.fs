@@ -64,9 +64,19 @@ type TestDynamoClient =
         >> Either.map2Of2 (fstT >> _.DefaultLogger)
         >> Either.reduce
 
+    static let validateRegion clientRegion (db: Api.FSharp.Database) =
+        let clRegion = clientRegion
+        if clRegion <> db.Id.regionId
+        then invalidOp $"Cannot attach client from region {clRegion} to database from region {db.Id.regionId}. The regions must match"
+        else db
+
     static let attach' (logger: ILogger voption) db interceptor (client: AmazonDynamoDBClient) =
 
-        let db = Either.map2Of2 (flip tpl ({ regionId = client.Config.RegionEndpoint.SystemName }: Model.DatabaseId)) db
+        let db =
+            db
+            |> Either.map1Of2 (validateRegion client.Config.RegionEndpoint.SystemName) 
+            |> Either.map2Of2 (flip tpl ({ regionId = client.Config.RegionEndpoint.SystemName }: Model.DatabaseId))
+
         let id =
             db
             |> Either.map1Of2 (fun (x: ApiDb) -> x.Id)

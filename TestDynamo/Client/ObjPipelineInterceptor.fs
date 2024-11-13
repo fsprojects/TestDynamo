@@ -41,7 +41,7 @@ type ObjPipelineInterceptor(
     static let noInterceptor =
         { new IRequestInterceptor with
             member _.Intercept _ _ _ = noInterceptorResult }
-    
+
     let interceptor = interceptor ?|? noInterceptor
     let db =
         match database with
@@ -181,7 +181,7 @@ type ObjPipelineInterceptor(
 
             flip (execute overrideDelay id update (asLazy id)) request cancellationToken
         | x -> x.GetType().Name |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
-        
+
     let invoke' overrideDelay cancellationToken req =
         let interceptorResult = interceptor.Intercept db req cancellationToken
         if interceptorResult = Unchecked.defaultof<ValueTask<_>>
