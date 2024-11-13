@@ -1010,7 +1010,7 @@ module Io =
 
     let fromTask (task: Task<'a>) = ValueTask<'a> task
 
-    /// <summary>Retains synchronousity if input task is complete</summary>
+    /// <summary>Retains synchronicity if input task is complete</summary>
     let map (f: 'a -> 'b) (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> ValueTask<'b>(f x)
@@ -1020,7 +1020,7 @@ module Io =
                 return (f x')
             } |> ValueTask<'b>
 
-    /// <summary>Retains synchronousity if input task is complete</summary>
+    /// <summary>Retains synchronicity if input task is complete</summary>
     let bind f (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> f x
@@ -1030,7 +1030,7 @@ module Io =
                 return! (f x') |> cafV
             } |> ValueTask<'b>
 
-    /// <summary>Retains synchronousity if input task is complete</summary>
+    /// <summary>Retains synchronicity if input task is complete</summary>
     let ignore<'a> (x: ValueTask<'a>): ValueTask<unit> =
         match trySyncResult x with
         | ValueSome _ -> ValueTask<unit>(())
@@ -1082,7 +1082,7 @@ module Io =
             List.ofSeq output
         | err, _ -> AggregateException err |> raise
 
-    /// <summary>Retains synchronousity if all input tasks are complete. Thrown exceptions might be out of order</summary>
+    /// <summary>Retains synchronicity if all input tasks are complete. Thrown exceptions might be out of order</summary>
     let traverse (x: ValueTask<'a> seq): ValueTask<'a list> =
         let err = MList<exn>()
         let await = MList<Task>()
