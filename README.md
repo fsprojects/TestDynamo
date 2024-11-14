@@ -5,12 +5,13 @@ An in-memory dynamodb client for automated testing
 TestDynamo is a rewrite of dynamodb in dotnet designed for testing and debugging. 
 It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and read and write items.
 
- * [Core features](./Features.md)
+ * [Core features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md)
     * Table management (Create/Update/Delete table)
     * Index management (Create/Update/Delete index)
     * Item operations (Put/Delete/Update etc)
     * Queries and Scans
     * Batching and Transactional writes
+ * Document model and `DynamoDBContext`
  * Multi region setups
  * Global tables and replication
  * Streams and stream subscribers
@@ -60,7 +61,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [`Api.GlobalDatabase`](#global-database) models an AWS account spread over multiple regions. It contains `Api.Database`s.
     * [Global databases](#global-database-cloning) can be cloned too
  * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
-    * Check the [features](./Features.md) for a full list of endpoints, request args and responses that are supported.
+    * Check the [features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)

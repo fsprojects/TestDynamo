@@ -13,7 +13,7 @@
     <PackageSummary>An in memory DynamoDB database for testing</PackageSummary>
     <Title>TestDynamo</Title>
     <PackageId>TestDynamo</PackageId>
-    <PackageTags>AWS Amazon DynamoDB In-Memory Testing</PackageTags>
+    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing</PackageTags>
     <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
