@@ -4,7 +4,6 @@
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>{{version-placeholder}}</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
     <Owner>Shane Connon</Owner>
