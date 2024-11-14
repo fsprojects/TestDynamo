@@ -106,7 +106,7 @@ type SmokeTests(output: ITestOutputHelper) =
             // arrange
             let db = new ApiDb()
             let delay = TimeSpan.FromSeconds(0.2)
-            let subject = ObjPipelineInterceptor(db |> Either1, delay, ValueNone, ValueNone)
+            use subject = new ObjPipelineInterceptor(db |> Either1, delay, ValueNone, ValueNone, true)
             let request =
                 let r = CreateTableRequest()
                 r.TableName <- "NewTable"
@@ -137,11 +137,45 @@ type SmokeTests(output: ITestOutputHelper) =
             |> Assert.NotNull
         }
 
+    [<Fact>]        
+    let ``ObjPipelineInterceptor is disposed correctly`` () =
+        
+        // arrange
+        use db1 = new Api.Database()
+        use db2 = new Api.GlobalDatabase()
+        
+        let client1 = db1.CreateClient()
+        let client2 = db2.CreateClient()
+        let client3 = TestDynamoClient.CreateClient()
+        let client4 = TestDynamoClient.CreateGlobalClient()
+        
+        use db3 = client3.GetDatabase()
+        use db4 = client4.GetGlobalDatabase()
+        
+        // act
+        client1.Dispose()
+        client2.Dispose()
+        client3.Dispose()
+        client4.Dispose()
+        
+        // assert - these dbs were not disposed
+        db1.TableBuilder("table1", ("pp", "S")).AddTable()
+        (new Api.Database(db2.GetDatabase({ regionId = "db-bd" }))).TableBuilder("table1", ("pp", "S")).AddTable()
+        
+        // assert - these dbs were disposed
+        let e = Assert.ThrowsAny(fun _ ->
+            db3.TableBuilder("table1", ("pp", "S")).AddTable())
+        assertError output "has been disposed" e
+        
+        let e = Assert.ThrowsAny(fun _ ->
+            (new Api.Database(db4.GetDatabase({ regionId = "db-bd" }))).TableBuilder("table1", ("pp", "S")).AddTable())
+        assertError output "has been disposed" e
+
     [<Fact>]
     let ``List tables smoke test`` () =
 
         task {
-            use client = TestDynamoClient.CreateClient()
+            use client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>()
 
             // arrange
             let! tableName1 = addTable client false
@@ -200,7 +234,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             use host = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
 
             // arrange
             let! tableName1 = addGlobalTable client
@@ -259,7 +293,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
 
             let! tableName = addTable client true
             let req = CreateGlobalTableRequest()
@@ -289,7 +323,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
             let! tableName = addTable client true
 
             let r =
@@ -321,7 +355,7 @@ type SmokeTests(output: ITestOutputHelper) =
                         then ValueTask<_>(result = expected)
                         else Unchecked.defaultof<_> }
 
-            use client = TestDynamoClient.createGlobalClient ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
 
             let r =
                 let rr = DescribeTableRequest()

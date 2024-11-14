@@ -33,7 +33,7 @@ using TestDynamo;
 public async Task GetPersonById_WithValidId_ReturnsPerson()
 {
    // arrange
-   using var client = TestDynamoClient.CreateClient();
+   using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
    // create a table and add some items
    await client.CreateTableAsync(...);
@@ -74,7 +74,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
 ```C#
 using TestDynamo;
 
-using var client = TestDynamoClient.CreateClient();
+using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 var myService = new MyService(client);
 
 ...
@@ -96,7 +96,7 @@ Databases can be injected into an `AmazonDynamoDBClient` to then be passed into 
 using TestDynamo;
 
 using var db = new Api.Database(new DatabaseId("us-west-1"));
-using var client = db.CreateClient();
+using var client = db.CreateClient<AmazonDynamoDBClient>();
 ```
 
 ### Schema and Item Change
@@ -159,7 +159,7 @@ public async Task TestSomething()
    // clone the database to get working copy
    // without altering the original
    using var database = _sharedRootDatabase.Clone();
-   using var client = database.CreateClient();
+   using var client = database.CreateClient<AmazonDynamoDBClient>();
 
    // act
    ...
@@ -275,7 +275,7 @@ propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` 
 ```C#
 using TestDynamo;
 
-using var client = TestDynamoClient.CreateClient();
+using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 var context = new DynamoDbContext(client)
 
 await context.SaveAsync(new Beatle
@@ -298,11 +298,11 @@ using TestDynamo;
 using var globalDatabase = new GlobalDatabase();
 
 // create a global table from ap-south-2
-using var apSouth2Client = globalDatabase.CreateClient(new DatabaseId("ap-south-2"));
+using var apSouth2Client = globalDatabase.CreateClient<AmazonDynamoDBClient>(new DatabaseId("ap-south-2"));
 await apSouth2Client.CreateGlobalTableAsync(...);
 
 // create a local table in cn-north-1
-using var cnNorthClient = globalDatabase.CreateClient(new DatabaseId("cn-north-1"));
+using var cnNorthClient = globalDatabase.CreateClient<AmazonDynamoDBClient>(new DatabaseId("cn-north-1"));
 await cnNorthClient.CreateTableAsync(...);
 ```
 
@@ -330,14 +330,14 @@ until all data has been replicated between databases. For `AmazonDynamoDBClient`
 using TestDynamo;
 
 // create a client with an empty database
-using var client1 = TestDynamoClient.CreateClient();
+using var client1 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // create a client from an existing database
 using var db1 = new Api.Database();
-using var client21 = db1.CreateClient();
+using var client21 = db1.CreateClient<AmazonDynamoDBClient>();
 
 using var db2 = new Api.GlobalDatabase();
-using var client22 = db2.CreateClient();
+using var client22 = db2.CreateClient<AmazonDynamoDBClient>();
 
 // attach a database to an existing client
 using var db3 = new Api.Database();
@@ -350,7 +350,7 @@ client3.Attach(db3);
 ```C#
 using TestDynamo;
 
-using var client1 = TestDynamoClient.CreateClient();
+using var client1 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // get the underlying database from a client
 var db1 = client.GetDatabase();
@@ -364,7 +364,7 @@ var beatles = client.GetTable("Beatles");
 ```C#
 using TestDynamo;
 
-using var client = TestDynamoClient.CreateClient();
+using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // set an artificial processing delay
 client.SetProcessingDelay(TimeSpan.FromSeconds(0.1));
@@ -452,7 +452,7 @@ public class CreateBackupInterceptor : IRequestInterceptor
     }
 }
 
-using var client = TestDynamoClient.CreateClient(new CreateBackupInterceptor());
+using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>(new CreateBackupInterceptor());
 var createBackupResponse = await client.CreateBackupAsync(...);
 ```
 

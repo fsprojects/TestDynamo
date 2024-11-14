@@ -35,7 +35,8 @@ type ObjPipelineInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
     artificialDelay: TimeSpan,
     interceptor: IRequestInterceptor voption,
-    defaultLogger: ILogger voption) =
+    defaultLogger: ILogger voption,
+    disposeDatabase) =
 
     static let noInterceptorResult = ValueTask<obj>(result = null).Preserve()
     static let noInterceptor =
@@ -84,7 +85,7 @@ type ObjPipelineInterceptor(
         taskify (overrideDelay ?|? artificialDelay) c >> Io.map (mapIn >> f defaultLogger >> mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
 
     let executeAsync overrideDelay mapIn f mapOut c =
-        taskify (overrideDelay ?|? artificialDelay) c >> Io.bind (mapIn >> f defaultLogger) >> Io.map (mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
+        taskify (overrideDelay ?|? artificialDelay) c >> Io.bind (mapIn >> f defaultLogger) >> Io.addCancellationToken c >> Io.map (mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
 
     static let notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
 
@@ -188,7 +189,9 @@ type ObjPipelineInterceptor(
             then noInterceptorResult
             else interceptorResult
         |%>>= function
-            | null -> invoke'' overrideDelay cancellationToken req
+            | null -> 
+                cancellationToken.ThrowIfCancellationRequested()
+                invoke'' overrideDelay cancellationToken req
             | :? AmazonWebServiceResponse as r -> ValueTask<_>(result = r)
             | _ -> invalidOp $"Intercept response must be null or inherit from {nameof AmazonWebServiceRequest}"
 
@@ -214,6 +217,15 @@ type ObjPipelineInterceptor(
         if not result.IsCompletedSuccessfully
         then result.AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
         else result.Result
+        
+    interface IDisposable with
+        member _.Dispose() =
+            if disposeDatabase
+            then
+                database
+                |> Either.map1Of2 _.Dispose()
+                |> Either.map2Of2 (fstT >> _.Dispose())
+                |> Either.reduce
 
     interface IPipelineHandler with
 

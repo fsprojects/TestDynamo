@@ -1,6 +1,4 @@
 
-IMPORTANT document document model client
-
 Features
  * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception)
  * Search for ReturnValuesOnConditionCheckFailure
@@ -14,9 +12,6 @@ Tests
  * Segregated tests for different framework versions
  * Do a giant fuzz tester of all expressions
 
-Interface
- * full audit of dependencies and dotnet versions
- 
 Optimisations/refactoring
  * PrecedenceProcessor.fs: Optimize this whole file + Parser.fs they are are a hot path
  * Revisit compiler caching
