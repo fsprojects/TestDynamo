@@ -20,7 +20,9 @@ It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and r
 
 ## Installation
 
-`dotnet add package TestDynamo`
+ * Core functionality: `dotnet add package TestDynamo`
+ * Add lambda support: `dotnet add package TestDynamo.Lambda`
+ * Add serialization: `dotnet add package TestDynamo.Serialization`
 
 ## The basics
 
