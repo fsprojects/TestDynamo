@@ -5,12 +5,13 @@ An in-memory dynamodb client for automated testing
 TestDynamo is a rewrite of dynamodb in dotnet designed for testing and debugging. 
 It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and read and write items.
 
- * [Core features](./Features.md)
+ * [Core features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md)
     * Table management (Create/Update/Delete table)
     * Index management (Create/Update/Delete index)
     * Item operations (Put/Delete/Update etc)
     * Queries and Scans
     * Batching and Transactional writes
+ * Document model and `DynamoDBContext`
  * Multi region setups
  * Global tables and replication
  * Streams and stream subscribers
@@ -19,7 +20,7 @@ It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and r
 
 ## Installation
 
-TODO
+`dotnet add package TestDynamo`
 
 ## The basics
 
@@ -57,14 +58,15 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
     * [Debug properties](#debug-properties) are optimized for reading in a debugger.
     * [Test query tools](#test-tools) to get data in and out of the database with as little code as possible
     * [Streaming and Subscriptions](#streaming-and-subscriptions) can model lambdas subscribed to dynamodb streams
+ * [`DynamoDBContext`](#dynamodbcontext) works out of the box
  * [`Api.GlobalDatabase`](#global-database) models an AWS account spread over multiple regions. It contains `Api.Database`s.
     * [Global databases](#global-database-cloning) can be cloned too
  * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
-    * Check the [features](./Features.md) for a full list of endpoints, request args and responses that are supported.
+    * Check the [features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
- * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to patch unsupported features 
+ * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to polyfill unsupported features 
  * [Logging](#logging) can be configured at the database level or the `AmazonDynamoDBClient` level
 
 ```C#
@@ -266,6 +268,21 @@ The `Api.Database`, `Api.GlobalDatabase` and `AmazonDynamoDBClient` have `AwaitA
 until all subscribers have executed. This method will throw any exceptions that were experienced within subscribers and were not
 propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is an extension method.
 
+### DynamoDBContext
+
+```C#
+using TestDynamo;
+
+using var client = TestDynamoClient.CreateClient();
+var context = new DynamoDbContext(client)
+
+await context.SaveAsync(new Beatle
+{
+   FirstName = "Ringo",
+   SecondName = "Starr"
+})
+```
+
 ### Global Database
 
 The global database models an AWS account with a collection of regions. Each region is an [`Api.Database`](#database). It is used to test global table functionality 
@@ -358,6 +375,8 @@ client.SetAwsAccountId("12345678");
 ```
 
 ### Database Serializers
+
+Database serializers are available from the `TestDynamo.Serialization` nuget package
 
 Database serializers can serialize or deserialize an entire database or global database to facilitate data driven testing
 

@@ -1,4 +1,6 @@
 
+IMPORTANT document document model client
+
 Features
  * Look through IAmazonDynamoDb comments for any exception descriptions and apply (for example resource not found exception)
  * Search for ReturnValuesOnConditionCheckFailure

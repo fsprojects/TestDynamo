@@ -4,7 +4,26 @@
     <TargetFrameworks>netstandard2.1;net8.0</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <Owner>Shane Connon</Owner>
+    <Authors>Shane Connon</Authors>
+    <Description>An in memory DynamoDB database for testing</Description>
+    <Copyright>Copyright (c) 2024 Shane Connon</Copyright>
+    <PackageSummary>An in memory DynamoDB database for testing</PackageSummary>
+    <Title>TestDynamo</Title>
+    <PackageId>TestDynamo</PackageId>
+    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing</PackageTags>
+    <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Include="Settings.fs" />
@@ -75,5 +94,5 @@
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
   </ItemGroup>
-
+  
 </Project>

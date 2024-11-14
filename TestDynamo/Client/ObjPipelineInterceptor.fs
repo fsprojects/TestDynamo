@@ -20,7 +20,7 @@ module private ObjPipelineInterceptorUtils =
     let cast<'a when 'a :> AmazonWebServiceResponse> (x: 'a) = x :> AmazonWebServiceResponse
 
 /// <summary>
-/// A request interceptor which can be used to override client functionality
+/// A request interceptor which can be used to override or polyfill client functionality
 /// </summary>
 [<AllowNullLiteral>]
 type IRequestInterceptor =

@@ -4,7 +4,26 @@
     <TargetFramework>net8.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <Owner>Shane Connon</Owner>
+    <Authors>Shane Connon</Authors>
+    <Description>Test Lambda stream processing for TestDynamo</Description>
+    <Copyright>Copyright (c) 2024 Shane Connon</Copyright>
+    <PackageSummary>Test Lambda stream processing for TestDynamo</PackageSummary>
+    <Title>TestDynamo.Lambda</Title>
+    <PackageId>TestDynamo.Lambda</PackageId>
+    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing</PackageTags>
+    <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 
   <ItemGroup>
     <Compile Include="Subscription.fs" />
