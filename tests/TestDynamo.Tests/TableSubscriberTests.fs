@@ -903,7 +903,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
             let client = TestDynamoClientBuilder.Create(host)
-            client.SetProcessingDelay TimeSpan.Zero
+            TestDynamoClient.SetProcessingDelay(client, TimeSpan.Zero)
             let table = Tables.getByStreamsEnabled true tables
             let pk = $"Sub-{IncrementingId.next()}"
             let sk = IncrementingId.next().Value |> decimal

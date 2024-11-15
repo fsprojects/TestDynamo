@@ -268,7 +268,7 @@ method is called
 
 The `Api.Database`, `Api.GlobalDatabase` and `AmazonDynamoDBClient` have `AwaitAllSubscribers` methods to pause test execution
 until all subscribers have executed. This method will throw any exceptions that were experienced within subscribers and were not
-propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is an extension method.
+propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is static and available on the `TestDynamoClient` class.
 
 ### DynamoDBContext
 
@@ -318,7 +318,7 @@ using var db2 = globalDatabase.Clone();
 #### AwaitAllSubscribers
 
 The `Api.GlobalDatabase` and `AmazonDynamoDBClient` have `AwaitAllSubscribers` methods to pause test execution
-until all data has been replicated between databases. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is an extension method.
+until all data has been replicated between databases. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` method is static and available on the `TestDynamoClient` class.
 
 ### TestDynamoClient
 
@@ -342,7 +342,7 @@ using var client22 = db2.CreateClient<AmazonDynamoDBClient>();
 // attach a database to an existing client
 using var db3 = new Api.Database();
 using var client3 = new AmazonDynamoDBClient();
-client3.Attach(db3);
+db3.Attach(client3);
 ```
 
 #### Get methods
@@ -353,10 +353,10 @@ using TestDynamo;
 using var client1 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // get the underlying database from a client
-var db1 = client.GetDatabase();
+var db1 = TestDynamoClient.GetDatabase(clientclient);
 
 // get a debug table from a client
-var beatles = client.GetTable("Beatles");
+var beatles = TestDynamoClient.GetTable(client, "Beatles");
 ```
 
 #### Set methods
@@ -367,13 +367,13 @@ using TestDynamo;
 using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // set an artificial processing delay
-client.SetProcessingDelay(TimeSpan.FromSeconds(0.1));
+TestDynamoClient.SetProcessingDelay(client, TimeSpan.FromSeconds(0.1));
 
 // set paging settings for database
-client.SetScanLimits(...);
+TestDynamoClient.SetScanLimits(client, ...);
 
 // set the AWS account id for the client
-client.SetAwsAccountId("12345678");
+TestDynamoClient.SetAwsAccountId(client, "12345678");
 ```
 
 ### Database Serializers

@@ -381,3 +381,6 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
 
     member internal this.AwaitAllSubscribers_Internal logger c =
         lockedAndLogged "AWAIT SUBSCRIBERS" logger (Database.awaitAllSubscribers c)
+        
+    // quick fix for F# lookup error
+    static member internal AwaitAllSubscribers_ExtHack (db: Database) logger c = db.AwaitAllSubscribers logger c

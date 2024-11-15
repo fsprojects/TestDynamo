@@ -357,7 +357,7 @@ type GetItemTests(output: ITestOutputHelper) =
                 else
                     TestDynamoClientBuilder.Create(cloneHost writer)
 
-            client.SetAwsAccountId "12233445"
+            TestDynamoClient.SetAwsAccountId(client, "12233445")
 
             let req =
                 let r = BatchGetItemRequest()
@@ -365,7 +365,7 @@ type GetItemTests(output: ITestOutputHelper) =
                 k.Keys.Add(Dictionary<_, _>())
                 r.RequestItems.Add(
                     if ``invalid region``
-                        then $"arn:aws:dynamodb:invalid-region:{client.GetAwsAccountId()}:table/{tableName}"
+                        then $"arn:aws:dynamodb:invalid-region:{TestDynamoClient.GetAwsAccountId(client)}:table/{tableName}"
                         else $"arn:aws:dynamodb:{host.Id}:999999:table/{tableName}"
                     ,
                     k)

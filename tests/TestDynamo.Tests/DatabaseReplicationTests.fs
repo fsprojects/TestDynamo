@@ -63,7 +63,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
     static let rec replicate' (output: ITestOutputHelper, random) (client: AmazonDynamoDBClient) regionName tableName changeType =
 
-        output.WriteLine($"Replicating {tableName}: {(client.GetDatabase()).Id.regionId} => {regionName}")
+        output.WriteLine($"Replicating {tableName}: {(TestDynamoClient.GetDatabase(client)).Id.regionId} => {regionName}")
 
         match changeType with
         | ValueNone ->
@@ -344,8 +344,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! struct (table, host, client1, client2, disposer) = setUp2RegionsWithCustomDelay (TimeSpan.FromSeconds(0.1)) logger true
             use _ = disposer
 
-            client1.SetProcessingDelay TimeSpan.Zero
-            client2.SetProcessingDelay TimeSpan.Zero
+            TestDynamoClient.SetProcessingDelay(client1, TimeSpan.Zero)
+            TestDynamoClient.SetProcessingDelay(client2, TimeSpan.Zero)
 
             let item =
                 groupedItems table.hasSk
@@ -390,8 +390,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! struct (table, host, client1, client2, disposer) = setUp2RegionsWithCustomDelay (TimeSpan.FromSeconds(0.1)) logger true
             use _ = disposer
 
-            client1.SetProcessingDelay TimeSpan.Zero
-            client2.SetProcessingDelay TimeSpan.Zero
+            TestDynamoClient.SetProcessingDelay(client1, TimeSpan.Zero)
+            TestDynamoClient.SetProcessingDelay(client2, TimeSpan.Zero)
 
             let struct (pk, sk) =
                 if itemExists then
@@ -637,8 +637,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let r2 = { regionId = "eu-north-1"}
             use client1 = TestDynamoClientBuilder.Create(host, r1)
             use client2 = TestDynamoClientBuilder.Create(host, r2)
-            client1.SetProcessingDelay TimeSpan.Zero
-            client2.SetProcessingDelay TimeSpan.Zero
+            TestDynamoClient.SetProcessingDelay(client1, TimeSpan.Zero)
+            TestDynamoClient.SetProcessingDelay(client2, TimeSpan.Zero)
 
             do!
                 TableBuilder.empty
@@ -930,7 +930,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 | _::_ -> invalidOp ""
 
             let assertItem (client: AmazonDynamoDBClient) pk =
-                client.GetTable tableName
+                TestDynamoClient.GetTable(client, tableName)
                 |> fun x -> x.GetValues [struct ("TablePk", String pk)]
                 |> single (asLazy true)
                 |> ignore
@@ -984,7 +984,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 | _::_ -> invalidOp "not found"
 
             let assertItem (client: AmazonDynamoDBClient) pk =
-                client.GetTable tableName
+                TestDynamoClient.GetTable(client, tableName)
                 |> fun x -> x.GetValues [struct ("TablePk", String pk)]
                 |> single (asLazy true)
                 |> ignore
@@ -1033,10 +1033,10 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             use deleteClient = TestDynamoClientBuilder.Create(host, { regionId = delete})
             use keepClient = TestDynamoClientBuilder.Create(host, { regionId = keep})
             let! _ = deleteClient.DeleteTableAsync(tableName)
-            do! deleteClient.AwaitAllSubscribers(null, CancellationToken.None)
+            do! TestDynamoClient.AwaitAllSubscribers(deleteClient, null, CancellationToken.None)
 
             let! _ = put keepClient tableName "v3"
-            do! deleteClient.AwaitAllSubscribers(null, CancellationToken.None)
+            do! TestDynamoClient.AwaitAllSubscribers(deleteClient, null, CancellationToken.None)
 
             // assert
             let single fn xs =
@@ -1046,7 +1046,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 | _::_ -> invalidOp "not found"
 
             let assertItem (client: AmazonDynamoDBClient) pk =
-                client.GetTable tableName
+                TestDynamoClient.GetTable(client, tableName)
                 |> fun x -> x.GetValues [struct ("TablePk", String pk)]
                 |> single (asLazy true)
                 |> ignore
@@ -1092,8 +1092,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             use! host = ``Create host with replications`` parentDbId.regionId childDbId.regionId tableName writer settings
             use parentClient = TestDynamoClientBuilder.Create(host, parentDbId, (writer :> Microsoft.Extensions.Logging.ILogger))
             use childClient = TestDynamoClientBuilder.Create(host, childDbId, (writer :> Microsoft.Extensions.Logging.ILogger))
-            parentClient.SetProcessingDelay TimeSpan.Zero
-            childClient.SetProcessingDelay TimeSpan.Zero
+            TestDynamoClient.SetProcessingDelay(parentClient, TimeSpan.Zero)
+            TestDynamoClient.SetProcessingDelay(childClient, TimeSpan.Zero)
 
             output.WriteLine "\n####### BEGIN"
             let putReq =
@@ -1215,7 +1215,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let! _ = createTable client1
             let! _ = replicate (output, random) (host, region1) region2 tableName ValueNone ValueNone
-            do! client2.AwaitAllSubscribers (null, CancellationToken.None)
+            do! TestDynamoClient.AwaitAllSubscribers (client2, null, CancellationToken.None)
             let! _ = deReplicate client1 region2 tableName ChangeType.UpdateGlobal
 
             // act
@@ -1267,7 +1267,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let! _ = createTable client1
             let! _ = replicate (output, random) (host, region1) region2 tableName ValueNone ValueNone
-            do! client2.AwaitAllSubscribers(null, CancellationToken.None)
+            do! TestDynamoClient.AwaitAllSubscribers(client2, null, CancellationToken.None)
 
             do! put client1
             do! put client2
@@ -1430,7 +1430,7 @@ type DatabaseReplicationTests2(output: ITestOutputHelper) =
                     let client = TestDynamoClientBuilder.Create(host, { regionId = name})
                     task {
                         use parent = TestDynamoClientBuilder.Create(host, { regionId = parentName})
-                        parent.SetProcessingDelay TimeSpan.Zero
+                        TestDynamoClient.SetProcessingDelay(parent, TimeSpan.Zero)
 
                         let msg = $"{tableName} {parentName} => {name}"
                         try
@@ -1473,7 +1473,7 @@ type DatabaseReplicationTests2(output: ITestOutputHelper) =
             // assert
             let expectedSum =
                 clients
-                |> Seq.map (sndT >> _.GetTable(tableName).GetValues().Count())
+                |> Seq.map (sndT >> fun x -> TestDynamoClient.GetTable(x, tableName).GetValues().Count())
                 |> Seq.sum
 
             let expectedCount = Array.length putRequests * List.length clients

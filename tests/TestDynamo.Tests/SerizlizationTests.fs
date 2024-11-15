@@ -179,7 +179,7 @@ type SerializationTests(output: ITestOutputHelper) =
 
             // add a new db via json
             let newReplica = JsonObject.Parse(System.Text.Json.JsonSerializer.Serialize(
-                    {| from = (toDb.GetDatabase()).Id.regionId
+                    {| from = (TestDynamoClient.GetDatabase(toDb)).Id.regionId
                        ``to`` = "somewhere-else"
                        tableName = table.name |}))
 

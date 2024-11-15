@@ -289,7 +289,7 @@ module FromSerializable =
                 globalLogger
                 ?|> fun logger -> new Api.FSharp.GlobalDatabase(logger = logger)
                 ?|>? fun _ -> new Api.FSharp.GlobalDatabase()
-
+            
             fromJson.databases
             |> List.fold (fun _ x ->
                 db.GetDatabase globalLogger x.databaseId

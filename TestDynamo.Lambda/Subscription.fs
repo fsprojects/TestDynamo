@@ -267,7 +267,7 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.AddSubscription(client.GetDatabase(), tableName, subscriber, behaviour, streamViewType, awsAccountId)
+        Subscriptions.AddSubscription(TestDynamoClient.GetDatabase client, tableName, subscriber, behaviour, streamViewType, awsAccountId)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database

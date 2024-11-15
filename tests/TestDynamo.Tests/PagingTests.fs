@@ -242,9 +242,9 @@ type PagingTests(output: ITestOutputHelper) =
             // arrange
             let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
             use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
-            client.SetScanLimits
+            TestDynamoClient.SetScanLimits(client,
                 ({ maxScanItems = if maxScanItems then 1 else 100000
-                   maxPageSizeBytes = if maxPageSizeBytes then 1 else 100000 }: ScanLimits)
+                   maxPageSizeBytes = if maxPageSizeBytes then 1 else 100000 }: ScanLimits))
 
             let req = 
                 QueryBuilder.empty (ValueSome random)
@@ -308,9 +308,9 @@ type PagingTests(output: ITestOutputHelper) =
             // arrange
             let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
             use client = TestDynamoClientBuilder.Create(host, (writer :> Microsoft.Extensions.Logging.ILogger))
-            client.SetScanLimits
+            TestDynamoClient.SetScanLimits(client,
                 { maxScanItems = if maxScanItems then 51 else 100000
-                  maxPageSizeBytes = if maxPageSizeBytes then (singleItemSize table.name host |> float |> (*) 50.1 |> int) else 100000 }
+                  maxPageSizeBytes = if maxPageSizeBytes then (singleItemSize table.name host |> float |> (*) 50.1 |> int) else 100000 })
 
             let req = 
                 QueryBuilder.empty (ValueSome random)

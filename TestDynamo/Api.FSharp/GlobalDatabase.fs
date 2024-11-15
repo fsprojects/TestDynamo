@@ -294,3 +294,8 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     member _.AwaitAllSubscribers logger c =
         loggedGet "AWAIT ALL SUBSCRIBERS" logger (GlobalDatabaseState.awaitAllSubscribers c)
         |> Io.deNormalizeVt
+        
+    // quick fix for F# lookup error
+    static member internal AwaitAllSubscribers_ExtHack (db: GlobalDatabase) logger c = db.AwaitAllSubscribers logger c
+    // quick fix for F# lookup error
+    static member internal GetDatabase_ExtHack (db: GlobalDatabase) logger id = db.GetDatabase logger id

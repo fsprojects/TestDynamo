@@ -149,8 +149,8 @@ type SmokeTests(output: ITestOutputHelper) =
         let client3 = TestDynamoClient.CreateClient()
         let client4 = TestDynamoClient.CreateGlobalClient()
         
-        use db3 = client3.GetDatabase()
-        use db4 = client4.GetGlobalDatabase()
+        use db3 = TestDynamoClient.GetDatabase client3
+        use db4 = TestDynamoClient.GetGlobalDatabase client4
         
         // act
         client1.Dispose()
