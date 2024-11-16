@@ -744,7 +744,7 @@ module Database =
             |> ValueOption.defaultValue NonEmptyList.singleton
 
         let synchronizationMessage =
-            { data = args.updateTableData
+            { data = args.updateTableData.schemaChange
               correlationId = Logger.id logger
               tableName = name
               synchronizationPacketPath = listBuilder db.info.databaseId }
@@ -963,7 +963,7 @@ module Database =
                 |> tpl Ingested
             | SchemaChange cdc ->
                 try
-                    let req ={ updateTableData = cdc.data; streamConfig = ValueNone }
+                    let req ={ updateTableData = { schemaChange = cdc.data; deletionProtection = ValueNone }; streamConfig = ValueNone }
 
                     updateTable' logger struct (cdc.tableName, ValueSome cdc.synchronizationPacketPath, req) db
                     |> sndT

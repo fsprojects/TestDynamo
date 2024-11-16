@@ -124,6 +124,8 @@ type LazyDebugTable(name: string, table: Table) =
         member this.Name = Table.name table
 
     member _.Name = name
+    
+    member _.HasDeletionProtection = Table.hasDeletionProtection table
 
     member this.GetValues () = this.GetValues Seq.empty
 

@@ -36,6 +36,7 @@
     <Compile Include="TableSubscriberTests.fs" />
     <Compile Include="DatabaseReplicationTests.fs" />
     <Compile Include="SerizlizationTests.fs" />
+    <Compile Include="CfnTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

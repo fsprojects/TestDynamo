@@ -197,7 +197,7 @@ type TestDynamoClient =
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database or a new Database
     /// </summary>
-    static member createClient<'a when 'a :> AmazonDynamoDBClient> logger (database: ApiDb voption) (interceptor: IRequestInterceptor voption) =
+    static member createClient<'a when 'a :> AmazonDynamoDBClient> logger (interceptor: IRequestInterceptor voption) (database: ApiDb voption) =
 
         match database with
         | ValueSome database ->

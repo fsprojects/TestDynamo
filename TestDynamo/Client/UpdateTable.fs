@@ -77,14 +77,15 @@ let inputs (req: UpdateTableRequest) =
             createStreamsForReplication = false }
       tableData =
           { updateTableData =
-                { createGsi = gsiCreate |> MapUtils.fromTuple
-                  deleteGsi = gsiDelete |> Set.ofSeq
-                  deletionProtection = getDeletionProtectionEnabled req
-                  attributes =
-                      req.AttributeDefinitions
-                      |> CSharp.sanitizeSeq
-                      |> fromAttributeDefinitions
-                      |> List.ofSeq }
+                { schemaChange =
+                    { createGsi = gsiCreate |> MapUtils.fromTuple
+                      deleteGsi = gsiDelete |> Set.ofSeq
+                      attributes =
+                          req.AttributeDefinitions
+                          |> CSharp.sanitizeSeq
+                          |> fromAttributeDefinitions
+                          |> List.ofSeq }
+                  deletionProtection = getDeletionProtectionEnabled req }
             streamConfig = buildStreamConfig req.StreamSpecification } }
 
 let output awsAccountId ddb databaseId (table: TableDetails) =

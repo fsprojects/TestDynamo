@@ -6,20 +6,27 @@ open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Data.BasicStructures
 
-type UpdateTableData =
+type UpdateTableSchema =
     { // it is possible to create and delete an index in the same request
       // deletes are always processed first
       deleteGsi: Set<string>
       createGsi: Map<string, CreateIndexData>
-      attributes: struct (string * AttributeType) list
-      deletionProtection: bool voption }
+      attributes: struct (string * AttributeType) list }
 
     with
-    // this empty value is important. It tells the sysem to ignore certain errors around corruption due to synchronization
+    // this empty value is important. It tells the system to ignore certain errors around corruption due to synchronization
     static member empty =
         { deleteGsi = Set.empty
           createGsi = Map.empty
-          attributes = List.empty
+          attributes = List.empty }
+
+type UpdateTableData =
+    { schemaChange: UpdateTableSchema
+      deletionProtection: bool voption }
+    
+    // this empty value is important. It tells the system to ignore certain errors around corruption due to synchronization
+    static member empty =
+        { schemaChange = UpdateTableSchema.empty
           deletionProtection = ValueNone }
       
 [<Struct; IsReadOnly>]
@@ -370,7 +377,7 @@ module Table =
         Logger.log1 "Updating table %O" t logger
 
         let afterDeleted =
-            req.deleteGsi
+            req.schemaChange.deleteGsi
             |> Seq.fold (flip (deleteIndex logger)) t
             |> unwrap
 
@@ -385,7 +392,7 @@ module Table =
             // We want the input attributes to come first, so that any index is assigned
             // an attribute value from the input, rather than the existing cols
             // This allows the creation of an invalid index if attr types differ, which will be caught later 
-            let attrs = req.attributes |> flip Collection.concat2 (attributes' data) |> List.ofSeq
+            let attrs = req.schemaChange.attributes |> flip Collection.concat2 (attributes' data) |> List.ofSeq
 
             validateItemsForNewIndex logger attrs data
             Map.fold (fun s k v ->
@@ -395,11 +402,11 @@ module Table =
                   data = v
                   allAttributes = attrs
                   tableKeyConfig = tableIndex
-                  table = s } |> addIndex) afterDeleted req.createGsi
+                  table = s } |> addIndex) afterDeleted req.schemaChange.createGsi
 
         let deletionProtection = ValueOption.defaultValue data.info.hasDeletionProtection req.deletionProtection
         {indexResults with info.hasDeletionProtection = deletionProtection }
-        |> tbl req.attributes
+        |> tbl req.schemaChange.attributes
 
     let getIndex indexName = function
         | Tbl {data = {primaryIndex = primary; indexes = secondary} } ->

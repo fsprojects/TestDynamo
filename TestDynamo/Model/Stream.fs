@@ -45,7 +45,7 @@ type TableCdcPacket =
 [<Struct; IsReadOnly>]
 type DatabaseChange =
     | ChangeDataCapture of cdc: DatabaseSynchronizationPacket<TableCdcPacket>
-    | SchemaChange of sch: DatabaseSynchronizationPacket<UpdateTableData>
+    | SchemaChange of sch: DatabaseSynchronizationPacket<UpdateTableSchema>
     | SubscriberChange of DatabaseSynchronizationPacket<SubscriberChange>
     with
     static member tableName = function

@@ -786,7 +786,7 @@ type PutItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.createClient ValueNone (ValueSome host) ValueNone
+            let client = TestDynamoClient.createClient ValueNone ValueNone (ValueSome host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
 

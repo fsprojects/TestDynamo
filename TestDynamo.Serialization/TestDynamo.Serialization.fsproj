@@ -29,6 +29,7 @@
     <Compile Include="Converters.fs" />
     <Compile Include="Data.Version1.fs" />
     <Compile Include="DatabaseSerializer.fs" />
+    <Compile Include="CloudFormation\CloudFormationParser.fs" />
   </ItemGroup>
 
   <ItemGroup>

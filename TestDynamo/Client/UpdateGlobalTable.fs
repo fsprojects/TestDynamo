@@ -37,11 +37,7 @@ let inputs (req: UpdateGlobalTableRequest) =
           { replicaInstructions = replicaInstructions
             createStreamsForReplication = false }
       tableData =
-          { updateTableData =
-                { createGsi = Map.empty
-                  deleteGsi = Set.empty
-                  deletionProtection = ValueNone
-                  attributes = [] }
+          { updateTableData = UpdateTableData.empty
             streamConfig = ValueNone } }
 
 let output awsAccountId ddb databaseId (table: TableDetails) =

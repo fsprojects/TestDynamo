@@ -367,11 +367,7 @@ module private CreateReplication =
         | false, false ->
             clientError $"Replications must be added to tables with streams enabled"
         | true, false ->
-            { updateTableData =
-                {  deleteGsi = Set.empty
-                   createGsi = Map.empty
-                   attributes = []
-                   deletionProtection = ValueNone }
+            { updateTableData = UpdateTableData.empty
               streamConfig = CreateStream |> ValueSome }
             |> left.UpdateTable (Logger.internalLogger logger |> ValueSome) tableName
             |> ignoreTyped<TableDetails>
