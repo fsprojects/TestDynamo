@@ -13,7 +13,7 @@
     <PackageSummary>Database serializers processing for TestDynamo</PackageSummary>
     <Title>TestDynamo.Serialization</Title>
     <PackageId>TestDynamo.Serialization</PackageId>
-    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing</PackageTags>
+    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing FSharp</PackageTags>
     <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

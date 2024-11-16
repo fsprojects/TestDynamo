@@ -13,7 +13,7 @@
     <PackageSummary>Test Lambda stream processing for TestDynamo</PackageSummary>
     <Title>TestDynamo.Lambda</Title>
     <PackageId>TestDynamo.Lambda</PackageId>
-    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing</PackageTags>
+    <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing FSharp</PackageTags>
     <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
