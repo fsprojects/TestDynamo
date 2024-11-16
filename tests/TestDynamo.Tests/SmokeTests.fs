@@ -139,34 +139,34 @@ type SmokeTests(output: ITestOutputHelper) =
 
     [<Fact>]        
     let ``ObjPipelineInterceptor is disposed correctly`` () =
-        
+
         // arrange
         use db1 = new Api.Database()
         use db2 = new Api.GlobalDatabase()
-        
+
         let client1 = db1.CreateClient()
         let client2 = db2.CreateClient()
         let client3 = TestDynamoClient.CreateClient()
         let client4 = TestDynamoClient.CreateGlobalClient()
-        
+
         use db3 = TestDynamoClient.GetDatabase client3
         use db4 = TestDynamoClient.GetGlobalDatabase client4
-        
+
         // act
         client1.Dispose()
         client2.Dispose()
         client3.Dispose()
         client4.Dispose()
-        
+
         // assert - these dbs were not disposed
         db1.TableBuilder("table1", ("pp", "S")).AddTable()
         (db2.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable()
-        
+
         // assert - these dbs were disposed
         let e = Assert.ThrowsAny(fun _ ->
             db3.TableBuilder("table1", ("pp", "S")).AddTable())
         assertError output "has been disposed" e
-        
+
         let e = Assert.ThrowsAny(fun _ ->
             (db4.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable())
         assertError output "has been disposed" e

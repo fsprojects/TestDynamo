@@ -19,7 +19,7 @@ type VersionedData<'a>(
 
     member _.version = version
     member _.data = data
-    
+
     static member getData (x: VersionedData<'a>) = x.data
 
 module RawSerializers =
@@ -44,7 +44,7 @@ module RawSerializers =
         let write indent data =
             let opts = options indent
             JsonSerializer.Serialize(data, opts)
-        
+
         let read<'a> (json: string) =
             let opts = options false
             JsonSerializer.Deserialize<'a>(json, opts)
@@ -140,7 +140,7 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>] schemaOnly,
             [<Optional; DefaultParameterValue(false)>] indent) = toSerializable schemaOnly data |> toString indent
         member _.FromString(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromString json |> fromSerializable (CSharp.toOption logger)
-        
+
         member _.ToStream(
             data,
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
@@ -150,7 +150,7 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
             [<Optional; DefaultParameterValue(false)>]indent,
             [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> createStreamAsync indent c
-        
+
         member _.WriteToStream(
             data,
             stream,
@@ -173,13 +173,13 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
             [<Optional; DefaultParameterValue(false)>]indent,
             [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> toFileAsync indent c file
-        
+
         member _.FromStream(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromStream json |> fromSerializable (CSharp.toOption logger)
         member _.FromStreamAsync(
             json,
             [<Optional; DefaultParameterValue(null: ILogger)>] logger,
             [<Optional; DefaultParameterValue(CancellationToken())>] c) = fromStreamAsync c json |%|> fromSerializable (CSharp.toOption logger)
-        
+
         member _.FromFile(file, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromFile file |> fromSerializable (CSharp.toOption logger)
         member _.FromFileAsync(
             file,

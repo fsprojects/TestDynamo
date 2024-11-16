@@ -1,8 +1,6 @@
 namespace TestDynamo.Tests
 
 open System
-open System.Text.Json.Nodes
-open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
@@ -11,7 +9,6 @@ open TestDynamo.Serialization.CloudFormation
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
-open Tests.Items
 open Tests.Utils
 open Xunit
 open Xunit.Abstractions
@@ -19,8 +16,6 @@ open RequestItemTestUtils
 open TestDynamo.Model
 open TestDynamo.Api.FSharp
 open Tests.Loggers
-open Tests.Requests.Queries
-open TestDynamo.Serialization
 
 #nowarn "0025"
 
@@ -104,14 +99,14 @@ type CfnTests(output: ITestOutputHelper) =
 
             return struct (table, host, client1, client2, disposer)
         }
-        
+
     static let cfnTable' attributesOnly name =
         let opn = if attributesOnly then "" else "{"
         let close = if attributesOnly then "" else "}"
         sprintf """%s"AttributeDefinitions":[{"AttributeName":"IndexPk","AttributeType":{"Value":"N"}},{"AttributeName":"IndexSk","AttributeType":{"Value":"N"}},{"AttributeName":"TablePk","AttributeType":{"Value":"N"}},{"AttributeName":"TableSk","AttributeType":{"Value":"N"}}],"BillingMode":null,"DeletionProtectionEnabled":false,"GlobalSecondaryIndexes":[{"IndexName":"IndexName","KeySchema":[{"AttributeName":"IndexPk","KeyType":{"Value":"HASH"}},{"AttributeName":"IndexSk","KeyType":{"Value":"RANGE"}}],"OnDemandThroughput":null,"Projection":{"NonKeyAttributes":[],"ProjectionType":{"Value":"ALL"}},"ProvisionedThroughput":null}],"KeySchema":[{"AttributeName":"TablePk","KeyType":{"Value":"HASH"}},{"AttributeName":"TableSk","KeyType":{"Value":"RANGE"}}],"LocalSecondaryIndexes":[],"OnDemandThroughput":null,"ProvisionedThroughput":{"ReadCapacityUnits":0,"WriteCapacityUnits":0},"ResourcePolicy":null,"SSESpecification":null,"StreamSpecification":null,"TableClass":null,"TableName":"%s","Tags":[]%s""" opn name close
-    
+
     static let cfnTable = cfnTable' false
-    
+
     static let cfnGlobalTable name regions =
         let table = cfnTable' true name
         let replicas =
@@ -121,7 +116,7 @@ type CfnTests(output: ITestOutputHelper) =
                 let del = if deletionProtection then "true" else "false"
                 sprintf """{"GlobalSecondaryIndexes":[%s],"DeletionProtectionEnabled":%s,"KMSMasterKeyId":null,"OnDemandThroughputOverride":null,"ProvisionedThroughputOverride":null,"Region":"%s","TableClassOverride":null}""" gsi del name)
             |> Str.join ","
-            
+
         sprintf """{%s,"Replicas":[%s]}""" table replicas
 
     [<Theory>]
@@ -135,14 +130,14 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = ``force global``
                   settings =
                       { ignoreUnsupportedResources = false } }
-            
+
             let file =
                 { region = "the-region"
                   fileJson = $"""{{"Resources":{{"TheTable":{{"Type":"AWS::DynamoDB::Table","Properties":{cfnTable "Tab1"}}}}}}}""" }
-            
+
             // act
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
-            
+
             // assert
             let table =
                 match result with
@@ -157,7 +152,7 @@ type CfnTests(output: ITestOutputHelper) =
                     db.GetTable (ValueSome logger) "Tab1"
                 | Either2 db -> (db.GetDatabase (ValueSome logger) {regionId = "the-region" }).GetTable (ValueSome logger) "Tab1"
             Assert.NotNull table
-            
+
             let idx = table.GetIndex("IndexName")
             Assert.NotNull idx
         }
@@ -172,16 +167,16 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = false } }
-            
+
             let table = cfnGlobalTable "Tab11" [struct ("region-2", true, true);struct ("region-3", false, false)]
             let file =
                 { region = "root-region"
                   fileJson = $"""{{"Resources":{{"TheTable":{{"Type":"AWS::DynamoDB::GlobalTable","Properties":{table}}}}}}}""" }
-            
+
             // act
             output.WriteLine file.fileJson
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
-            
+
             // assert
             let struct (table1, table2, table3) =
                 match result with
@@ -192,7 +187,7 @@ type CfnTests(output: ITestOutputHelper) =
                     (db.GetDatabase (ValueSome logger) {regionId = "root-region" }).GetTable (ValueSome logger) "Tab11",
                     (db.GetDatabase (ValueSome logger) {regionId = "region-2" }).GetTable (ValueSome logger) "Tab11",
                     (db.GetDatabase (ValueSome logger) {regionId = "region-3" }).GetTable (ValueSome logger) "Tab11")
-            
+
             // root table gets deletion protection by default
             Assert.True(table1.HasDeletionProtection)
             table1.GetIndexes()
@@ -200,14 +195,14 @@ type CfnTests(output: ITestOutputHelper) =
             |> Collection.tryHead
             |> ValueOption.isSome
             |> Assert.True
-            
+
             Assert.True(table2.HasDeletionProtection)
             table2.GetIndexes()
             |> Seq.filter (fun x -> x.Name = "IndexName")
             |> Collection.tryHead
             |> ValueOption.isSome
             |> Assert.True
-            
+
             Assert.False(table3.HasDeletionProtection)
             table3.GetIndexes()
             |> Seq.filter (fun x -> x.Name = "IndexName")
@@ -215,7 +210,7 @@ type CfnTests(output: ITestOutputHelper) =
             |> ValueOption.isSome
             |> Assert.False
         }
-        
+
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
     let ``Cfn multi file tests`` ``multiple regions`` =
@@ -227,17 +222,17 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = false } }
-            
+
             let file1 =
                 { region = "the-region"
                   fileJson = $"""{{"Resources":{{"TheTable":{{"Type":"AWS::DynamoDB::Table","Properties":{cfnTable "Tab1"}}}}}}}""" }
             let file2 =
                 { region = if ``multiple regions`` then "another-region" else "the-region"
                   fileJson = $"""{{"Resources":{{"TheTable":{{"Type":"AWS::DynamoDB::Table","Properties":{cfnTable "Tab2"}}}}}}}""" }
-            
+
             // act
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file1; file2]
-            
+
             // assert
             let struct (table1, table2) =
                 match result with
@@ -254,16 +249,16 @@ type CfnTests(output: ITestOutputHelper) =
                     struct (
                         (db.GetDatabase (ValueSome logger) {regionId = "the-region" }).GetTable (ValueSome logger) "Tab1",
                         (db.GetDatabase (ValueSome logger) {regionId = "another-region" }).GetTable (ValueSome logger) "Tab2")
-            
+
             Assert.NotNull table1
             Assert.NotNull table2
-            
+
             let idx = table1.GetIndex("IndexName")
             Assert.NotNull idx
             let idx = table2.GetIndex("IndexName")
             Assert.NotNull idx
         }
-        
+
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
     let ``Cfn invalid resource tests`` ``allow invalid`` =
@@ -275,13 +270,13 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = ``allow invalid`` } }
-            
+
             let file =
                 { region = "the-region"
                   fileJson = """{"Resources":{"TheTable":{"Type":"AWS::DynamoDB::TableXX","Properties":{}}}}""" }
-                
+
             let execute _ = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
-                
+
             // act
             if ``allow invalid``
             then
@@ -305,7 +300,7 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = false } }
-                
+
             let jsonParts =
                 [
                     $"""
@@ -322,7 +317,7 @@ type CfnTests(output: ITestOutputHelper) =
                 ]
                 |> if flip then List.rev else id
                 |> Str.join "," 
-            
+
             let file =
                 { region = "the-region"
                   fileJson = $"""{{
@@ -330,10 +325,10 @@ type CfnTests(output: ITestOutputHelper) =
                     {jsonParts}
                   }}
                 }}""" }
-            
+
             // act
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
-            
+
             // assert
             let assertTable name =
                 let table =
@@ -343,10 +338,10 @@ type CfnTests(output: ITestOutputHelper) =
                         Unchecked.defaultof<_>
                     | Either1 db -> db.GetTable (ValueSome logger) name
                 Assert.NotNull table
-                
+
                 let idx = table.GetIndex("IndexName")
                 Assert.NotNull idx
-                
+
             assertTable "Tab1"
             assertTable "Tab2"
         }
@@ -361,7 +356,7 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = false } }
-                
+
             let tables =
                 [
                     $""""TheTable1":{{
@@ -387,12 +382,12 @@ type CfnTests(output: ITestOutputHelper) =
                   fileJson = $"""{{
                   "Resources":{{{tables}}}
                   }}""" }
-                
+
             output.WriteLine(file.fileJson)
-            
+
             // act
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
-            
+
             // assert
             let assertTable name =
                 let table =
@@ -402,10 +397,10 @@ type CfnTests(output: ITestOutputHelper) =
                         Unchecked.defaultof<_>
                     | Either1 db -> db.GetTable (ValueSome logger) name
                 Assert.NotNull table
-                
+
                 let idx = table.GetIndex("IndexName")
                 Assert.NotNull idx
-                
+
             assertTable "Tab1"
             assertTable "Tab2"
             assertTable "Tab3"
@@ -433,10 +428,10 @@ type CfnTests(output: ITestOutputHelper) =
                     }}
                   }}
                 }}""" }
-            
+
             // act
             let! e = Assert.ThrowsAnyAsync(fun _ -> (CloudFormationParser.buildDatabase settings (ValueSome logger) [file]).AsTask())
-            
+
             // assert
             assertError output "Circular reference or missing dependency" e
         }
@@ -463,10 +458,10 @@ type CfnTests(output: ITestOutputHelper) =
                     }}
                   }}
                 }}""" }
-            
+
             // act
             let! e = Assert.ThrowsAnyAsync(fun _ -> (CloudFormationParser.buildDatabase settings (ValueSome logger) [file]).AsTask())
-            
+
             // assert
             assertError output "Circular reference or missing dependency" e
         }
@@ -481,7 +476,7 @@ type CfnTests(output: ITestOutputHelper) =
                 { alwaysCreateGlobal = false
                   settings =
                       { ignoreUnsupportedResources = false } }
-                
+
             let tables =
                 [
                     """"TheTable1":{
@@ -508,12 +503,12 @@ type CfnTests(output: ITestOutputHelper) =
                   fileJson = $"""{{
                   "Resources":{{{tables}}}
                   }}""" }
-                
+
             output.WriteLine(file.fileJson)
-            
+
             // act
             let! e = Assert.ThrowsAnyAsync(fun _ -> (CloudFormationParser.buildDatabase settings (ValueSome logger) [file]).AsTask())
-            
+
             // assert
             assertError output "Circular reference or missing dependency" e
         }

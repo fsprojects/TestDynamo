@@ -3,7 +3,6 @@
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Client

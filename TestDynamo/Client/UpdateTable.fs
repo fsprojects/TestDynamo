@@ -7,7 +7,6 @@ open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Client
 open TestDynamo.Model
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Api.FSharp
 open TestDynamo.Client.CreateTable
 open TestDynamo.Client.DescribeTable.Local

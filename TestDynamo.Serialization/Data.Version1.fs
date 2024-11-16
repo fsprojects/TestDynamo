@@ -1,10 +1,8 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Serialization.Data.Version1
 
-open System
 open System.Threading
 open TestDynamo.Api.FSharp
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo
@@ -166,7 +164,7 @@ module ToSerializable =
                 |> Seq.map (fun r ->
                     let toDb = db.GetDatabase ValueNone r.toDb
                     let toTable = toDb.DescribeTable ValueNone r.tableName
-                    
+
                     SerializableReplication(r.fromDb, r.toDb, r.tableName))
                 |> List.ofSeq
 
@@ -187,7 +185,7 @@ module ToSerializable =
 module FromSerializable =
 
     module Database =
-        
+
         let private indexIsLocal (i: SerializableIndexInfo) =
             i.indexType = SerializableIndexType.LocalSecondary
 
@@ -209,7 +207,7 @@ module FromSerializable =
             |> Seq.fold (fun _ ->
                 db.Put globalLogger
                 >> ignoreTyped<Map<string,AttributeValue> voption>) ()
-            
+
         let private buildSerializableTable (table: SerializableTable) =
             let attrs =
                 table.primaryIndex.info::table.secondaryIndexes
@@ -217,12 +215,12 @@ module FromSerializable =
                 |> Maybe.traverse
                 |> Seq.distinctBy fstT
                 |> List.ofSeq
-                
+
             let indexKeys (i: SerializableIndexInfo) =
                 i.keyConfig
                 |> mapFst fstT
                 |> mapSnd (ValueOption.map fstT)
-                
+
             let index (i: SerializableIndexInfo) =
                 { data =
                     { keys = indexKeys i
@@ -234,13 +232,13 @@ module FromSerializable =
                         | SerializableProjectionType.Keys, attr -> List.ofArray attr |> ValueSome
                         | _ -> serverError "Invalid projection" }
                   isLocal = indexIsLocal i } |> tpl (i.indexName |> Maybe.expectSomeErr "Expected index to have a name%s" "")
-                
+
             { name = table.info.name
               primaryIndex = indexKeys table.primaryIndex.info
               indexes = table.secondaryIndexes |> Seq.map index |> MapUtils.ofSeq
               attributes = attrs
               addDeletionProtection = table.info.hasDeletionProtection }
-            
+
         let buildCloneSchema (fromJson: SerializableDatabase) =
             { databaseId = fromJson.databaseId
               data =
@@ -256,20 +254,20 @@ module FromSerializable =
                         |> List.ofSeq }}
 
         let fromSerializable globalLogger (fromJson: SerializableDatabase) =
-            
+
             let cloneSchema = buildCloneSchema fromJson
             let db =
                 globalLogger
                 ?|> fun l -> new Api.FSharp.Database(l, cloneSchema)
                 ?|>? fun _ -> new Api.FSharp.Database(cloneSchema)
-                
+
             addData globalLogger fromJson db
             db
 
     module GlobalDatabase =
 
         let fromSerializable globalLogger (fromJson: SerializableGlobalDatabase) =
-                
+
             let cloneSchema =
                 { databases = 
                     fromJson.databases
@@ -281,10 +279,10 @@ module FromSerializable =
                 globalLogger
                 ?|> fun logger -> new Api.FSharp.GlobalDatabase(cloneSchema, logger = logger)
                 ?|>? fun _ -> new Api.FSharp.GlobalDatabase(cloneSchema)
-                              
+
             fromJson.databases
             |> Seq.fold (fun _ dbData -> Database.addData globalLogger dbData (db.GetDatabase ValueNone dbData.databaseId)) ()
-                          
+
             // Sacrificing a thread here to keep the interface simple           
             (db.AwaitAllSubscribers globalLogger CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
             db

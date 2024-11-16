@@ -8,7 +8,6 @@ open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Api.FSharp
-open TestDynamo.Data.BasicStructures
 open Tests.ClientLoggerContainer
 open Tests.Items
 open Tests.Requests.Queries

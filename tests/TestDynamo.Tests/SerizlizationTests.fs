@@ -65,7 +65,7 @@ type SerializationTests(output: ITestOutputHelper) =
             i.IndexName <- "TheIndex"
             i
         ])
-        
+
         client.UpdateTableAsync(req) |> Io.ignoreTask
 
     let setUp2Regions logger doReplication =
@@ -134,12 +134,12 @@ type SerializationTests(output: ITestOutputHelper) =
             let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1, schemaOnly = ``omit data``)
             let db2 = DatabaseSerializer.GlobalDatabase.FromString(ser1)
             let ser2 = DatabaseSerializer.GlobalDatabase.ToString(db2)
-            
+
             // assert
             if ``omit data``
             then Assert.True(ser1.Length > 100)
             else Assert.True(ser1.Length > 10_000)
-            
+
             Assert.Equal(ser1, ser2)
 
             let databases (db: GlobalDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
@@ -155,7 +155,7 @@ type SerializationTests(output: ITestOutputHelper) =
             Assert.Equal(tableCount db1, tableCount db2)
             Assert.True(indexCount db1 >= 6, indexes db1)
             Assert.Equal(indexCount db1, indexCount db2)
-            
+
             Assert.True(itemCount db1 > 100, itemCount db1 |> toString)
             if ``omit data``
             then Assert.Equal(0, itemCount db2)
@@ -171,7 +171,7 @@ type SerializationTests(output: ITestOutputHelper) =
             // arrange
             use logger = new TestLogger(output, LogLevel.Error) 
             let! struct (table, db1, client1, _, _) = setUp2Regions logger true
-            
+
             let start = DateTimeOffset.Now
             let requests =
                 [0..``item count``]
@@ -182,26 +182,26 @@ type SerializationTests(output: ITestOutputHelper) =
                     |> ItemBuilder.withAttribute "TableSk" "N" (i.ToString())
                     |> ItemBuilder.asPutReq)
                 |> Collection.window 100
-            
+
             for batch in requests do
                 do!
                     batch
                     |> Seq.map (client1.PutItemAsync >> Io.fromTask)
                     |> Io.traverse
                     |> Io.ignore
-                
+
             do! db1.AwaitAllSubscribers ValueNone CancellationToken.None    
             output.WriteLine($"ADD {DateTimeOffset.Now - start}")
             let start = DateTimeOffset.Now
-                    
+
             // act
             let! ser1 = DatabaseSerializer.GlobalDatabase.ToStreamAsync(db1)
             output.WriteLine($"SERIALIZE {DateTimeOffset.Now - start}, SERIALIZED LENGTH {ser1.Length}")
             let start = DateTimeOffset.Now
-            
+
             let! db2 = DatabaseSerializer.GlobalDatabase.FromStreamAsync(ser1)
             output.WriteLine($"DESERIALIZE {DateTimeOffset.Now - start}")
-            
+
             // assert
             let databases (db: GlobalDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
             let itemCount = databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Values >> Seq.length)
@@ -228,10 +228,10 @@ type SerializationTests(output: ITestOutputHelper) =
                 .WithGlobalSecondaryIndex("TheIndex", struct ("IndexPk", "N"), struct ("IndexSk", "S"))
                 .WithStreamsEnabled(true)
                 .AddTable()
-            
+
             let dbString = DatabaseSerializer.GlobalDatabase.ToString(preSerialization)
             let dbJson = JsonObject.Parse(dbString)
-            
+
             // add replicate to somewhere-else
             let newReplica =
                 Version1.SerializableReplication(

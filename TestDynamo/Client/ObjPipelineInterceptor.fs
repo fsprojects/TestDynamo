@@ -217,7 +217,7 @@ type ObjPipelineInterceptor(
         if not result.IsCompletedSuccessfully
         then result.AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
         else result.Result
-        
+
     interface IDisposable with
         member _.Dispose() =
             if disposeDatabase

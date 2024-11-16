@@ -22,7 +22,7 @@ type GlobalCsApiDb = TestDynamo.Api.GlobalDatabase
 
 type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
     static member builder =
-        
+
         let constructor =
             [
                 typeof<'a>.GetConstructors()
@@ -33,21 +33,21 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
                 let param = c.GetParameters()
                 let isRegion = param |> Array.filter (_.ParameterType >> ((=)typeof<RegionEndpoint>))
                 let mandatory = param |> Array.filter (_.IsOptional >> not)
-                
+
                 isRegion.Length = 1 && (mandatory.Length = 0 || mandatory.Length = 1 && mandatory[0] = isRegion[0]))
             |> Collection.tryHead
             ?|>? fun _ -> notSupported $"Type {typeof<'a>} must have a constructor which accepts a single RegionEndpoint argument. Use the TestDynamoClient.Attach method to attach to a custom built client"
-        
+
         let param = System.Linq.Expressions.Expression.Parameter(typeof<RegionEndpoint>)
         let args =
             constructor.GetParameters()
             |> Seq.map (function
                 | x when x.ParameterType = typeof<RegionEndpoint> -> param :> Expression
                 | x -> Expression.Constant(x.DefaultValue))
-        
+
         Expression.Lambda<Func<RegionEndpoint, 'a>>(
             Expression.New(constructor, args), param).Compile().Invoke
-        
+
     static member getRuntimePipeline: 'a -> Amazon.Runtime.Internal.RuntimePipeline =
         let param = System.Linq.Expressions.Expression.Parameter(typeof<'a>)
         let p = System.Linq.Expressions.Expression.PropertyOrField(param, "RuntimePipeline")
@@ -57,7 +57,6 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
             .Compile()
             .Invoke
 
-
     static member getOptionalInterceptor client =
         let inline cast (x: IPipelineHandler) = x :?> ObjPipelineInterceptor
 
@@ -66,7 +65,7 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
         |> Seq.filter (fun h -> h.GetType() = typeof<ObjPipelineInterceptor>)
         |> Collection.tryHead
         ?|> cast
-        
+
     static member getRequiredInterceptor client =
         AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor client
         ?|>? fun _ -> invalidOp "Client does not have a database attached"
@@ -91,7 +90,7 @@ type TestDynamoClient =
         else db
 
     static member private attach'<'a when 'a :> AmazonDynamoDBClient> (logger: ILogger voption) struct (db, disposeDb) interceptor (client: 'a) =
-    
+
         let db =
             db
             |> Either.map1Of2 (validateRegion client.Config.RegionEndpoint.SystemName) 
@@ -250,7 +249,7 @@ type TestDynamoClient =
     /// </summary>
     static member attachGlobal<'a when 'a :> AmazonDynamoDBClient> (logger: ILogger voption) (db: GlobalDatabase) (interceptor: IRequestInterceptor voption) (client: 'a): unit =
         struct (Either2 db, false) |> flip1To3 (TestDynamoClient.attach'<'a> logger) interceptor client
-        
+
     static member private attachGlobal'<'a when 'a :> AmazonDynamoDBClient> (logger: ILogger voption) (db: struct (GlobalDatabase * bool)) (interceptor: IRequestInterceptor voption) (client: 'a): unit =
         db |> mapFst Either2 |> flip1To3 (TestDynamoClient.attach'<'a> logger) interceptor client
 

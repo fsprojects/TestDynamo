@@ -588,7 +588,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 Map.find { regionId = "newRegion1" } host.DebugTables
                 |> Collection.singleOrDefault
                 |> Maybe.expectSome
-                
+
             let table2 =
                 Map.find { regionId = "newRegion2" } host.DebugTables
                 |> Collection.singleOrDefault

@@ -23,12 +23,12 @@ type UpdateTableSchema =
 type UpdateTableData =
     { schemaChange: UpdateTableSchema
       deletionProtection: bool voption }
-    
+
     // this empty value is important. It tells the system to ignore certain errors around corruption due to synchronization
     static member empty =
         { schemaChange = UpdateTableSchema.empty
           deletionProtection = ValueNone }
-      
+
 [<Struct; IsReadOnly>]
 type IndexConfigInput =
     { data: CreateIndexData
@@ -206,7 +206,7 @@ module Table =
               indexName = sndT name
               local = local }
             |> Index.empty
-    
+
     type private AddIndexArgs =
         { logger: Logger
           indexName: string

@@ -198,7 +198,7 @@ type IndexInfo =
       indexType: IndexType
       keyConfig: KeyConfig
       projection: ProjectionType
-      
+
       /// <summary>Primary indexes do not have an arn</summary>
       arn: (struct (AwsAccountId * RegionId) -> string) voption }
 

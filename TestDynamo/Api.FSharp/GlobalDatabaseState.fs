@@ -161,7 +161,7 @@ type internal CreateReplicationArgs =
       disposeFactory: ReplicationDisposalFactory
       replicateIndexes: ReplicationIndexes
       dbReplicationKey: DbReplicationKey }
-    
+
 module private CreateReplication =
 
     type ApiDb = TestDynamo.Api.FSharp.Database
@@ -278,9 +278,9 @@ module private CreateReplication =
 
         Logger.log2 "Subscription added %O => %O" fromDb toDb logger
         struct (leftBuffer, leftSubscription)
-        
+
     let private pruneIndexes tableExists retainIndexes table =
-            
+
         let retainIndexes =
             match retainIndexes with
             | ReplicateFromSource x -> ValueSome x
@@ -296,14 +296,14 @@ module private CreateReplication =
                 // delete indexes
                 |> Seq.filter (flip List.contains retainIndexes >> not)
                 |> Seq.fold (flip (Table.deleteIndex Logger.empty)) table
-                
+
             let indexMissing =
                 Table.indexes table
                 |> flip Map.containsKey
                 >> not
                 |> flip List.filter retainIndexes
                 |> Str.join ", "
-                
+
             match indexMissing with
             | "" -> table
             | err ->
@@ -312,7 +312,7 @@ module private CreateReplication =
         ?|? table
 
     let createRightSubscription (args: CreateReplicationArgs) logReplication logger disposer (left: ApiDb) (right: ApiDb)  =
-        
+
         let { tableName = tableName; fromDb = fromDb; toDb = toDb } = args.dbReplicationKey
         let rightSubscriber x c =
             logReplication toDb fromDb x
@@ -332,7 +332,7 @@ module private CreateReplication =
             let clone =
                 pruneIndexes false args.replicateIndexes leftTable.table
                 |> right.AddClonedTable_Internal logger' tableName
-            
+
             let subscriber =
                 { dataType = sndT replicationSubscriberConfig
                   behaviour = fstT replicationSubscriberConfig
@@ -341,7 +341,7 @@ module private CreateReplication =
                 |> ValueSome
                 |> clone
                 |> Maybe.expectSome
-                
+
             Logger.log2 "Subscription added %O => %O" right.Id left.Id logger
             subscriber
 
@@ -350,12 +350,12 @@ module private CreateReplication =
 
     let describeSchemaChangeResult = Logger.describable (fun struct (fromDb, toDb, tableName, indexAdded, indexRemoved) ->
         sprintf "SYNC - %O => %O, %s: index(es) added %A, index(es) removed %A" fromDb toDb tableName indexAdded indexRemoved)
-        
+
     let createReplication
         (args: CreateReplicationArgs)
         logger
         struct (left: TestDynamo.Api.FSharp.Database, struct (right: TestDynamo.Api.FSharp.Database, dbs)): struct (ReplicationDisposalBuilder * GlobalDatabaseState) =
-            
+
         let { tableName = tableName; fromDb = leftId; toDb = rightId } = args.dbReplicationKey
 
         if leftId = rightId then clientError $"Cannot add replication from {leftId} => {rightId}"
@@ -607,7 +607,7 @@ module GlobalDatabaseState =
             Logger.debug0 "Starting AWAIT cycle" logger
             executeMany struct (1, 1)
         |> logOperationAsync "AWAIT DATABASES"
-    
+
     let internal createReplication (args: CreateReplicationArgs) =
         fun logger dbs ->
             let  {fromDb = fromDb; toDb = toDb; tableName = tableName} = args.dbReplicationKey
