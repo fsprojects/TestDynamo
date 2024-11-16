@@ -4,6 +4,7 @@ open System
 open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
+open Microsoft.Extensions.Logging
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
@@ -144,6 +145,23 @@ type GlobalDatabaseState =
 
 type ReplicationDisposalFactory = (Logger -> GlobalDatabaseState -> GlobalDatabaseState) -> IDisposable
 type ReplicationDisposalBuilder = ReplicationDisposalFactory -> IDisposable
+
+[<Struct; IsReadOnly>]
+type ReplicationIndexes =
+    | ReplicateFromSource of string list
+    | ReplicateAll
+    /// <summary>If the replication table exists, keep its indexes. Otherwise don't replicate indexes</summary>
+    | Ignore
+
+type internal CreateReplicationArgs =
+    { /// <summary>If true, no tables or indexes are copied, and only subscriber links are added</summary>
+      linkExistingTables_internal: bool
+      createStreamIfMissing: bool
+      newDbDefaultLogger: ILogger voption
+      disposeFactory: ReplicationDisposalFactory
+      replicateIndexes: ReplicationIndexes
+      dbReplicationKey: DbReplicationKey }
+    
 module private CreateReplication =
 
     type ApiDb = TestDynamo.Api.FSharp.Database
@@ -259,8 +277,42 @@ module private CreateReplication =
 
         Logger.log2 "Subscription added %O => %O" fromDb toDb logger
         struct (leftBuffer, leftSubscription)
+        
+    let private pruneIndexes tableExists retainIndexes table =
+            
+        let retainIndexes =
+            match retainIndexes with
+            | ReplicateFromSource x -> ValueSome x
+            | ReplicateAll -> Table.indexes table |> Map.keys |> List.ofSeq |> ValueSome
+            | Ignore when tableExists -> ValueNone
+            | Ignore -> ValueSome []
 
-    let createRightSubscription tableExists logReplication logger disposer (left: ApiDb) (right: ApiDb) { tableName = tableName; fromDb = fromDb; toDb = toDb } =
+        retainIndexes
+        ?|> (fun retainIndexes ->
+            let table =
+                Table.indexes table
+                |> Map.keys
+                // delete indexes
+                |> Seq.filter (flip List.contains retainIndexes >> not)
+                |> Seq.fold (flip (Table.deleteIndex Logger.empty)) table
+                
+            let indexMissing =
+                Table.indexes table
+                |> flip Map.containsKey
+                >> not
+                |> flip List.filter retainIndexes
+                |> Str.join ", "
+                
+            match indexMissing with
+            | "" -> table
+            | err ->
+                let idx = Table.indexes table |> Map.keys |> List.ofSeq
+                clientError $"Invalid index(es) {err}. Available index(es) are {idx}")
+        ?|? table
+
+    let createRightSubscription (args: CreateReplicationArgs) logReplication logger disposer (left: ApiDb) (right: ApiDb)  =
+        
+        let { tableName = tableName; fromDb = fromDb; toDb = toDb } = args.dbReplicationKey
         let rightSubscriber x c =
             logReplication toDb fromDb x
             |> ingestChange disposer left tableName c
@@ -270,44 +322,47 @@ module private CreateReplication =
             left.DescribeTable_Internal logger' tableName
             |> ValueOption.defaultWith (fun _ -> clientError $"Invalid table {tableName} in database {fromDb}")
 
-        if tableExists then
-            let x = right.SubscribeToStream_Internal (Either2 logger |> ValueSome) tableName replicationSubscriberConfig true rightSubscriber
+        if args.linkExistingTables_internal then
+            let subscriber = right.SubscribeToStream_Internal (Either2 logger |> ValueSome) tableName replicationSubscriberConfig true rightSubscriber
             Logger.log2 "Subscription added %O => %O" right.Id left.Id logger
-            x
+            subscriber
         else
             Logger.log2 "Creating %O/%O" toDb tableName logger
-
-            let x =
+            let clone =
+                pruneIndexes false args.replicateIndexes leftTable.table
+                |> right.AddClonedTable_Internal logger' tableName
+            
+            let subscriber =
                 { dataType = sndT replicationSubscriberConfig
                   behaviour = fstT replicationSubscriberConfig
                   subscriber = rightSubscriber
                   addDeletionProtection = true }
                 |> ValueSome
-                |> right.AddClonedTable_Internal logger' tableName leftTable.table
+                |> clone
                 |> Maybe.expectSome
+                
             Logger.log2 "Subscription added %O => %O" right.Id left.Id logger
-            x
+            subscriber
 
     let describeCdcResult = Logger.describable (fun struct (fromDb, toDb, tableName, added, removed) ->
         sprintf "SYNC - %O => %O, %s: added %i, removed %i" fromDb toDb tableName added removed)
 
     let describeSchemaChangeResult = Logger.describable (fun struct (fromDb, toDb, tableName, indexAdded, indexRemoved) ->
         sprintf "SYNC - %O => %O, %s: index(es) added %A, index(es) removed %A" fromDb toDb tableName indexAdded indexRemoved)
-
+        
     let createReplication
-        tableExists
-        createStreamIfMissing
-        newDbDefaultLogger
+        (args: CreateReplicationArgs)
         logger
-        ({ tableName = tableName; fromDb = leftId; toDb = rightId } & subscriptionId)
         struct (left: TestDynamo.Api.FSharp.Database, struct (right: TestDynamo.Api.FSharp.Database, dbs)): struct (ReplicationDisposalBuilder * GlobalDatabaseState) =
+            
+        let { tableName = tableName; fromDb = leftId; toDb = rightId } = args.dbReplicationKey
 
         if leftId = rightId then clientError $"Cannot add replication from {leftId} => {rightId}"
-        left.TryDescribeTable newDbDefaultLogger tableName
+        left.TryDescribeTable args.newDbDefaultLogger tableName
         ?|> ignoreTyped<TableDetails>
         |> ValueOption.defaultWith (fun _ -> clientError $"Cannot find table {leftId}/{tableName}")
 
-        match struct (createStreamIfMissing, left.StreamsEnabled tableName) with
+        match struct (args.createStreamIfMissing, left.StreamsEnabled tableName) with
         | struct (_, true) -> ()
         | false, false ->
             clientError $"Replications must be added to tables with streams enabled"
@@ -322,7 +377,7 @@ module private CreateReplication =
             |> ignoreTyped<TableDetails>
 
         let logReplication =
-            let replicationLogger = DatabaseLogger.buildLogger ValueNone newDbDefaultLogger
+            let replicationLogger = DatabaseLogger.buildLogger ValueNone args.newDbDefaultLogger
 
             fun fromDb toDb -> function
                 | { databaseChange = OnChange (ChangeDataCapture packet) } & p ->
@@ -349,7 +404,7 @@ module private CreateReplication =
         // used to delete the subscriptions if a table has been deleted    
         let disposer = DisposeOnTableDeletion.create ()
         let struct (leftBuffer, leftSubscription) =
-            createLeftSubscription logReplication logger left subscriptionId
+            createLeftSubscription logReplication logger left args.dbReplicationKey
 
         let logger' = logger |> Either2 |> ValueSome
         try
@@ -357,7 +412,7 @@ module private CreateReplication =
                 left.DescribeTable_Internal logger' tableName
                 |> ValueOption.defaultWith (fun _ -> clientError $"Invalid table {tableName} in database {leftId}")
 
-            let rightSubscription = createRightSubscription tableExists logReplication logger disposer left right subscriptionId
+            let rightSubscription = createRightSubscription args logReplication logger disposer left right
             try
                 Logger.log2 "Streaming to %O/%O" rightId tableName logger
 
@@ -374,16 +429,16 @@ module private CreateReplication =
                         | Either1 q -> struct ((), buildConsumer q |> Either2)) leftBuffer
 
                 let subscriptionIdReversed =
-                    { tableName = subscriptionId.tableName
-                      fromDb = subscriptionId.toDb
-                      toDb = subscriptionId.fromDb }
+                    { tableName = args.dbReplicationKey.tableName
+                      fromDb = args.dbReplicationKey.toDb
+                      toDb = args.dbReplicationKey.fromDb }
 
-                match MapUtils.tryFind subscriptionId dbs.replications, MapUtils.tryFind subscriptionIdReversed dbs.replications with
+                match MapUtils.tryFind args.dbReplicationKey dbs.replications, MapUtils.tryFind subscriptionIdReversed dbs.replications with
                 | ValueSome _, _
                 | _, ValueSome _ ->
-                    clientError $"Concurrency error. Attempting to add multiple replications between databases: {subscriptionId}"
+                    clientError $"Concurrency error. Attempting to add multiple replications between databases: {args.dbReplicationKey}"
                 | ValueNone, ValueNone ->
-                    recordReplication subscriptionId leftSubscription subscriptionIdReversed rightSubscription dbs
+                    recordReplication args.dbReplicationKey leftSubscription subscriptionIdReversed rightSubscription dbs
                     |> mapFst (fun dispose createDispose ->
                         let disposable = createDispose dispose
                         DisposeOnTableDeletion.disposalReady disposable disposer
@@ -397,7 +452,7 @@ module private CreateReplication =
             let deleteDisposable =
                 { new IDisposable with
                     member this.Dispose() =
-                        right.TryDeleteTable newDbDefaultLogger tableName
+                        right.TryDeleteTable args.newDbDefaultLogger tableName
                         |%|> (
                             ValueOption.map ignoreTyped<TableDetails>
                             >> ValueOption.defaultValue ())
@@ -457,8 +512,9 @@ module GlobalDatabaseState =
 
                 if twoWayUpdate
                 then
-                    MapUtils.tryFind (DbReplicationKey.rev replicationId) state.replications
-                    |> Maybe.expectSomeErr "Could not find replication %A" replicationId
+                    let repIdRev = DbReplicationKey.rev replicationId
+                    MapUtils.tryFind repIdRev state.replications
+                    |> Maybe.expectSomeErr "Could not find replication %A" repIdRev
                     |> tpl replicationId.toDb
                     |> ValueSome
                 else ValueNone
@@ -508,63 +564,63 @@ module GlobalDatabaseState =
         ensureDatabase' defaultLogger databaseId
         |> logOperation "FINDING DATABASE"
 
-    let awaitAllSubscribers =
-        fun (c: CancellationToken) ->
-            fun logger -> unwrap >> fun dbs ->
+    let awaitAllSubscribers (c: CancellationToken) =
+        fun logger -> unwrap >> fun dbs ->
 
-                let loggerArg = logger |> Either2 |> ValueSome
-                let execute () =
-                    dbs.databases
-                    |> MapUtils.toSeq
-                    |> Seq.map (fun struct (_, db) -> db.AwaitAllSubscribers_Internal loggerArg c)
-                    |> List.ofSeq
-                    |> Io.traverse
-                    |%|> List.concat
-                    |%|> (function
-                        | [] -> ()
-                        | errs -> StreamException.streamExceptions errs |> raise)
+            let loggerArg = logger |> Either2 |> ValueSome
+            let execute () =
+                dbs.databases
+                |> MapUtils.toSeq
+                |> Seq.map (fun struct (_, db) -> db.AwaitAllSubscribers_Internal loggerArg c)
+                |> List.ofSeq
+                |> Io.traverse
+                |%|> List.concat
+                |%|> (function
+                    | [] -> ()
+                    | errs -> StreamException.streamExceptions errs |> raise)
 
-                // waitForStabalizationTime (ms) is the amount of time to wait between AWAIT attempts
-                // This is designed to wait for propagations which trigger more propagations, and even though the system
-                // may be at rest, it also may be about to kick off another propagation
-                let rec executeMany struct (waitForStabalizationTime: int, count) =
-                    c.ThrowIfCancellationRequested()
-                    if waitForStabalizationTime > 60_000 then serverError "Wait timeout"
-                    if waitForStabalizationTime < 1 then serverError "An unexpected error has occurred"
+            // waitForStabalizationTime (ms) is the amount of time to wait between AWAIT attempts
+            // This is designed to wait for propagations which trigger more propagations, and even though the system
+            // may be at rest, it also may be about to kick off another propagation
+            let rec executeMany struct (waitForStabalizationTime: int, count) =
+                c.ThrowIfCancellationRequested()
+                if waitForStabalizationTime > 60_000 then serverError "Wait timeout"
+                if waitForStabalizationTime < 1 then serverError "An unexpected error has occurred"
 
-                    let result = execute ()
-                    if result.IsCompleted
-                    then
-                        Logger.debug1 "AWAIT cycle complete after %i attempts" count logger
-                        result
-                    else
-                        let threadId = Thread.CurrentThread.ManagedThreadId
-                        task {
-                            do! result
-                            Logger.debug1 "Nothing in progress. Waiting for stabalization time %ims" waitForStabalizationTime logger
-                            c.ThrowIfCancellationRequested()
-                            do! Task.Delay(waitForStabalizationTime).ConfigureAwait(false)
-                            c.ThrowIfCancellationRequested()
-                            // non tail call recursion is capped by wait timeout above
-                            do! executeMany (waitForStabalizationTime * 2, count + 1)
-                            Logger.debug1 "Awaiter diverted off thread; from/to: %A" struct (threadId, Thread.CurrentThread.ManagedThreadId) logger
+                let result = execute ()
+                if result.IsCompleted
+                then
+                    Logger.debug1 "AWAIT cycle complete after %i attempts" count logger
+                    result
+                else
+                    let threadId = Thread.CurrentThread.ManagedThreadId
+                    task {
+                        do! result
+                        Logger.debug1 "Nothing in progress. Waiting for stabalization time %ims" waitForStabalizationTime logger
+                        c.ThrowIfCancellationRequested()
+                        do! Task.Delay(waitForStabalizationTime).ConfigureAwait(false)
+                        c.ThrowIfCancellationRequested()
+                        // non tail call recursion is capped by wait timeout above
+                        do! executeMany (waitForStabalizationTime * 2, count + 1)
+                        Logger.debug1 "Awaiter diverted off thread; from/to: %A" struct (threadId, Thread.CurrentThread.ManagedThreadId) logger
 
-                            return ()
-                        } |> ValueTask<unit>
+                        return ()
+                    } |> ValueTask<unit>
 
-                Logger.debug0 "Starting AWAIT cycle" logger
-                executeMany struct (1, 1)
-            |> logOperationAsync "AWAIT DATABASES"
-
-    let createReplication tableExists createStreamIfMissing newDbDefaultLogger disposeFactory ({fromDb = fromDb; toDb = toDb; tableName = tableName} & id) =
+            Logger.debug0 "Starting AWAIT cycle" logger
+            executeMany struct (1, 1)
+        |> logOperationAsync "AWAIT DATABASES"
+    
+    let internal createReplication (args: CreateReplicationArgs) =
         fun logger dbs ->
+            let  {fromDb = fromDb; toDb = toDb; tableName = tableName} = args.dbReplicationKey
             Logger.log2 "Creating replication %O => %O" fromDb toDb logger 
 
-            ensureDatabase' newDbDefaultLogger fromDb logger dbs
-            |> mapSnd (ensureDatabase' newDbDefaultLogger toDb logger)
+            ensureDatabase' args.newDbDefaultLogger fromDb logger dbs
+            |> mapSnd (ensureDatabase' args.newDbDefaultLogger toDb logger)
             |> mapSnd (mapSnd unwrap)
-            |> CreateReplication.createReplication tableExists createStreamIfMissing newDbDefaultLogger logger id
-            |> mapFst (apply disposeFactory)    // mutable operation
+            |> CreateReplication.createReplication args logger
+            |> mapFst (apply args.disposeFactory)    // mutable operation
             |> sndT
         |> logOperation "CREATE REPLICATION"
 

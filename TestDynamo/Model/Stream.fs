@@ -600,8 +600,8 @@ module TableStreams =
         fun logger -> function
         | Strs streams ->
             match MapUtils.tryFind table streams with
-            | ValueNone -> clientError $"Cannot find table \"{table}\" for stream creation"
-            | ValueSome ValueNone -> clientError $"Streams are disabled for table \"{table}\""
+            | ValueNone -> clientError $"Cannot find table \"{table}\" on database \"{databaseId}\" for stream creation"
+            | ValueSome ValueNone -> clientError $"Streams are disabled for table \"{table}\" on database \"{databaseId}\""
             | ValueSome (ValueSome config) ->
 
                 Stream.addSubscriber behaviour dataType subscriber deletionProtection config

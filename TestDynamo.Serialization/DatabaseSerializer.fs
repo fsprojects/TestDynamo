@@ -19,8 +19,10 @@ type VersionedData<'a>(
 
     member _.version = version
     member _.data = data
+    
+    static member getData (x: VersionedData<'a>) = x.data
 
-module private BaseSerializer =
+module RawSerializers =
 
     let options =
         let opts () =
@@ -41,25 +43,32 @@ module private BaseSerializer =
 
         let write indent data =
             let opts = options indent
-            JsonSerializer.Serialize(VersionedData<_>(data, VersionedData<_>.currentVersion), opts)
-
+            JsonSerializer.Serialize(data, opts)
+        
         let read<'a> (json: string) =
             let opts = options false
-            JsonSerializer.Deserialize<VersionedData<'a>>(json, opts).data
+            JsonSerializer.Deserialize<'a>(json, opts)
+
+        let internal writeVersioned indent data =
+            VersionedData<_>(data, VersionedData<_>.currentVersion)
+            |> write indent
+
+        let internal readVersioned<'a> x =
+            read<VersionedData<'a>> x |> VersionedData<_>.getData
 
     module Streams =
 
-        let write indent stream data =
+        let internal writeVersioned indent stream data =
             let opts = options indent
             JsonSerializer.Serialize(utf8Json = stream, options = opts, value = VersionedData<_>(data, VersionedData<_>.currentVersion))
 
-        let read<'a> (stream: Stream) =
+        let internal readVersioned<'a> (stream: Stream) =
             let opts = options false
             JsonSerializer.Deserialize<VersionedData<'a>>(utf8Json = stream, options = opts).data
 
-        let create indent data =
+        let internal createVersioned indent data =
             let ms = new MemoryStream()
-            write indent ms data
+            writeVersioned indent ms data
             ms.Position <- 0
             ms
 
@@ -84,17 +93,17 @@ module private BaseSerializer =
 
 module DatabaseSerializer =
 
-    let private toString = BaseSerializer.Strings.write
+    let private toString = RawSerializers.Strings.writeVersioned
 
-    let private toStream = BaseSerializer.Streams.write
+    let private toStream = RawSerializers.Streams.writeVersioned
 
     let private toStreamAsync indent c =
-        flip (BaseSerializer.StreamsAsync.write indent) c
+        flip (RawSerializers.StreamsAsync.write indent) c
         >>> ValueTask
 
     let private toFile indent file data =
         use file = File.OpenWrite file
-        BaseSerializer.Streams.write indent file data
+        RawSerializers.Streams.writeVersioned indent file data
 
     let private toFileAsync indent c file data =
         ValueTask<_>(task = task {
@@ -102,21 +111,21 @@ module DatabaseSerializer =
             return! toStreamAsync indent c file data
         })
 
-    let private createStream = BaseSerializer.Streams.create
+    let private createStream = RawSerializers.Streams.createVersioned
 
     let private createStreamAsync =
-        BaseSerializer.StreamsAsync.create
+        RawSerializers.StreamsAsync.create
 
-    let private fromString = BaseSerializer.Strings.read
+    let private fromString = RawSerializers.Strings.readVersioned
 
-    let private fromStream = BaseSerializer.Streams.read
+    let private fromStream = RawSerializers.Streams.readVersioned
 
     let private fromStreamAsync c str =
-        BaseSerializer.StreamsAsync.read str c
+        RawSerializers.StreamsAsync.read str c
 
     let private fromFile file =
         use file = File.OpenRead file
-        BaseSerializer.Streams.read file
+        RawSerializers.Streams.readVersioned file
 
     let private fromFileAsync c file =
         ValueTask<_>(task = task {
@@ -131,7 +140,7 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>] schemaOnly,
             [<Optional; DefaultParameterValue(false)>] indent) = toSerializable schemaOnly data |> toString indent
         member _.FromString(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromString json |> fromSerializable (CSharp.toOption logger)
-
+        
         member _.ToStream(
             data,
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
@@ -141,7 +150,7 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
             [<Optional; DefaultParameterValue(false)>]indent,
             [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> createStreamAsync indent c
-
+        
         member _.WriteToStream(
             data,
             stream,
@@ -164,13 +173,13 @@ module DatabaseSerializer =
             [<Optional; DefaultParameterValue(false)>]schemaOnly,
             [<Optional; DefaultParameterValue(false)>]indent,
             [<Optional; DefaultParameterValue(CancellationToken())>]c) = toSerializable schemaOnly data |> toFileAsync indent c file
-
+        
         member _.FromStream(json, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromStream json |> fromSerializable (CSharp.toOption logger)
         member _.FromStreamAsync(
             json,
             [<Optional; DefaultParameterValue(null: ILogger)>] logger,
             [<Optional; DefaultParameterValue(CancellationToken())>] c) = fromStreamAsync c json |%|> fromSerializable (CSharp.toOption logger)
-
+        
         member _.FromFile(file, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = fromFile file |> fromSerializable (CSharp.toOption logger)
         member _.FromFileAsync(
             file,

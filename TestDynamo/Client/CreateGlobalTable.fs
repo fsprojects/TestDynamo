@@ -3,10 +3,10 @@
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Data.BasicStructures
 open TestDynamo.Client
 open TestDynamo.Model
 open TestDynamo.Api.FSharp
+open TestDynamo.Utils
 
 type MList<'a> = System.Collections.Generic.List<'a>
 
@@ -17,7 +17,8 @@ let inputs (req: CreateGlobalTableRequest) =
         |> CSharp.sanitizeSeq
         |> Seq.collect (fun x ->
              [
-                 CreateOrDelete.Create { regionId = CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName }
+                 { copyIndexes = ReplicateAll
+                   databaseId = { regionId = CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName } } |> Either1
              ])
         |> List.ofSeq
 

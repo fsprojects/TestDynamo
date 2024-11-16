@@ -19,7 +19,7 @@ type TableBuilder =
       lsis: Map<string, struct (string * string voption * Projection)>
       deletionProtection: bool voption
       streamType: CreateOrDelete<unit> voption
-      createRegionReplications: string list
+      createRegionReplications: struct (string * string list) list
       deleteRegionReplications: string list }
     with
 
@@ -63,8 +63,8 @@ type TableBuilder =
             attr)
         |> Enumerable.ToList
 
-    static member withReplication regionName x =
-        { x with createRegionReplications = regionName::x.createRegionReplications }
+    static member withReplication regionName indexes x =
+        { x with createRegionReplications = struct (regionName, indexes)::x.createRegionReplications }
 
     static member withReplicationDelete regionName x =
         { x with deleteRegionReplications = regionName::x.deleteRegionReplications }
@@ -186,7 +186,14 @@ type TableBuilder =
 
             output.ReplicaUpdates.Add(ReplicationGroupUpdate())
             output.ReplicaUpdates[output.ReplicaUpdates.Count - 1].Create <- CreateReplicationGroupMemberAction()
-            output.ReplicaUpdates[output.ReplicaUpdates.Count - 1].Create.RegionName <- x
+            output.ReplicaUpdates[output.ReplicaUpdates.Count - 1].Create.RegionName <- fstT x
+            output.ReplicaUpdates[output.ReplicaUpdates.Count - 1].Create.GlobalSecondaryIndexes <-
+                sndT x
+                |> Seq.map (fun x ->
+                    let i = ReplicaGlobalSecondaryIndex()
+                    i.IndexName <- x
+                    i)
+                |> MList<_>
             s) ()
 
         x.deleteRegionReplications

@@ -160,7 +160,7 @@ type SmokeTests(output: ITestOutputHelper) =
         
         // assert - these dbs were not disposed
         db1.TableBuilder("table1", ("pp", "S")).AddTable()
-        (new Api.Database(db2.GetDatabase({ regionId = "db-bd" }))).TableBuilder("table1", ("pp", "S")).AddTable()
+        (db2.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable()
         
         // assert - these dbs were disposed
         let e = Assert.ThrowsAny(fun _ ->
@@ -168,7 +168,7 @@ type SmokeTests(output: ITestOutputHelper) =
         assertError output "has been disposed" e
         
         let e = Assert.ThrowsAny(fun _ ->
-            (new Api.Database(db4.GetDatabase({ regionId = "db-bd" }))).TableBuilder("table1", ("pp", "S")).AddTable())
+            (db4.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable())
         assertError output "has been disposed" e
 
     [<Fact>]

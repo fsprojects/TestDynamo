@@ -53,7 +53,7 @@ type Exploration(output: ITestOutputHelper) =
             do!
                 TableBuilder.empty
                 |> TableBuilder.withTableName tableName
-                |> TableBuilder.withReplication dbTo.regionId
+                |> TableBuilder.withReplication dbTo.regionId []
                 |> TableBuilder.updateReq
                 |> clientFrom.UpdateTableAsync
                 |> Io.ignoreTask

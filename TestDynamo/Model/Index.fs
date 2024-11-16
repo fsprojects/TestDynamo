@@ -57,13 +57,13 @@ type private DeletedItems =
 
     static member add item (Dis x) = DeletedItems.add' struct (0, item, x) |> Dis
 
-    static member tryGetSuperceedingDelete struct (item, keys) (Dis xs) =
+    static member tryGetSupersedingDelete struct (item, keys) (Dis xs) =
         let hasSk = KeyConfig.sortKeyDefinition keys
         let attrs = Item.attributes item
 
         let itemId = item |> Item.internalId |> IncrementingId.value
-        let superceeding = Seq.takeWhile (fun x -> x.deleteId.Value >= itemId) xs
-        match Collection.tryHeadAndReturnUnmodified superceeding with
+        let superseding = Seq.takeWhile (fun x -> x.deleteId.Value >= itemId) xs
+        match Collection.tryHeadAndReturnUnmodified superseding with
         | ValueNone, _ -> ValueNone
         | ValueSome _, items ->
             let inline filter struct (pk, sk) x = x.partitionKey = pk && x.sortKey = sk
@@ -198,7 +198,7 @@ type IndexInfo =
       indexType: IndexType
       keyConfig: KeyConfig
       projection: ProjectionType
-
+      
       /// <summary>Primary indexes do not have an arn</summary>
       arn: (struct (AwsAccountId * RegionId) -> string) voption }
 
@@ -319,11 +319,9 @@ module Index =
                         $"arn:aws:dynamodb:{region}:{awsAccount}:table/{config.tableName}/index/{name}" } }
         |> Idx
 
-    let getVersion = function
-        | Idx {data = data} -> IndexItems.version data
+    let getVersion (Idx {data = data}) = IndexItems.version data
 
-    let getArn location = function
-        | Idx {info = {arn = arn}} -> arn <|? ValueSome location
+    let getArn location (Idx {info = {arn = arn}}) = arn <|? ValueSome location
 
     let getName (Idx {info = info}) = info.name
 
@@ -335,55 +333,48 @@ module Index =
         | Idx {info = {indexType = LocalSecondary _}} -> true
         | _ -> false
 
-    let partitionKeyName = function
-        | Idx {info = {keyConfig = c}} -> KeyConfig.partitionKeyName c
+    let partitionKeyName (Idx {info = {keyConfig = c}}) = KeyConfig.partitionKeyName c
 
-    let partitionKey item = function
-        | Idx {info = {keyConfig = c}} -> KeyConfig.partitionKey (Item.attributes item) c
+    let partitionKey item (Idx {info = {keyConfig = c}}) = KeyConfig.partitionKey (Item.attributes item) c
 
-    let hasSortKey = function
-        | Idx {info = {keyConfig = k}} -> KeyConfig.hasSortKey k
+    let hasSortKey (Idx {info = {keyConfig = k}}) = KeyConfig.hasSortKey k
 
-    let sortKeyName = function
-        | Idx {info = {keyConfig = c}} -> KeyConfig.sortKeyName c
+    let sortKeyName (Idx {info = {keyConfig = c}}) = KeyConfig.sortKeyName c
 
-    let sortKey item = function
-        | Idx {info = {keyConfig = c}} -> KeyConfig.sortKey (Item.attributes item) c
+    let sortKey item (Idx {info = {keyConfig = c}}) = KeyConfig.sortKey (Item.attributes item) c
 
     let keyConfig (Idx {info = {keyConfig = k}}) = k
 
-    let itemCount = function
-        | Idx {data = data} -> IndexItems.itemCount data
+    let itemCount (Idx {data = data}) = IndexItems.itemCount data
 
     let projections (Idx {info = {projection = p}}) = p
 
-    let describe = function
-        | Idx {info = {compositeName = n; keyConfig = k; projection = p}} ->
-            let keyDescription = KeyConfig.describe k |> List.map (fun x -> $"  {x}")
-            let attributes =
-                ProjectionType.cols p
-                ?|> (Seq.map (sprintf "    %s"))
-                ?|> (Collection.concat2 ["  Projections:"])
-                |> ValueOption.defaultValue ["  Projections: ALL"]
+    let describe (Idx {info = {compositeName = n; keyConfig = k; projection = p}}) =
+        let keyDescription = KeyConfig.describe k |> List.map (fun x -> $"  {x}")
+        let attributes =
+            ProjectionType.cols p
+            ?|> (Seq.map (sprintf "    %s"))
+            ?|> (Collection.concat2 ["  Projections:"])
+            |> ValueOption.defaultValue ["  Projections: ALL"]
 
-            n::(Collection.concat2 keyDescription attributes |> List.ofSeq)
+        n::(Collection.concat2 keyDescription attributes |> List.ofSeq)
 
     let inline private seqify xs: 'a seq = xs
 
-    let get partitionKey sortKey = function
-        | Idx {data = data; info = {keyConfig = keyConfig}} ->
-            if KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey
-            then clientError "Invalid partition key type"
+    let get partitionKey sortKey (Idx {data = data; info = {keyConfig = keyConfig}}) =
+        if KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey
+        then clientError "Invalid partition key type"
 
-            if KeyConfig.sortKeyType keyConfig <> ValueOption.map AttributeValue.getType sortKey
-            then clientError "Invalid sort key type"
+        if KeyConfig.sortKeyType keyConfig <> ValueOption.map AttributeValue.getType sortKey
+        then clientError "Invalid sort key type"
 
-            IndexItems.partitions data
-            |> AvlTree.tryFind partitionKey
-            ?|> (Partition.get sortKey)
-            |> ValueOption.defaultValue Seq.empty
+        IndexItems.partitions data
+        |> AvlTree.tryFind partitionKey
+        ?|> (Partition.get sortKey)
+        |> ValueOption.defaultValue Seq.empty
 
-    let getPartition logger partitionKey = function
+    let getPartition logger partitionKey index =
+        match index with
         | Idx {info = {keyConfig = keyConfig}} & idx when KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey ->
             let actual = AttributeValue.getType partitionKey
             let expected = KeyConfig.partitionType keyConfig
@@ -391,11 +382,9 @@ module Index =
 
         | Idx {data = data} -> IndexItems.partitions data |> AvlTree.tryFind partitionKey
 
-    let private getPartitions = function
-        | Idx {data = data} -> IndexItems.partitions data
+    let private getPartitions (Idx {data = data}) = IndexItems.partitions data
 
-    let getKeyConfig = function
-        | Idx index -> index.info.keyConfig
+    let getKeyConfig (Idx index) = index.info.keyConfig
 
     let scan lastEvaluatedPartitionKey forward inclusive index =
         let struct (start, ``end``) =
@@ -428,36 +417,36 @@ module Index =
     let private validateResultPrecedence struct (logger, index) struct (changeResult: ChangeResult, partition) =
 
         // mini cache. Can't find a way to use match statements without calling this fn twice
-        let mutable superceedingDeleteCache = ValueNone 
-        let superceedingDelete item =
-            match superceedingDeleteCache with
+        let mutable supersedingDeleteCache = ValueNone 
+        let supersedingDelete item =
+            match supersedingDeleteCache with
             | ValueSome struct (input, output) when input = item -> output
             | _ ->
-                superceedingDeleteCache <-
+                supersedingDeleteCache <-
                     IndexItems.recentlyDeleted index.data
-                    |> flip DeletedItems.tryGetSuperceedingDelete
+                    |> flip DeletedItems.tryGetSupersedingDelete
                     |> apply struct (item, index.info.keyConfig)
                     |> tpl item
                     |> ValueSome
 
-                ValueOption.bind sndT superceedingDeleteCache    
+                ValueOption.bind sndT supersedingDeleteCache    
 
         match struct (index.info.isPrimary, changeResult.Put, changeResult.Deleted) with
 
         // the item replaced by the put was added after the put
         | true, ValueSome put, ValueSome del when Item.compareByCreationOrder put del < 0 ->
-            Logger.debug1 "PUT item superceeded by existing data (put, existing) %A" (put, del) logger
+            Logger.debug1 "PUT item superseded by existing data (put, existing) %A" (put, del) logger
             struct ([], NotChanged)
 
         // the put item has already been deleted
-        | true, ValueSome put, _ when superceedingDelete put |> ValueOption.isSome ->
-            let delId = superceedingDelete put |> Maybe.expectSome
-            Logger.debug1 "PUT item superceeded by previous delete (put, delete) %A" (put, delId) logger
+        | true, ValueSome put, _ when supersedingDelete put |> ValueOption.isSome ->
+            let delId = supersedingDelete put |> Maybe.expectSome
+            Logger.debug1 "PUT item superseded by previous delete (put, delete) %A" (put, delId) logger
             struct ([changeResult; ChangeResult.ofDelete delId put], NotChanged)
 
         // the item removed by the delete was added after the delete
         | true, ValueNone, ValueSome delete when (Item.internalId delete).Value > changeResult.Id.Value ->
-            Logger.debug1 "DELETE item superceeded by existing data (deleted, existing) %A" (delete, changeResult.Id) logger
+            Logger.debug1 "DELETE item superseded by existing data (deleted, existing) %A" (delete, changeResult.Id) logger
             struct ([], NotChanged)
 
         | _, put, del ->
@@ -494,21 +483,19 @@ module Index =
             let struct (x, y) = IndexResource.afterMutation logger result index partition
             struct (x, Idx y)
 
-        fun logger item ->
-            function
-            | Idx index ->
-                let inline newPartition _ = createPartition index.info logger item
-                let k = partitionKey logger index.info.keyConfig item
+        fun logger item (Idx index) ->
+            let inline newPartition _ = createPartition index.info logger item
+            let k = partitionKey logger index.info.keyConfig item
 
-                IndexItems.partitions index.data
-                |> AvlTree.tryFind k
-                ?|> (Partition.put item)
-                |> ValueOption.defaultWith newPartition
-                |> mapSnd Changed
-                |> validateResultPrecedence struct (logger, index)
-                |> mapFst (ChangeResults.ofPartitionChangeResults index.info.keyConfig)
-                |> mapSnd (PartitionChangeResult.asReplaceCommand k)
-                |> complete logger index
+            IndexItems.partitions index.data
+            |> AvlTree.tryFind k
+            ?|> (Partition.put item)
+            |> ValueOption.defaultWith newPartition
+            |> mapSnd Changed
+            |> validateResultPrecedence struct (logger, index)
+            |> mapFst (ChangeResults.ofPartitionChangeResults index.info.keyConfig)
+            |> mapSnd (PartitionChangeResult.asReplaceCommand k)
+            |> complete logger index
 
     let emptyIndexChangeResult (Idx {info = {keyConfig = keyConfig}; data = data}) =
         ChangeResults.empty keyConfig |> flip IndexItems.indexChangeResult data
@@ -546,7 +533,7 @@ module Index =
             let struct (x, y) = IndexResource.afterMutation logger result index partition
             struct (x, Idx y)
 
-        let private buildDeleteAttempt struct (deleteId, item, Idx { info = { keyConfig = keys } }) =
+        let private buildDeleteAttempt struct (deleteId, item, Idx { info = {keyConfig = keys}}) =
             { deleteId = deleteId |> ValueOption.defaultWith IncrementingId.next
               partitionKey = KeyConfig.partitionKeyWithName item keys
               sortKey = KeyConfig.sortKeyWithName item keys }
@@ -561,8 +548,8 @@ module Index =
             let keys = keyConfig index
             ChangeResults.create keys crs deleteAttempts
 
-    let deleteItem logger (struct (deleteId, item) & iWithId) =
-        function
+    let deleteItem logger (struct (deleteId, item) & iWithId) index =
+        match index with
         | Idx {info = {keyConfig=keys}} & idx when itemIsValidOnSparseIndex item idx |> not ->
             emptyIndexChangeResult idx |> flip tpl idx
 

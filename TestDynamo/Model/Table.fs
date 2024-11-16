@@ -6,7 +6,6 @@ open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Data.BasicStructures
 
-[<Struct; IsReadOnly>]
 type UpdateTableData =
     { // it is possible to create and delete an index in the same request
       // deletes are always processed first
@@ -22,7 +21,7 @@ type UpdateTableData =
           createGsi = Map.empty
           attributes = List.empty
           deletionProtection = ValueNone }
-
+      
 [<Struct; IsReadOnly>]
 type IndexConfigInput =
     { data: CreateIndexData
@@ -200,7 +199,7 @@ module Table =
               indexName = sndT name
               local = local }
             |> Index.empty
-
+    
     type private AddIndexArgs =
         { logger: Logger
           indexName: string
@@ -367,7 +366,7 @@ module Table =
             | err, 0 -> sprintf "Error adding new index\n%s" err |> clientErrorWithData itemNotValidOnIndexData
             | err, x -> sprintf "Error adding new index\n%s\n  + %i more items" err x |> clientErrorWithData itemNotValidOnIndexData
 
-    let updateTable (req: UpdateTableData) logger (Tbl data & t) =
+    let internal updateTable (req: UpdateTableData) logger (Tbl data & t) =
         Logger.log1 "Updating table %O" t logger
 
         let afterDeleted =

@@ -393,7 +393,7 @@ type GetItemTests(output: ITestOutputHelper) =
             use dHost = new GlobalDatabase(host.BuildCloneData())
             use client = TestDynamoClientBuilder.Create(dHost, host.Id)
             let table = Tables.get true true tables
-            dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>
+            dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [Either1 { copyIndexes = ReplicateAll; databaseId = {regionId = "new-region" }}] } |> ignoreTyped<TableDetails>
             do! dHost.AwaitAllSubscribers writer CancellationToken.None
 
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
@@ -471,7 +471,7 @@ type GetItemTests(output: ITestOutputHelper) =
             use dHost = new GlobalDatabase(host.BuildCloneData())
 
             use client = TestDynamoClientBuilder.Create(dHost, host.Id)
-            dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [CreateOrDelete.Create {regionId = "new-region" }] } |> ignoreTyped<TableDetails>
+            dHost.UpdateTable host.Id writer table.name { createStreamsForReplication = true; replicaInstructions = [Either1 { copyIndexes = ReplicateAll; databaseId = {regionId = "new-region" }}] } |> ignoreTyped<TableDetails>
             do! dHost.AwaitAllSubscribers writer CancellationToken.None
 
             let req =

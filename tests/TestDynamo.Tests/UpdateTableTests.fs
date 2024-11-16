@@ -196,7 +196,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                     | ValueSome x ->
                         collector.Emit x
                         let w = new TestLogger(x)
-                        fun (x: GlobalDatabaseCloneData) -> new GlobalDatabase(x, w)
+                        fun (x: GlobalDatabaseClone) -> new GlobalDatabase(x, w)
                     | ValueNone ->
                         fun x -> new GlobalDatabase(x)
 
@@ -226,7 +226,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             let! _ = originalClient.UpdateTableAsync(
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
-                |> TableBuilder.withReplication "another-region"
+                |> TableBuilder.withReplication "another-region" []
                 |> TableBuilder.updateReq)
 
             if ``cloned host``
@@ -543,7 +543,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 TableBuilder.empty
                 |> TableBuilder.withTableName defaultTable
                 |> TableBuilder.withDeleteGsi defaultIndex1
-                |> TableBuilder.withReplication "newRegion"
+                |> TableBuilder.withReplication "newRegion" [defaultIndex2]
                 |> TableBuilder.updateReq
 
             // act
@@ -560,6 +560,44 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             Assert.Equal(defaultTable, table.Name)
             Assert.Equal(1, Seq.length table.Indexes)
+        }
+
+    [<Fact>]
+    let ``Update table, do replication with and without indexes, works`` () =
+
+        task {
+            // arrange
+            use writer = new TestLogger(output)
+            use! host = baseTableWithStream (ValueSome output)
+            use client = TestDynamoClientBuilder.Create(host, defaultDbId, (writer :> ILogger))
+            let req =
+                TableBuilder.empty
+                |> TableBuilder.withTableName defaultTable
+                |> TableBuilder.withReplication "newRegion1" []
+                |> TableBuilder.withReplication "newRegion2" [defaultIndex2]
+                |> TableBuilder.updateReq
+
+            // act
+            let! response = client.UpdateTableAsync req
+            do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
+
+            // assert
+            Assert.Equal(2, response.TableDescription.Replicas.Count)
+
+            let table1 =
+                Map.find { regionId = "newRegion1" } host.DebugTables
+                |> Collection.singleOrDefault
+                |> Maybe.expectSome
+                
+            let table2 =
+                Map.find { regionId = "newRegion2" } host.DebugTables
+                |> Collection.singleOrDefault
+                |> Maybe.expectSome
+
+            Assert.Equal(defaultTable, table1.Name)
+            Assert.Equal(defaultTable, table2.Name)
+            Assert.Equal(0, Seq.length table1.Indexes)
+            Assert.Equal(1, Seq.length table2.Indexes)
         }
 
     [<Theory>]

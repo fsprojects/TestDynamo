@@ -1,6 +1,7 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Serialization.Data.Version1
 
+open System.Threading
 open TestDynamo.Api.FSharp
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
@@ -83,7 +84,7 @@ type SerializableGlobalDatabase(
 module ToSerializable =
     module Database =
 
-        let serializeableIndexMetadata (idx: Index) =
+        let serializableIndexMetadata (idx: Index) =
 
             let sk =
                 Index.keyConfig idx
@@ -119,10 +120,10 @@ module ToSerializable =
                 |> Seq.map Item.attributes
                 |> Array.ofSeq
 
-            SerializableIndex(serializeableIndexMetadata idx, vals)
+            SerializableIndex(serializableIndexMetadata idx, vals)
 
         let emptyIndex idx =
-            SerializableIndex(serializeableIndexMetadata idx, [||])
+            SerializableIndex(serializableIndexMetadata idx, [||])
 
         let serializableTable schemaOnly streamsEnabled (table: Table) =
 
@@ -142,17 +143,17 @@ module ToSerializable =
 
                 Table.indexes table
                 |> MapUtils.toSeq
-                |> Seq.map (sndT >> serializeableIndexMetadata)
+                |> Seq.map (sndT >> serializableIndexMetadata)
                 |> List.ofSeq)
 
-        let toSerializable omitTables schemaOnly (db: Api.FSharp.Database) =
+        let toSerializable replicaTables schemaOnly (db: Api.FSharp.Database) =
             let streamsEnabled = db.StreamsEnabled
             SerializableDatabase(
                 db.Id,
                 db.ListTables ValueNone (ValueNone, System.Int32.MaxValue)
-                |> Seq.filter (fstT >> flip Array.contains omitTables >> not)
-                |> Seq.map (
-                    sndT >> _.table >> serializableTable schemaOnly streamsEnabled)
+                |> Seq.map (fun struct (name, data) ->
+                    let schemaOnly = schemaOnly || replicaTables |> Array.contains name
+                    data.table |> serializableTable schemaOnly streamsEnabled)
                 |> List.ofSeq)
 
     module GlobalDatabase =
@@ -161,10 +162,14 @@ module ToSerializable =
 
             let replications =
                 db.ListReplications ValueNone true
-                |> Seq.map (fun r -> SerializableReplication(r.fromDb, r.toDb, r.tableName))
+                |> Seq.map (fun r ->
+                    let toDb = db.GetDatabase ValueNone r.toDb
+                    let toTable = toDb.DescribeTable ValueNone r.tableName
+                    
+                    SerializableReplication(r.fromDb, r.toDb, r.tableName))
                 |> List.ofSeq
 
-            let tableOmissions databaseId =
+            let replicaTables databaseId =
                 replications
                 |> Seq.filter (_.``to`` >> (=) databaseId)
                 |> Seq.map _.tableName
@@ -173,7 +178,7 @@ module ToSerializable =
             let databases =
                 db.GetDatabases()
                 |> Map.values
-                |> Seq.map (fun db -> Database.toSerializable (tableOmissions db.Id) schemaOnly db)
+                |> Seq.map (fun db -> Database.toSerializable (replicaTables db.Id) schemaOnly db)
                 |> List.ofSeq
 
             SerializableGlobalDatabase(databases, replications)
@@ -181,44 +186,9 @@ module ToSerializable =
 module FromSerializable =
 
     module Database =
-
-        let private indexCols (i: SerializableIndexInfo) =
-            struct (i.keyConfig |> fstT |> fstT, i.keyConfig |> sndT ?|> fstT)
-
-        let private asTableAttributes (t: SerializableTable) =
-            t.primaryIndex.info.keyConfig::(t.secondaryIndexes |> List.map _.keyConfig) 
-            |> List.collect (fun struct (partitionKey, sortKey) -> [ ValueSome partitionKey; sortKey])
-            |> Maybe.traverse
-            |> Seq.distinctBy fstT
-            |> List.ofSeq
-
+        
         let private indexIsLocal (i: SerializableIndexInfo) =
             i.indexType = SerializableIndexType.LocalSecondary
-
-        let private asTableConfig (t: SerializableTable) =
-            let secondaryIndexes =
-                t.secondaryIndexes
-                |> Seq.map (fun i -> struct (
-                    i.indexName |> Maybe.expectSomeErr "Expected index to have a name%s" "",
-                    { isLocal = indexIsLocal i
-                      data =
-                        { keys = indexCols i
-                          projectionsAreKeys = i.projection = SerializableProjectionType.Keys
-                          projectionCols =
-                            match struct (i.projection, i.projectionAttributes) with
-                            | SerializableProjectionType.All, _ -> ValueNone
-                            | SerializableProjectionType.Attributes, attr
-                            | SerializableProjectionType.Keys, attr -> List.ofArray attr |> ValueSome
-                            | _ -> serverError "Invalid projection" }}))
-                |> MapUtils.ofSeq
-
-            { createStream = t.info.streamsEnabled
-              tableConfig =
-                  { name = t.info.name
-                    primaryIndex = indexCols t.primaryIndex.info
-                    indexes = secondaryIndexes
-                    attributes = asTableAttributes t
-                    addDeletionProtection = t.info.hasDeletionProtection } }
 
         let private asPutItemArgs (t: SerializableTable) =
             t.primaryIndex.items
@@ -231,69 +201,90 @@ module FromSerializable =
                         expressionAttrNames = Map.empty
                         returnValues = BasicReturnValues.None } })
 
-        let copyFromromSerializble globalLogger (fromJson: SerializableDatabase) (db: Api.FSharp.Database) =
-
-            fromJson.tables
-            |> Seq.map asTableConfig
-            |> Seq.fold (fun _ ->
-                db.AddTable globalLogger
-                >> ignoreTyped<TableDetails>) ()
+        let addData globalLogger (fromJson: SerializableDatabase) (db: Api.FSharp.Database) =
 
             fromJson.tables
             |> Seq.collect asPutItemArgs
             |> Seq.fold (fun _ ->
                 db.Put globalLogger
                 >> ignoreTyped<Map<string,AttributeValue> voption>) ()
+            
+        let private buildSerializableTable (table: SerializableTable) =
+            let attrs =
+                table.primaryIndex.info::table.secondaryIndexes
+                |> Seq.collect (_.keyConfig >> mapFst ValueSome >> tplToList)
+                |> Maybe.traverse
+                |> Seq.distinctBy fstT
+                |> List.ofSeq
+                
+            let indexKeys (i: SerializableIndexInfo) =
+                i.keyConfig
+                |> mapFst fstT
+                |> mapSnd (ValueOption.map fstT)
+                
+            let index (i: SerializableIndexInfo) =
+                { data =
+                    { keys = indexKeys i
+                      projectionsAreKeys = i.projection = SerializableProjectionType.Keys
+                      projectionCols =
+                        match struct (i.projection, i.projectionAttributes) with
+                        | SerializableProjectionType.All, _ -> ValueNone
+                        | SerializableProjectionType.Attributes, attr
+                        | SerializableProjectionType.Keys, attr -> List.ofArray attr |> ValueSome
+                        | _ -> serverError "Invalid projection" }
+                  isLocal = indexIsLocal i } |> tpl (i.indexName |> Maybe.expectSomeErr "Expected index to have a name%s" "")
+                
+            { name = table.info.name
+              primaryIndex = indexKeys table.primaryIndex.info
+              indexes = table.secondaryIndexes |> Seq.map index |> MapUtils.ofSeq
+              attributes = attrs
+              addDeletionProtection = table.info.hasDeletionProtection }
+            
+        let buildCloneSchema (fromJson: SerializableDatabase) =
+            { databaseId = fromJson.databaseId
+              data =
+                  { initialState =
+                        fromJson.tables
+                        |> Seq.fold (fun s ->
+                            buildSerializableTable
+                            >> flip1To3 DatabaseTables.addTable Logger.empty s) DatabaseTables.empty
+                    streamsEnabled =
+                        fromJson.tables
+                        |> Seq.filter _.info.streamsEnabled
+                        |> Seq.map _.info.name
+                        |> List.ofSeq }}
 
         let fromSerializable globalLogger (fromJson: SerializableDatabase) =
-
-            let db = new Api.FSharp.Database(fromJson.databaseId)
-            copyFromromSerializble globalLogger fromJson db
+            
+            let cloneSchema = buildCloneSchema fromJson
+            let db =
+                globalLogger
+                ?|> fun l -> new Api.FSharp.Database(l, cloneSchema)
+                ?|>? fun _ -> new Api.FSharp.Database(cloneSchema)
+                
+            addData globalLogger fromJson db
             db
 
     module GlobalDatabase =
 
-        let dbHasTable (db: GlobalDatabase) dbId tableName =
-            db.TryGetDatabase dbId
-            ?>>= fun db -> db.TryDescribeTable ValueNone tableName
-            |> ValueOption.isSome
-
-        let rec private tryAddReplications = function
-            | struct ([]: SerializableReplication list, struct (db: GlobalDatabase, logger)) -> struct (db, [])
-            | r::tail, (db, logger) when dbHasTable db r.from r.tableName ->
-                { createStreamsForReplication = true
-                  replicaInstructions = [Create r.``to``] }
-                |> db.UpdateTable r.from logger r.tableName
-                |> ignoreTyped<TableDetails>
-
-                tryAddReplications (tail, (db, logger))
-            | r::tail, dbl ->
-                tryAddReplications (tail, dbl)
-                |> mapSnd (Collection.prependL r)
-
-        let rec addReplications args =
-            let repCount = args |> fstT |> List.length
-            match tryAddReplications args with
-            | db, [] -> ()
-            | db, notProcesed when List.length notProcesed <= repCount -> addReplications (notProcesed, sndT args)
-            | _, xs ->
-                xs
-                |> Seq.map (fun x -> sprintf " * Cannot find table %s in database %A when replicating to %A" x.tableName x.from x.``to``)
-                |> Str.join "\n"
-                |> sprintf "Error adding replications\n%s"
-                |> invalidOp
-
         let fromSerializable globalLogger (fromJson: SerializableGlobalDatabase) =
-
+                
+            let cloneSchema =
+                { databases = 
+                    fromJson.databases
+                    |> List.map  Database.buildCloneSchema
+                  replicationKeys =
+                    fromJson.replications
+                    |> List.map (fun x -> {fromDb = x.from; toDb = x.``to``; tableName = x.tableName }) }
             let db =
                 globalLogger
-                ?|> fun logger -> new Api.FSharp.GlobalDatabase(logger = logger)
-                ?|>? fun _ -> new Api.FSharp.GlobalDatabase()
-            
+                ?|> fun logger -> new Api.FSharp.GlobalDatabase(cloneSchema, logger = logger)
+                ?|>? fun _ -> new Api.FSharp.GlobalDatabase(cloneSchema)
+                                
             fromJson.databases
-            |> List.fold (fun _ x ->
-                db.GetDatabase globalLogger x.databaseId
-                |> Database.copyFromromSerializble globalLogger x) ()
-
-            addReplications (fromJson.replications, (db, globalLogger))
+            |> Seq.fold (fun _ dbData -> Database.addData globalLogger dbData (db.GetDatabase ValueNone dbData.databaseId)) ()
+              
+            // currently, db stream settings are not serialized, which gives a 10ms delay to
+            // streaming. This should be fine for serialization          
+            (db.AwaitAllSubscribers globalLogger CancellationToken.None).GetAwaiter().GetResult()
             db

@@ -58,6 +58,8 @@ type TableBuilder =
 
         this.WithIndex false name partitionKey sortKey projectionAttributes projectKeysOnly
 
+    member this.WithStreamsEnabled(enabled: bool) = { this with data.createStream = enabled }
+
     member this.WithLocalSecondaryIndex(
         name,
         [<Optional; DefaultParameterValue(System.Nullable<struct (string * string)>())>] sortKey: System.Nullable<struct (string * string)>,

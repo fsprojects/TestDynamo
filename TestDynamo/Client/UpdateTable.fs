@@ -27,13 +27,20 @@ let inputs (req: UpdateTableRequest) =
             [
                 x.Create
                 |> CSharp.toOption
-                ?|> (fun x -> CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName)
-                ?|> (fun x -> Create { regionId = x })
+                ?|> fun x ->
+                    { databaseId =
+                       { regionId = CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName }
+                      copyIndexes =
+                          x.GlobalSecondaryIndexes
+                          |> CSharp.sanitizeSeq
+                          |> Seq.map (fun x -> x.IndexName |> CSharp.mandatory "IndexName is mandatory for ReplicaGlobalSecondaryIndex")
+                          |> List.ofSeq
+                          |> ReplicateFromSource } |> Either1
 
                 x.Delete
                 |> CSharp.toOption
-                ?|> (fun x -> CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName)
-                ?|> (fun x -> Delete { regionId = x })
+                ?|> fun x -> CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName
+                ?|> fun x -> Either2 { regionId = x }
 
                 if x.Update = null then ValueNone else notSupported "Update ReplicaUpdates are not supported"
             ] |> Maybe.traverse)

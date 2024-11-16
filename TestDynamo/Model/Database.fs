@@ -735,8 +735,9 @@ module Database =
             |> mapSnd (DatabaseTables.getTable args.tableName)
             |> getPostProcessor struct (args, logger)
             |> finalMapper args)
-
+    
     let private updateTable' logger struct (name, synchronizationPath, args) db =
+        
         let struct (table, dbResult) = DatabaseTables.updateTable name args.updateTableData logger db.tables
         let listBuilder =
             ValueOption.map (flip NonEmptyList.prepend) synchronizationPath
@@ -962,7 +963,8 @@ module Database =
                 |> tpl Ingested
             | SchemaChange cdc ->
                 try
-                    let req = { updateTableData = cdc.data; streamConfig = ValueNone }
+                    let req ={ updateTableData = cdc.data; streamConfig = ValueNone }
+
                     updateTable' logger struct (cdc.tableName, ValueSome cdc.synchronizationPacketPath, req) db
                     |> sndT
                     |> buildCorrectDbType syncErr

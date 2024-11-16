@@ -49,7 +49,7 @@ public class UnitTest1
     [Fact]
     public void SomeCSharpSmokeTests()
     {
-        using var client11 = TestDynamoClient.CreateClient();
+        using var client11 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
         using var database = new Api.Database(new DatabaseId("us-west-1"));
 
         database

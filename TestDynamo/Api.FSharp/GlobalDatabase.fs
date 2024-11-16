@@ -10,8 +10,14 @@ open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open Microsoft.Extensions.Logging
 
+type ReplicaDetails =
+    { databaseId: DatabaseId
+      copyIndexes: ReplicationIndexes }
+
+type CreateOrDeleteReplica = Either<ReplicaDetails, DatabaseId>
+
 type UpdateGlobalTableData =
-    { replicaInstructions: CreateOrDelete<DatabaseId> list
+    { replicaInstructions: CreateOrDeleteReplica list
       /// <summary>If true, and the source table does not have streams enabled, this will enable the streams correctly</summary>
       createStreamsForReplication: bool }
 
@@ -20,23 +26,20 @@ type UpdateTableData =
       globalTableData: UpdateGlobalTableData
       tableData: UpdateSingleTableData }
 
-type GlobalDatabaseCloneData =
-    { data: GlobalDatabaseClone }
-
 /// <summary>
 /// A mutable Global Database object containing Tables and Streams
 /// 
 /// Allows database tables to be relicated between Databases
 /// Databases are created automatically when requested
 /// </summary>
-type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: ILogger voption) =
+type GlobalDatabase private (initialDatabases: GlobalDatabaseClone, logger: ILogger voption) =
 
     static let validateError id =
         $" * Duplicate database in setup data {id}"
 
     do
         let err =
-            initialDatabases.data.databases
+            initialDatabases.databases
             |> Collection.groupBy _.databaseId
             |> Collection.mapSnd (List.ofSeq)
             |> Seq.filter (sndT >> List.length >> (flip (>) 1))
@@ -49,7 +52,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
         | e -> $"Invalid database input\n{e}" |> invalidOp
 
     let state: MutableValue<GlobalDatabaseState> =
-        initialDatabases.data.databases
+        initialDatabases.databases
         |> GlobalDatabaseState.build logger
         |> MutableValue.createDisposable
 
@@ -91,11 +94,17 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
 
     // Create replications - needs to be done after initial state set
     do
-        let createReplication =
-            GlobalDatabaseState.createReplication true false defaultLogger buildReplicationDisposable
-            >>>> tpl ()
+        let createReplication dbReplicationKey =
+            { linkExistingTables_internal = true
+              createStreamIfMissing = false
+              newDbDefaultLogger = defaultLogger
+              disposeFactory = buildReplicationDisposable
+              replicateIndexes = Ignore
+              dbReplicationKey = dbReplicationKey }
+            |> GlobalDatabaseState.createReplication
+            >>> tpl ()
 
-        initialDatabases.data.replicationKeys
+        initialDatabases.replicationKeys
         |> List.map createReplication
         |> lockedAndLoggedMany "CREATING REPLICATION" ValueNone
         |> ignoreTyped<unit list>
@@ -103,19 +112,14 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     // trigger an update to set debug tables
     do lockedAndLogged "INIT" ValueNone (asLazy (tpl ()))
 
-    new(initialDatabases: GlobalDatabaseCloneData, ?logger: ILogger) =
+    new(initialDatabases: GlobalDatabaseClone, ?logger: ILogger) =
         new GlobalDatabase(initialDatabases, Maybe.fromRef logger)
 
     new(?logger: ILogger) =
-        let data =
-            { data = GlobalDatabaseClone.empty }
-
-        new GlobalDatabase(data, Maybe.fromRef logger)
+        new GlobalDatabase(GlobalDatabaseClone.empty, Maybe.fromRef logger)
 
     new(cloneData: Api.FSharp.DatabaseCloneData, ?logger: ILogger) =
-        let data =
-            { data = { databases = [cloneData]; replicationKeys = [] } }
-        new GlobalDatabase(data, Maybe.fromRef logger)
+        new GlobalDatabase({ databases = [cloneData]; replicationKeys = [] }, Maybe.fromRef logger)
 
     interface IDisposable with member this.Dispose() = this.Dispose()
 
@@ -219,9 +223,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     /// Does not clone subscription callbacks to streams
     /// </summary>
     member _.Clone logger =
-        let data =
-            { data = loggedGet "CLONE" logger GlobalDatabaseState.getCloneData } 
-
+        let data = loggedGet "CLONE" logger GlobalDatabaseState.getCloneData
         new GlobalDatabase(initialDatabases = data, logger = logger)
 
     /// <summary>
@@ -232,7 +234,6 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
     /// </summary>
     member _.BuildCloneData logger =
         loggedGet "BUILD CLONE DATA" logger GlobalDatabaseState.getCloneData
-        |> fun x -> { data = x; }
 
     /// <summary>
     /// Change how a replication propagates it's data
@@ -248,7 +249,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
         let struct (replicationSuccess, replicationFailure) =
             args.replicaInstructions
             |> List.map (function
-                | Delete x ->
+                | Either2 x ->
                     let name = $"Delete {x}/{tableName}"
                     try
                         { fromDb = dbId; toDb = x; tableName = tableName }
@@ -259,11 +260,17 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseCloneData, logger: 
                         |> Either1
                     with
                     | e -> Either2 struct (name, e)
-                | Create x ->
+                | Either1 x ->
                     let name = $"Create {x}/{tableName}"
                     try
-                        let key = { fromDb = dbId; toDb = x; tableName = tableName }
-                        GlobalDatabaseState.createReplication false args.createStreamsForReplication defaultLogger buildReplicationDisposable key
+                        { linkExistingTables_internal = false
+                          createStreamIfMissing = args.createStreamsForReplication
+                          newDbDefaultLogger = defaultLogger
+                          disposeFactory = buildReplicationDisposable
+                          replicateIndexes = x.copyIndexes
+                          dbReplicationKey =
+                            { fromDb = dbId; toDb = x.databaseId; tableName = tableName } }
+                        |> GlobalDatabaseState.createReplication
                         >>> tpl ()
                         |> lockedAndLogged "CREATE REPLICATION" logger
                         |> tpl name

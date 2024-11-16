@@ -10,7 +10,6 @@ open Microsoft.Extensions.Logging
 #nowarn "3390"
 
 type FsGlobalDb = TestDynamo.Api.FSharp.GlobalDatabase
-type GlobalDatabaseCloneData = TestDynamo.Api.FSharp.GlobalDatabaseCloneData
 type DatabaseCloneData = TestDynamo.Api.FSharp.DatabaseCloneData
 
 /// <summary>
@@ -25,7 +24,7 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     new(db: FsGlobalDb) = new GlobalDatabase(db, false)
 
     new(
-        initialDatabases: GlobalDatabaseCloneData,
+        initialDatabases: Api.FSharp.GlobalDatabaseClone,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let db =
@@ -72,20 +71,22 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
     /// If the Database does not exist it will be created  
     /// </summary>
     member _.GetDatabase(databaseId, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.GetDatabase (CSharp.toOption logger) databaseId
+        new Database(db.GetDatabase (CSharp.toOption logger) databaseId)
 
     /// <summary>
     /// Try to get a database in a specific region.
     /// If the Database does not exist nothing will be returned  
     /// </summary>
-    member _.TryGetDatabase databaseId =
-        db.GetDatabase databaseId
+    member _.TryGetDatabase(databaseId) =
+        db.TryGetDatabase databaseId
+        ?|> fun x -> new Database(x) 
 
     /// <summary>
     /// List all databases that have been created so far  
     /// </summary>
     member _.GetDatabases () = 
         db.GetDatabases()
+        |> Map.map (fun _ x -> new Database(x))
 
     /// <summary>
     /// Describe a global table as a list of linked tables

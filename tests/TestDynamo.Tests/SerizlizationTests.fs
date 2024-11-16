@@ -7,6 +7,7 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
+open TestDynamo.Serialization.Data
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
@@ -46,41 +47,26 @@ type SerializationTests(output: ITestOutputHelper) =
             let hostData = commonHost.BuildCloneData()
 
             let globalData =
-                { data =
-                      { databases = [{ hostData with databaseId = { regionId = "eu-west-1"}}]
-                        replicationKeys = [] } }: GlobalDatabaseCloneData
+                  { databases = [{ hostData with databaseId = { regionId = "eu-west-1"}}]
+                    replicationKeys = [] }
 
             return new GlobalDatabase(globalData, logger = writer)
         }
 
-    static let replicate (client: AmazonDynamoDBClient) regionName tableName = function
-        | ChangeType.Update ->
-            let req = UpdateTableRequest()
-            req.TableName <- tableName
-            req.ReplicaUpdates <- System.Collections.Generic.List()
-            req.ReplicaUpdates.Add(ReplicationGroupUpdate())
-            req.ReplicaUpdates[0].Create <- CreateReplicationGroupMemberAction()
-            req.ReplicaUpdates[0].Create.RegionName <- regionName
-
-            client.UpdateTableAsync(req) |> Io.ignoreTask
-        | ChangeType.CreateGlobal ->
-            let req = CreateGlobalTableRequest()
-            req.GlobalTableName <- tableName
-            req.ReplicationGroup <- System.Collections.Generic.List()
-            req.ReplicationGroup.Add(Replica())
-            req.ReplicationGroup[0].RegionName <- regionName
-
-            client.CreateGlobalTableAsync(req) |> Io.ignoreTask
-        | ChangeType.UpdateGlobal ->
-            let req = UpdateGlobalTableRequest()
-            req.GlobalTableName <- tableName
-            req.ReplicaUpdates <- System.Collections.Generic.List()
-            req.ReplicaUpdates.Add(ReplicaUpdate())
-            req.ReplicaUpdates[0].Create <- CreateReplicaAction()
-            req.ReplicaUpdates[0].Create.RegionName <- regionName
-
-            client.UpdateGlobalTableAsync(req) |> Io.ignoreTask
-        | x -> invalidOp $"{x}"
+    static let replicate (client: AmazonDynamoDBClient) regionName tableName =
+        let req = UpdateTableRequest()
+        req.TableName <- tableName
+        req.ReplicaUpdates <- System.Collections.Generic.List()
+        req.ReplicaUpdates.Add(ReplicationGroupUpdate())
+        req.ReplicaUpdates[0].Create <- CreateReplicationGroupMemberAction()
+        req.ReplicaUpdates[0].Create.RegionName <- regionName
+        req.ReplicaUpdates[0].Create.GlobalSecondaryIndexes <- MList<_>([
+            let i = ReplicaGlobalSecondaryIndex()
+            i.IndexName <- "TheIndex"
+            i
+        ])
+        
+        client.UpdateTableAsync(req) |> Io.ignoreTask
 
     let setUp2Regions logger doReplication =
         task {
@@ -92,7 +78,7 @@ type SerializationTests(output: ITestOutputHelper) =
 
             do!
                 if doReplication
-                then replicate client1 "eu-north-1" table.name ChangeType.Update
+                then replicate client1 "eu-north-1" table.name
                 else Task.CompletedTask
 
             let disposer =
@@ -134,61 +120,85 @@ type SerializationTests(output: ITestOutputHelper) =
             Assert.True(itemCount db1 > 20, itemCount db1 |> toString)
         }
 
-    [<Fact>]
-    let ``Serialize global database`` () =
+    [<Theory>]
+    [<InlineData(true)>]
+    [<InlineData(false)>]
+    let ``Serialize global database`` ``omit data`` =
 
         task {
             // arrange
-            use logger = new TestLogger(output, LogLevel.Warning) 
+            use logger = new TestLogger(output, LogLevel.Trace) 
             let! struct (_, db1, _, _, _) = setUp2Regions logger true
 
             // act
-            let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1)
+            let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1, schemaOnly = ``omit data``)
             let db2 = DatabaseSerializer.GlobalDatabase.FromString(ser1)
             let ser2 = DatabaseSerializer.GlobalDatabase.ToString(db2)
-
+            
             // assert
-            Assert.True(ser1.Length > 10_000)
+            if ``omit data``
+            then Assert.True(ser1.Length > 100)
+            else Assert.True(ser1.Length > 10_000)
+            
             Assert.Equal(ser1, ser2)
 
             let databases (db: GlobalDatabase) = db.GetDatabases() |> MapUtils.toSeq |> Seq.map sndT
             let dbCount = databases >> Seq.length
             let tableCount = databases >> Seq.sumBy (_.DebugTables >> List.length)
-            let indexCount =  databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Indexes >> Seq.length)
-            let itemCount =  databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Values >> Seq.length)
+            let indexCount = databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Indexes >> Seq.length)
+            let indexes = databases >> Seq.collect (_.DebugTables >> Seq.collect (fun t -> t.Indexes |> Seq.map (_.Name >> tpl t.Name >> toString))) >> Str.join "; "
+            let itemCount = databases >> Seq.sumBy (_.DebugTables >> Seq.collect _.Values >> Seq.length)
 
+            // output.WriteLine ser1
             Assert.Equal(dbCount db1, dbCount db2)
             Assert.True(dbCount db1 > 1, dbCount db1 |> toString)
             Assert.Equal(tableCount db1, tableCount db2)
+            Assert.True(indexCount db1 >= 6, indexes db1)
             Assert.Equal(indexCount db1, indexCount db2)
-            Assert.Equal(itemCount db1, itemCount db2)
+            
             Assert.True(itemCount db1 > 100, itemCount db1 |> toString)
+            if ``omit data``
+            then Assert.Equal(0, itemCount db2)
+            else Assert.Equal(itemCount db1, itemCount db2)
         }
 
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
-    let ``DeSerialize global database, preserves replication`` ``insert new replicat at top`` =
+    let ``DeSerialize global database, preserves replication`` ``insert new replica at top`` =
 
         task {
             // arrange
             use logger = new TestLogger(output, LogLevel.Debug) 
             let! struct (table, preSerialization, _, toDb, _) = setUp2Regions logger true
 
+            // add non replicated table to somewhere-else
+            let somewhereElse = { regionId = "somewhere-else" }
+            (new Api.GlobalDatabase(preSerialization))
+                .GetDatabase(somewhereElse)
+                .TableBuilder(table.name, struct ("TablePk", "S"), struct ("TableSk", "N"))
+                .WithGlobalSecondaryIndex("TheIndex", struct ("IndexPk", "N"), struct ("IndexSk", "S"))
+                .WithStreamsEnabled(true)
+                .AddTable()
+            
             let dbString = DatabaseSerializer.GlobalDatabase.ToString(preSerialization)
             let dbJson = JsonObject.Parse(dbString)
-
-            // add a new db via json
-            let newReplica = JsonObject.Parse(System.Text.Json.JsonSerializer.Serialize(
-                    {| from = (TestDynamoClient.GetDatabase(toDb)).Id.regionId
-                       ``to`` = "somewhere-else"
-                       tableName = table.name |}))
+            
+            // add replicate to somewhere-else
+            let newReplica =
+                Version1.SerializableReplication(
+                   TestDynamoClient.GetDatabase(toDb).Id,
+                   somewhereElse,
+                   table.name)
+                |> RawSerializers.Strings.write false
+                |> JsonObject.Parse
 
             let replicas = (dbJson["data"].AsObject()["replications"]).AsArray()
             // position affects how replicas are added. if new replica is inserted, it's processing needs to be delayed
-            if ``insert new replicat at top``
+            if ``insert new replica at top``
             then replicas.Insert(0, newReplica)
             else replicas.Add(newReplica)
 
+            // output.WriteLine(dbJson.ToString())
             let db = DatabaseSerializer.GlobalDatabase.FromString(dbJson.ToString())
             use client1 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
             use client2 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)

@@ -54,9 +54,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let hostData = commonHost.BuildCloneData()
 
             let globalData =
-                { data =
-                      { databases = [{ hostData with databaseId = { regionId = "eu-west-1" }}]
-                        replicationKeys = [] } }: GlobalDatabaseCloneData
+                  { databases = [{ hostData with databaseId = { regionId = "eu-west-1" }}]
+                    replicationKeys = [] }
 
             return new GlobalDatabase(globalData, logger = writer)
         }

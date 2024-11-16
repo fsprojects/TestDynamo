@@ -23,12 +23,12 @@ let inputs (req: UpdateGlobalTableRequest) =
                 x.Create
                 |> CSharp.toOption
                 ?|> (fun x -> CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName)
-                ?|> (fun x -> CreateOrDelete.Create { regionId = x })
+                ?|> (fun x -> { copyIndexes = ReplicateAll; databaseId = { regionId = x } } |> Either1)
 
                 x.Delete
                 |> CSharp.toOption
                 ?|> (fun x -> CSharp.mandatory "Region name is mandatory for replica updates" x.RegionName)
-                ?|> (fun x -> CreateOrDelete.Delete { regionId = x })
+                ?|> (fun x -> Either2 { regionId = x })
             ] |> Maybe.traverse)
         |> List.ofSeq
 

@@ -235,20 +235,20 @@ module DatabaseTables =
             else tableNotFound name tables)
 
     /// <returns>None if the table was not found</returns>
-    let tryUpdateTable name (req: UpdateTableData) =
+    let internal tryUpdateTable name (req: UpdateTableData) =
         fun logger -> function
         | H tables ->
             MapUtils.tryFind name tables
-            ?|> (fun table ->
-                let t = Table.updateTable req logger table
-                Map.add name t tables
-                |> H
-                |> tpl t)
+            ?|> (
+                Table.updateTable req logger
+                >> tplDouble
+                >> mapSnd (
+                    flip (Map.add name) tables
+                    >> H))
         |> logOperation "UPDATE TABLE"
 
-    let updateTable =
-        fun name ->
-            tryUpdateTable name
-            >>>> function
-                | ValueSome x -> x
-                | ValueNone -> clientError $"Cannot find table {name}"
+    let internal updateTable name =
+        tryUpdateTable name
+        >>>> function
+            | ValueSome x -> x
+            | ValueNone -> clientError $"Cannot find table {name}"
