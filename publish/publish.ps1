@@ -37,6 +37,9 @@ Write-Host "Pre processing project files"
 node "$rootDir\publish\project-parser\init.js" @($testApps + $publishApps) --version "$version"
 if (-not $?) { exit 1 }
 
+git add @($testApps + $publishApps)
+git commit -m "fsproj changes"
+
 $nugetKey = Read-Host "Enter a nuget key" -MaskInput
 $publishApps |
     ForEach-Object -Process {
