@@ -115,6 +115,7 @@ module MultiClientOperations =
             { keys = Array.empty
               consistentRead = false
               projectionExpression = ValueNone
+              attributesToGetRedux = ValueNone 
               expressionAttrNames = Map.empty } : BatchGetValue
 
         let batchGetItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: GetItem.Batch.BatchGetRequest) =
@@ -187,6 +188,7 @@ module MultiClientOperations =
             { keys = Array.empty
               consistentRead = false
               projectionExpression = ValueNone
+              attributesToGetRedux = ValueNone
               expressionAttrNames = Map.empty } : BatchGetValue
 
         let batchPutItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: PutItem.BatchWrite.BatchWriteRequest) =

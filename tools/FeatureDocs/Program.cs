@@ -599,7 +599,8 @@ Dictionary<string, object> Done()
                 ConsistentRead = true,
                 ExpressionAttributeNames = true,
                 Keys = true,
-                ProjectionExpression = true
+                ProjectionExpression = true,
+                AttributesToGet = true
             }
         },
         BatchGetItemResponse = new
@@ -610,7 +611,8 @@ Dictionary<string, object> Done()
                 ConsistentRead = true,
                 ExpressionAttributeNames = true,
                 Keys = true,
-                ProjectionExpression = true
+                ProjectionExpression = true,
+                AttributesToGet = true
             }
         },
         BatchWriteItemRequest = new

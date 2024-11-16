@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\TestDynamo\TestDynamo.fsproj" />
     <ProjectReference Include="..\..\TestDynamo.Lambda\TestDynamo.Lambda.fsproj" />
+    <ProjectReference Include="..\..\TestDynamo.Serialization\TestDynamo.Serialization.fsproj" />
   </ItemGroup>
 
 </Project>

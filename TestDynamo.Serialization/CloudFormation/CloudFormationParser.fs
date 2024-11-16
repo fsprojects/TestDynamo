@@ -213,10 +213,10 @@ type CloudFormationParser() =
             logger ?|> (fun l -> new GlobalDatabase(l)) ?|? new GlobalDatabase()
             |> Either2
 
-    static member buildDatabase settings logger (cfnFiles: CloudFormationFile seq) =
+    static member buildDatabase settings logger (cfnJsonStacks: CloudFormationFile seq) =
         
         let constructs =
-            cfnFiles
+            cfnJsonStacks
             |> Seq.map (
                 tplDouble
                 >> mapFst (_.region)
@@ -267,13 +267,13 @@ type CloudFormationParser() =
                 |%|> asLazy db'
         
     static member BuildDatabase(
-        cfnFiles,
+        cfnJsonStacks,
         settings,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
         
         let settings = {settings = settings; alwaysCreateGlobal = false }
         task {
-            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnFiles with
+            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnJsonStacks with
             | Either1 db -> return new TestDynamo.Api.Database(db)
             | Either2 db ->
                 db.Dispose()
@@ -282,13 +282,13 @@ type CloudFormationParser() =
         } |> Io.fromTask
         
     static member BuildGlobalDatabase(
-        cfnFiles,
+        cfnJsonStacks,
         settings,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
         
         let settings = {settings = settings; alwaysCreateGlobal = true }
         task {
-            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnFiles with
+            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnJsonStacks with
             | Either2 db -> return new TestDynamo.Api.GlobalDatabase(db)
             | Either1 db ->
                 db.Dispose()

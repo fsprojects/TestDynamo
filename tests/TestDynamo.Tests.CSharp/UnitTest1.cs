@@ -9,6 +9,7 @@ using TestDynamo.Model;
 using AttributeValue = Amazon.DynamoDBv2.Model.AttributeValue;
 using Database = TestDynamo.Api.Database;
 using Microsoft.Extensions.Logging;
+using TestDynamo.Serialization;
 
 namespace TestDynamo.Tests.CSharp;
 

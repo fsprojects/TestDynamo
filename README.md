@@ -17,12 +17,13 @@ It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and r
  * Streams and stream subscribers
  * Efficient cloning and deep copying of databases for isolation
  * Full database serialization and deserialization for data driven testing
+ * Basic cloudformation template support for creating Tables and GlobalTables
 
 ## Installation
 
  * Core functionality: `dotnet add package TestDynamo`
  * Add lambda support: `dotnet add package TestDynamo.Lambda`
- * Add serialization: `dotnet add package TestDynamo.Serialization`
+ * Add serialization or cloud formation support: `dotnet add package TestDynamo.Serialization`
 
 ## The basics
 
@@ -66,6 +67,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
     * Check the [features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
+ * [`Cloud Formation Templates`](#cloud-formation-templates) can be consumed to to initialize databases and global databases
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
  * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to polyfill unsupported features 
@@ -378,9 +380,9 @@ TestDynamoClient.SetAwsAccountId(client, "12345678");
 
 ### Database Serializers
 
-Database serializers are available from the `TestDynamo.Serialization` nuget package
+Database serializers are available from the `TestDynamo.Serialization` nuget package.
 
-Database serializers can serialize or deserialize an entire database or global database to facilitate data driven testing
+Database serializers can serialize or deserialize an entire database or global database to facilitate data driven testing.
 
 ```C#
 using TestDynamo;
@@ -389,9 +391,31 @@ using TestDynamo.Serialization;
 using var db1 = new Api.Database();
 ... populate database
 
-DatabaseSerializer.Database.ToFile(db1, @"C:\Tests\TestData.json");
+DatabaseSerializer.Database.ToFile(db1, @"TestData.json");
 
-using var db2 = DatabaseSerializer.Database.FromFile(@"C:\Tests\TestData.json");
+using var db2 = DatabaseSerializer.Database.FromFile(@"TestData.json");
+
+// there are also tools to serialize and deserialze global databases
+var json = DatabaseSerializer.GlobalDatabase.ToString(globalDb, @"TestData.json");
+```
+
+Serialization is designed to share data between test runs, but ultimately, it scales with the number of items in the database. This means
+that it may take more time than is ideal for executing fast unit tests. [Database cloning](#database-cloning) is a better solution for large databases which are shared between multiple tests, as it is instant for any sized database or global database
+
+### Cloud Formation Templates
+
+Static [Cloud Formation templates](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/AWS_DynamoDB.html) 
+can be consumed to create databases and global databases. Dynamic templates with functions are not supported.
+
+Import the `dotnet add package TestDynamo.Serialization` package to use cloudformation templates
+
+```C#
+using TestDynamo.Serialization;
+
+var cfnFile1 = new CloudFormationFile(await File.ReadAllTextAsync("myTemplate1.json"), "eu-north-1");
+var cfnFile2 = new CloudFormationFile(await File.ReadAllTextAsync("myTemplate2.json"), "us-west-2");
+using var database = await CloudFormationParser.BuildDatabase(new[] { cfnFile1, cfnFile2 }, new CloudFormationSettings(true));
+...
 ```
 
 ### Locking and Atomic transactions

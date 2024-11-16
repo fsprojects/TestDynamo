@@ -107,7 +107,9 @@ module Batch =
         { keys: Map<string, AttributeValue> array
           consistentRead: bool
           projectionExpression: string voption
-          expressionAttrNames: Map<string, string> }
+          expressionAttrNames: Map<string, string>
+          /// <summary>Not used by query engine. Only used to pass results back to client</summary>
+          attributesToGetRedux: string list voption }
 
     type BatchGetRequest =
         { requests: Map<BatchItemKey, BatchGetValue> }
@@ -124,24 +126,26 @@ module Batch =
             ?|> (fun x -> struct (awsAccountId, { databaseId = defaultDatabaseId; tableName = x; userProvidedKey = key})))
         |> ValueOption.defaultWith (fun _ -> $"Cannot parse table name or ARN {key}" |> clientError)
 
-    let toBatchGetValue (x: KeysAndAttributes): BatchGetValue =
+    let toBatchGetValue (req: KeysAndAttributes): BatchGetValue =
 
-        let struct (returnValues, addExprAttrNames) = buildProjection (CSharp.toOption x.ProjectionExpression) x.AttributesToGet
+        let struct (returnValues, addExprAttrNames) = buildProjection (CSharp.toOption req.ProjectionExpression) req.AttributesToGet
 
-        { keys = x.Keys |> CSharp.orEmpty |> Seq.map (itemFromDynamodb "$") |> Array.ofSeq
-          consistentRead = x.ConsistentRead
+        { keys = req.Keys |> CSharp.orEmpty |> Seq.map (itemFromDynamodb "$") |> Array.ofSeq
+          consistentRead = req.ConsistentRead
+          attributesToGetRedux = req.AttributesToGet |> CSharp.toOption ?|> List.ofSeq
           projectionExpression =
               match returnValues with
               | Count -> ValueNone
               | AllAttributes -> ValueNone
               | ProjectedAttributes x -> x
-          expressionAttrNames = x.ExpressionAttributeNames |> expressionAttrNames |> addExprAttrNames }
+          expressionAttrNames = req.ExpressionAttributeNames |> expressionAttrNames |> addExprAttrNames }
 
     let fromBatchGetValue (x: BatchGetValue): KeysAndAttributes =
         let out = KeysAndAttributes()
         out.ConsistentRead <- x.consistentRead
         out.ProjectionExpression <- CSharp.fromOption x.projectionExpression
         out.ExpressionAttributeNames <- CSharp.toDictionary id id x.expressionAttrNames
+        out.AttributesToGet <- x.attributesToGetRedux ?|> (MList<_>) |> CSharp.fromOption
         out.Keys <-
             x.keys
             |> Seq.map itemToDynamoDb

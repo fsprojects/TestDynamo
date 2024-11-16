@@ -24,23 +24,13 @@
 
 ### Inputs
 
- * RequestItems
-     * ✅ ConsistentRead
-     * ✅ ExpressionAttributeNames
-     * ✅ Keys
-     * ✅ ProjectionExpression
-     * AttributesToGet
+ * ✅ RequestItems
  * ReturnConsumedCapacity
 
 ### Outputs
 
  * ✅ Responses
- * UnprocessedKeys
-     * ✅ ConsistentRead
-     * ✅ ExpressionAttributeNames
-     * ✅ Keys
-     * ✅ ProjectionExpression
-     * AttributesToGet
+ * ✅ UnprocessedKeys
  * ConsumedCapacity
 
 ## BatchWriteItemAsync
