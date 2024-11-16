@@ -67,20 +67,11 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
     * Check the [features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
- * [`Cloud Formation Templates`](#cloud-formation-templates) can be consumed to to initialize databases and global databases
+ * [Cloud Formation Templates](#cloud-formation-templates) can be consumed to to initialize databases and global databases
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
- * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to polyfill unsupported features 
+ * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to polyfill unsupported features
  * [Logging](#logging) can be configured at the database level or the `AmazonDynamoDBClient` level
-
-```C#
-using TestDynamo;
-
-using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
-var myService = new MyService(client);
-
-...
-```
 
 ### Using Expressions
 
