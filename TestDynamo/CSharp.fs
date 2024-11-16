@@ -74,13 +74,13 @@ let toMap kf vf (dictionary: Dictionary<'k, 'v>) =
 let toDictionary kf vf (map: Map<'k, 'v>) =
 
     map
-    |> Seq.map (fun x -> KeyValuePair.Create (kf x.Key, vf x.Value))
-    |> Dictionary
+    |> Seq.map (fun x -> KeyValuePair<_, _>(kf x.Key, vf x.Value))
+    |> kvpToDictionary
 
 let tplToDictionary (items: struct ('k * 'v) seq) =
     items
-    |> Seq.map (fun x -> KeyValuePair.Create (fstT x, sndT x))
-    |> Dictionary
+    |> Seq.map (fun x -> KeyValuePair<_, _>(fstT x, sndT x))
+    |> kvpToDictionary
 
 let arrayToList (items: 'a array) =
     let list = System.Collections.Generic.List<_>(items.Length)

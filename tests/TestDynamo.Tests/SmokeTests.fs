@@ -21,6 +21,23 @@ open Xunit.Abstractions
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
 type SmokeTests(output: ITestOutputHelper) =
+    
+    [<Fact>]
+    let ``countDigits smoke tests`` () =
+        // Numbers are variable length, with up to 38 significant digits.
+        // Leading and trailing zeroes are trimmed. The size of a number is
+        // approximately (number of UTF-8-encoded bytes of attribute name) + (1 byte per two significant digits) + (1 byte).
+        
+        Assert.Equal(1, ItemSize.countDigits 0M)
+        Assert.Equal(1, ItemSize.countDigits 1M)
+        Assert.Equal(2, ItemSize.countDigits -1M)
+        Assert.Equal(2, ItemSize.countDigits 10M)
+        
+        Assert.Equal(6, ItemSize.countDigits 123.45M)
+        Assert.Equal(7, ItemSize.countDigits -123.45M)
+        
+        Assert.Equal(4, ItemSize.countDigits 0.45M)
+        Assert.Equal(5, ItemSize.countDigits -0.45M)
 
     [<Fact>]
     let ``Create table, put item, query smoke tests`` () =

@@ -118,7 +118,7 @@ type ParserSettings =
         | _ -> false
 
     override this.GetHashCode() =
-        HashCode.Combine(this.updateFunctionVerbs, ParserSettings.arrayEqComparer.GetHashCode(this.functionNames))
+        HashCode.Combine(this.updateFunctionVerbs.GetHashCode(), ParserSettings.arrayEqComparer.GetHashCode(this.functionNames))
 
 module AstNode =
 

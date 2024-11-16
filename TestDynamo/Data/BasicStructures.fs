@@ -1,5 +1,6 @@
 namespace TestDynamo.Data.BasicStructures
 
+open TestDynamo.Utils
 open System.Runtime.CompilerServices
 
 [<IsReadOnly; Struct>]

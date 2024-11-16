@@ -694,56 +694,35 @@ type ItemSize =
     | Isz of uint16
 
 module ItemSize =
+                
+    let rec private fractionalSize acc (x: decimal): int =
+        if Math.Truncate x = x then acc
+        else fractionalSize (acc + 1) (x * 10M)
 
-    let private numberSize' (x: int64) =
-        Math.Log10(double x) |> Math.Floor |> int64 |> ((+) 2L)
-
-    // https://stackoverflow.com/questions/13477689/find-number-of-decimal-places-in-decimal-value-regardless-of-culture
-    let rec private fractionalSize (x: decimal): int =
-        if x < 0M then fractionalSize -x
-        else
-            let intArr = ArrayPool.Shared.Rent 4
-            let byteArr = ArrayPool.Shared.Rent 4
-            try
-                let decimalBuffer = Span<int>(intArr)
-#if NETSTANDARD2_1
-                let bits = Decimal.GetBits(x)
-                bits.CopyTo(decimalBuffer)
-#else
-                Decimal.GetBits(x, decimalBuffer) |> ignoreTyped<int>
-#endif
-                let outputBuffer = Span<byte>(byteArr)
-                if not (BitConverter.TryWriteBytes(outputBuffer, decimalBuffer[3]))
-                then
-                    assert false    // should not happen
-                    2
-                else
-                    outputBuffer[2] |> int
-            finally
-                ArrayPool.Shared.Return intArr
-                ArrayPool.Shared.Return byteArr
-
-    // https://stackoverflow.com/questions/4483886/how-can-i-get-a-count-of-the-total-number-of-digits-in-a-number
     let rec private wholeSize (x: decimal): int =
         if x < 0M then wholeSize -x
         else
             let truncated = Math.Truncate x
-            if truncated = 0M then 2
+            if truncated = 0M then 1
             else
                 truncated
                 |> double
+                // hack, add a tiny number so that (log10 9 = 1, log10 10 = 2)
+                |> (+) 0.00000001
                 |> Math.Log10
-                |> Math.Floor
+                |> Math.Ceiling
                 |> int
-                |> (+)1
 
-    let rec private numberSize (x: decimal): int =
-        if x = 0M then 2
-        elif x < 0M then 2 + (numberSize (-x))
+    let rec countDigits (x: decimal): int =
+        if x = 0M then 1
+        elif x < 0M then 1 + (countDigits (-x))
         else
-            let fS = fractionalSize x
-            let decimal = if fS > 0 then 2 else 0
+            let fS = fractionalSize 0 x
+            let decimal = if fS > 0 then 1 else 0
             wholeSize x + fS + decimal
+
+    let rec private numberSize =
+        countDigits >> float >> (flip (/) 2.0) >> Math.Ceiling >> int >> (+) 1
 
     let inline private stringSize (x: string) = Encoding.UTF8.GetByteCount x
 

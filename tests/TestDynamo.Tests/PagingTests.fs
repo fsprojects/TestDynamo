@@ -355,7 +355,7 @@ type PagingTests(output: ITestOutputHelper) =
             Assert.Equal(expected, Item.size i - Item.size bI)
 
         // N
-        Number 123456789M
+        Number 12345678901234M
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 10
 
@@ -407,7 +407,7 @@ type PagingTests(output: ITestOutputHelper) =
         |> CompressedList
         |> AttributeList
         |> (flip (Map.add "D2") baseItem)
-        |> sizeDiff 60
+        |> sizeDiff 40
 
         // NS
         [|
@@ -423,7 +423,7 @@ type PagingTests(output: ITestOutputHelper) =
         |> AttributeSet.create
         |> HashSet
         |> (flip (Map.add "D2") baseItem)
-        |> sizeDiff 60
+        |> sizeDiff 40
 
         // SS
         [|

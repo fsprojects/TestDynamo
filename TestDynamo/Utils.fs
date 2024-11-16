@@ -20,6 +20,31 @@ type IComparer<'a> =  System.Collections.Generic.IComparer<'a>
 type IReadOnlyList<'a> =  System.Collections.Generic.IReadOnlyList<'a>
 type IList<'a> =  System.Collections.Generic.IList<'a>
 
+#if NETSTANDARD2_0
+// quick and dirty hash code calculation
+// copied from https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations
+type internal HashCode() =
+    static member Combine<'a when 'a: equality>(h1: int, h2: 'a) =
+        // unchecked operators (TODO: are they unchecked???)
+        let (+) = Operators.(+)
+        let (*) = Operators.(*)
+        
+        h1 * 31 + h2.GetHashCode()
+    
+let kvpToDictionary (xs: KeyValuePair<_, _> seq) =
+    let d = Dictionary<_, _>()
+    for x in xs do
+        d.Add(x.Key, x.Value)
+    d
+type internal IsReadOnlyAttribute() = inherit System.Attribute()
+#else
+let kvpToDictionary (xs: KeyValuePair<_, _> seq) = Dictionary<_, _> xs
+#endif
+
+#if (NETSTANDARD2_0 || NETSTANDARD2_1)
+
+#endif
+
 let shiftRight = (>>>)
 let inline (>>>) f g x y = f x y |> g
 let inline (>>>>) f g x y z = f x y z |> g
@@ -247,7 +272,12 @@ module Str =
             returned.Clear() |> ignoreTyped<StringBuilder>
             StringBuilderRental.rental <- returned
 
-    let split (separator: string) (s: string) = s.Split separator
+    let split (separator: string) (s: string) =
+#if NETSTANDARD2_0
+        s.Split([|separator|], StringSplitOptions.None)
+#else
+        s.Split separator
+#endif
 
     let join (separator: string) (xs: string seq) = String.Join(separator, xs)
 
@@ -265,7 +295,7 @@ module Str =
         fun (paddingF: int -> int) (prefix: string) (xs: string seq) -> Seq.mapi (padResult paddingF prefix) xs
 
     let indentComplex firstIndentation indentation (str: string) =
-        str.Split("\n")
+        split "\n" str
         |> Seq.mapi (fun i -> sprintf "%s%s" (if i = 0 then firstIndentation else indentation))
         |> join "\n"
 
@@ -301,7 +331,7 @@ module SetUtils =
 [<RequireQualifiedAccess>]
 module Collection =
     type MList<'a> = System.Collections.Generic.List<'a>
-
+    
     [<Struct; IsReadOnly>]
     type MapCombination<'k> =
         { intersection: 'k list
@@ -1136,7 +1166,7 @@ module Io =
 
     let deNormalizeVt (valueTask: ValueTask<unit>) =
         match trySyncResult valueTask with
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NETSTANDARD2_0
         | ValueSome _ -> ValueTask()
 #else
         | ValueSome _ -> ValueTask.CompletedTask
@@ -1184,7 +1214,7 @@ module Io =
 
     let addCancellationToken (c: CancellationToken) (t: ValueTask<'a>) =
         if t.IsCompleted || c = CancellationToken.None then t
-#if NETSTANDARD2_1
+#if NETSTANDARD2_1 || NETSTANDARD2_0
         else t.AsTask() |> addCancellationTokenNetStandard c |> ValueTask<'a>
 #else
         else t.AsTask().WaitAsync(c) |> ValueTask<'a>
