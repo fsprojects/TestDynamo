@@ -22,17 +22,20 @@ let mutable DefaultClientResponseDelay = System.TimeSpan.FromMilliseconds(5)
 
 /// <summary>
 /// <para>
-/// Max amount of time to wait when attempting to synchronously lock a mutable value for mutation
+/// Max amount of time to wait when attempting to synchronously lock a mutable value
+/// This timeout will come into play if you are executing 1000s of write requests per second on a single database 
 /// </para>
 /// <para>
 /// Default: 10 seconds
 /// </para>
 /// </summary>
-let mutable MutableValueLockWait = TimeSpan.FromSeconds(10)
+let mutable MutableValueLockTimeout = TimeSpan.FromSeconds(10)
 
 /// <summary>
 /// <para>
 /// Max amount of time to wait when attempting to asynchronously lock a database for mutation
+/// This timeout will come into play if you are executing 1000s of write requests
+/// per second on global table for a long period of time
 /// </para>
 /// <para>
 /// Default: 1 minute

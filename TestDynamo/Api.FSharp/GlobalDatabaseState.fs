@@ -258,7 +258,8 @@ module private CreateReplication =
 
         struct (remove, newState)
 
-    let private replicationSubscriberConfig = struct (SubscriberBehaviour.defaultOptions, NewAndOldImages)
+    // not timeout on replication config. Rely on DB lock timeouts instead 
+    let private replicationSubscriberConfig = struct ({ SubscriberBehaviour.defaultOptions with subscriberTimeout = TimeSpan.Zero}, NewAndOldImages)
     let createLeftSubscription logReplication logger (left: ApiDb) { tableName = tableName; fromDb = fromDb; toDb = toDb } =
 
         // a buffer containing items which replicated between the time

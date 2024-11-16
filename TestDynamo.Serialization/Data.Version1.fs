@@ -1,6 +1,7 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Serialization.Data.Version1
 
+open System
 open System.Threading
 open TestDynamo.Api.FSharp
 open TestDynamo.Data.BasicStructures
@@ -280,11 +281,10 @@ module FromSerializable =
                 globalLogger
                 ?|> fun logger -> new Api.FSharp.GlobalDatabase(cloneSchema, logger = logger)
                 ?|>? fun _ -> new Api.FSharp.GlobalDatabase(cloneSchema)
-                                
+                              
             fromJson.databases
             |> Seq.fold (fun _ dbData -> Database.addData globalLogger dbData (db.GetDatabase ValueNone dbData.databaseId)) ()
-              
-            // currently, db stream settings are not serialized, which gives a 10ms delay to
-            // streaming. This should be fine for serialization          
-            (db.AwaitAllSubscribers globalLogger CancellationToken.None).GetAwaiter().GetResult()
+                          
+            // Sacrificing a thread here to keep the interface simple           
+            (db.AwaitAllSubscribers globalLogger CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
             db

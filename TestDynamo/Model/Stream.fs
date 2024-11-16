@@ -164,11 +164,13 @@ type ClonedTableSubscriberOpts =
       subscriber: SubscriberInputFn
       addDeletionProtection: bool }
 
+type TimeInQueue = TimeSpan
+
 /// <summary>
 /// The input has a delay and is an option so that that emitter has a chance to pause and cancel
 /// propagation. This is to facilitate transact writes and two phase commits
 /// </summary>
-type SubscriberFn = SubscriberBehaviour -> Logger -> ValueTask<SubscriberMessage voption> -> ValueTask<SubscriberError voption>
+type SubscriberFn = SubscriberBehaviour -> TimeInQueue -> Logger -> ValueTask<SubscriberMessage voption> -> ValueTask<SubscriberError voption>
 
 /// <summary>
 /// A callback which receives notifications when data changes
@@ -255,23 +257,26 @@ module private StreamSubscriber =
                 dataCancelled
             | ValueSome m -> execute' errHandling logger m
 
-        fun behaviour logger change ->
+        fun behaviour timeSpentInQueue logger change ->
             let struct (errHandling, delay) =
                 match behaviour with
                 | { delay = RunAsynchronously d } when d = TimeSpan.Zero ->
-                    Logger.debug0 "Propagating asynchronously" logger
+                    Logger.debug0 "Propagating synchronously" logger
                     struct (errorHandling, noDelay)
                 | { delay = RunAsynchronously d } ->
+                    let adjustedDelay = d - timeSpentInQueue
                     Logger.debug0 "Propagating asynchronously" logger
-                    struct (errorHandling, delay d)
+                    if adjustedDelay <= TimeSpan.Zero
+                    then struct (errorHandling, noDelay)
+                    else struct (errorHandling, delay adjustedDelay)
                 | { delay = RunSynchronouslyAndPropagateToEventTrigger } ->
-                    Logger.debug0 "Propagating asynchronously" logger
+                    Logger.debug0 "Propagating synchronously" logger
                     struct (errorHandling, noDelay)
                 | { delay = RunSynchronously } ->
                     Logger.debug0 "Propagating synchronously" logger
                     struct (noErrorHandling, noDelay)
 
-            ValueTask<_>(tpl)
+            Io.retn tpl
             <|%| delay ()
             <|%| change
             |%|> sndT
@@ -340,8 +345,9 @@ module private StreamSubscriber =
                 |> ValueSome
                 |> flip (Item.reIndex (Item.itemName x)) x
 
+            let changeResult = ChangeResults.mapChanges keysOnly change.data.packet.changeResult
             { change with
-                data.packet.changeResult = ChangeResults.mapChanges keysOnly change.data.packet.changeResult } |> ChangeDataCapture |> OnChange
+                data.packet.changeResult = changeResult } |> ChangeDataCapture |> OnChange
 
     let onChange logger changes subscriber =
 
@@ -352,11 +358,13 @@ module private StreamSubscriber =
                   streamConfig = subscriber.dataType
                   subscriberId = subscriber.id })
 
+        let beforeWait = DateTime.UtcNow
         let newErrs =
             subscriber.executionState
-            |%>>= (fun failed ->
-                subscriber.callback subscriber.behaviour logger message
-                |%|> (tpl failed))
+            |%>>= fun failed ->
+                let waitTime = DateTime.UtcNow - beforeWait
+                subscriber.callback subscriber.behaviour waitTime logger message
+                |%|> tpl failed
             |%|> function
                 | failed, ValueNone -> failed
                 | failed, ValueSome x -> x::failed
@@ -508,7 +516,7 @@ module Stream =
                           data = subscriberId |> SubscriberDeleted } |> SubscriberChange |> OnChange |> EmergencyBrakeRequest.noBrake
 
                     applySubscribers logger struct (packet, removed)
-                |> List.map (_.executionState)
+                |> List.map _.executionState
                 |> Io.traverse
                 |%|> List.concat
 

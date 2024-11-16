@@ -68,11 +68,11 @@ module MutableValue =
             else ValueNone
 
     let mutate f =
-        let ms = TestDynamo.Settings.MutableValueLockWait.TotalMilliseconds |> int
+        let ms = TestDynamo.Settings.MutableValueLockTimeout.TotalMilliseconds |> int
         tryMutate ms f
         >> ValueOption.defaultWith (fun _ ->
             let settings = nameof TestDynamo.Settings
-            let setting = nameof TestDynamo.Settings.MutableValueLockWait
+            let setting = nameof TestDynamo.Settings.MutableValueLockTimeout
             serverError $"Unable to enter lock after {ms}ms. You can increase this timeout by modifying {settings}.{setting}")
 
     let rec private retryMutate' startTime i onLockFailed f x =
