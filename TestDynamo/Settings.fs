@@ -74,10 +74,10 @@ let mutable MaxReplicationTime = TimeSpan.FromSeconds 10
 /// The region of any databases created in a non-global context
 /// </para>
 /// <para> 
-/// Default: "default-region"
+/// Default: "us-east-1"
 /// </para>
 /// </summary>
-let mutable DefaultRegion = "default-region"
+let mutable DefaultRegion = "us-east-1"
 
 module TransactReadSettings =
 

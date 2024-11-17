@@ -218,7 +218,7 @@ type CreateTableTests(output: ITestOutputHelper) =
 
             // assert
             do! basicAddAndAssert tableName false client
-            Assert.Equal($"arn:aws:dynamodb:default-region:123456789012:table/{tableName}", response.TableDescription.TableArn)
+            Assert.Equal($"arn:aws:dynamodb:us-east-1:123456789012:table/{tableName}", response.TableDescription.TableArn)
         }
 
     [<Theory>]
