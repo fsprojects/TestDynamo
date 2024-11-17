@@ -71,7 +71,7 @@ type UpdateSingleTableData =
         { updateTableData = UpdateTableData.empty
           streamConfig = ValueNone }
 
-type DatabaseCloneData =
+type DatabaseClone =
     { initialState: DatabaseTables
       streamsEnabled: string list }
 
@@ -79,6 +79,19 @@ type DatabaseCloneData =
     static member empty =
         { initialState = DatabaseTables.empty
           streamsEnabled = [] }
+        
+    /// <summary>Create a new DatabaseCloneData with only the required tables in it</summary>
+    member this.ExtractTables(tableNames: string seq) =
+        let tn = Array.ofSeq tableNames
+        
+        { initialState =
+               DatabaseTables.empty
+               |> flip (Array.fold (flip (fun name ->
+                   (DatabaseTables.getTable name this.initialState
+                   |> flip (DatabaseTables.addClonedTable name) Logger.empty)))) tn
+          streamsEnabled =
+              this.streamsEnabled
+              |> List.filter (flip Array.contains tn)}
 
 type SynchronizationResult =
     | Ingested
@@ -839,6 +852,24 @@ module Database =
                 |> flip (subscribeToStream' logger) state
                 |> mapFst ValueSome)
             |> ValueOption.defaultValue struct (ValueNone, state))
+
+    let importClone =
+        Execute.command "IMPORT CLONE" (fun logger (args: DatabaseClone) db ->
+            let tables =
+                args.initialState
+                |> DatabaseTables.listTables
+                |> Seq.map (
+                    tplDouble
+                    >> mapSnd (flip DatabaseTables.getTable args.initialState))
+                |> Seq.fold (fun s struct(name, data) ->
+                    DatabaseTables.addClonedTable name data logger s) db.tables
+                
+            let streams =
+                args.streamsEnabled
+                |> List.fold (fun s x ->
+                    TableStreams.addStream x true logger s) db.streams
+                
+            { db with tables = tables; streams = streams } |> tpl ())
 
     let buildCloneData =
         Execute.describe "BUILD CLONE INPUT" (fun logger () db ->

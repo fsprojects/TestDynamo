@@ -41,9 +41,15 @@ foreach (var (name, fullDescription) in classes)
 }
 
 var index = "# Supported methods\n\n" + string.Join("\n", names.Select(d => $" * [{d}](#{d})")) + "\n\n";
+var addendum = "\n\n" + string.Join("\n\n", new[]
+{
+    "#### Replica Description Support\n\nPartial support. If an `AmazonDynamoDBClient` is built from a global database, then Replicas will be accurate. Otherwise this value will be empty"
+});
 
-Console.WriteLine(index + string.Join("\n\n", fullDescriptions));
-File.WriteAllText("./Features.md", index + string.Join("\n\n", fullDescriptions));
+var text = index + string.Join("\n\n", fullDescriptions) + addendum;
+
+Console.WriteLine(text);
+File.WriteAllText("./Features.md", text);
 
 (bool, string) Print(string name, Dictionary<string, object> inputs, Dictionary<string, object> outputs)
 {
@@ -70,17 +76,25 @@ bool IsObsolete(PropertyInfo p)
 
 string PrintSchema(string title, Dictionary<string, object> schema)
 {
-    var printed = schema
-        .Where(x => x.Key != "__description")
-        .Select(x => PrintSchemaItem(x, 4))
-        .OrderBy(x => x.Item1)
-        .ThenBy(x => x.Item2)
-        .Select(x => x.Item2);
+    // hack/duplicated logic
+    var omitChildren = schema.TryGetValue("__omitChildren", out var omit) && true.Equals(omit);
+    var description = schema.TryGetValue("__description", out var desc) && desc is string d
+        ? $"\n\n * {d}\n" 
+        : "";
+
+    var printed = omitChildren
+        ? Enumerable.Empty<string>()
+        : schema
+            .Where(x => x.Key != "__description" && x.Key != "__omitChildren")
+            .Select(x => PrintSchemaItem(x, 4))
+            .OrderBy(x => x.Item1)
+            .ThenBy(x => x.Item2)
+            .Select(x => x.Item2);
         
     var result = string.Join("\n", printed);
-    if (result == "") return "";
+    if (result == "" && description == "") return "";
 
-    return $"\n\n### {title}\n\n{result}";
+    return $"\n\n### {title}{description}\n\n{result}";
 }
 
 string Indent(string str, int indent)
@@ -218,7 +232,7 @@ Dictionary<string, object> Done()
 {
     var replicaDescription = JsonSerializer.Serialize(new
     {
-        __description = "Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty",
+        __description = "[Partial support](#replica-description-support)",
         GlobalSecondaryIndexes = new
         {
             IndexName = true
@@ -267,6 +281,12 @@ Dictionary<string, object> Done()
     var deprecated = new
     {
         __description = "This operation is deprecated by AWS",
+        __omitChildren = true
+    };
+
+    var backupExample = new 
+    {
+        __description = "There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)",
         __omitChildren = true
     };
 
@@ -643,6 +663,16 @@ Dictionary<string, object> Done()
                 }
             }
         },
+        CreateBackupRequest = backupExample,
+        CreateBackupResponse = backupExample,
+        RestoreTableFromBackupRequest = backupExample,
+        RestoreTableFromBackupResponse = backupExample,
+        DeleteBackupRequest = backupExample,
+        DeleteBackupResponse = backupExample,
+        ListBackupsRequest = backupExample,
+        ListBackupsResponse = backupExample,
+        DescribeBackupRequest = backupExample,
+        DescribeBackupResponse = backupExample,
         UpdateItemRequest = new
         {
             UpdateExpression = true,

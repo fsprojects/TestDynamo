@@ -13,15 +13,13 @@ type FsGlobalDb = TestDynamo.Api.FSharp.GlobalDatabase
 type DatabaseCloneData = TestDynamo.Api.FSharp.DatabaseCloneData
 
 /// <summary>
-/// A mutable Global Database object containing Tables and Streams
+/// A mutable Global Database object containing Databases (regions), Tables and Streams
 /// 
 /// Allows database tables to be replicated between Databases
 /// Databases are created automatically when requested
 /// </summary>
 [<AllowNullLiteral>]
-type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
-
-    new(db: FsGlobalDb) = new GlobalDatabase(db, false)
+type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] disposeUnderlyingDatabase: bool) =
 
     new(
         initialDatabases: Api.FSharp.GlobalDatabaseClone,
@@ -53,11 +51,15 @@ type GlobalDatabase private (db: FsGlobalDb, dispose: bool) =
 
         new GlobalDatabase(db, true)
 
+    /// <summary>
+    /// The actual database.
+    /// This class is just a thin wrapper around the CoreDb
+    /// </summary>
     member _.CoreDb = db
 
     interface IDisposable with member this.Dispose() = this.Dispose()
 
-    member _.Dispose() = if dispose then db.Dispose()
+    member _.Dispose() = if disposeUnderlyingDatabase then db.Dispose()
 
     member _.DefaultLogger = db.DefaultLogger
 

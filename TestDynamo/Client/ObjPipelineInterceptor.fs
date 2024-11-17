@@ -29,7 +29,15 @@ type IRequestInterceptor =
     /// be used as the response of the request. If null is returned, then the request will continue
     /// as normal
     /// </summary>
-    abstract member Intercept: database: ApiDb -> request: obj -> CancellationToken -> ValueTask<obj>
+    abstract member InterceptRequest: database: ApiDb -> request: obj -> CancellationToken -> ValueTask<obj>
+    
+    /// <summary>
+    /// Intercept a response. If this method returns a non-null object, the object will
+    /// be used as the response of the request. If null is returned, then the response will continue as normal.
+    ///
+    /// Responses are most likely mutable AmazonWebServiceResponses, and you can modify them as required
+    /// </summary>
+    abstract member InterceptResponse: database: ApiDb -> request: obj -> response: obj -> CancellationToken -> ValueTask<obj>
 
 type ObjPipelineInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
@@ -41,7 +49,8 @@ type ObjPipelineInterceptor(
     static let noInterceptorResult = ValueTask<obj>(result = null).Preserve()
     static let noInterceptor =
         { new IRequestInterceptor with
-            member _.Intercept _ _ _ = noInterceptorResult }
+            member _.InterceptRequest _ _ _ = noInterceptorResult
+            member _.InterceptResponse _ _ _ _ = noInterceptorResult }
 
     let interceptor = interceptor ?|? noInterceptor
     let db =
@@ -183,8 +192,15 @@ type ObjPipelineInterceptor(
             flip (execute overrideDelay id update (asLazy id)) request cancellationToken
         | x -> x.GetType().Name |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
 
+    static let castToAmazonWebServiceResponse (x: obj) =
+        try
+            x :?> AmazonWebServiceResponse
+        with
+        | :? InvalidCastException as e ->
+            InvalidOperationException($"Intercepted responses must inherit from {nameof AmazonWebServiceResponse}", e) |> raise
+    
     let invoke' overrideDelay cancellationToken req =
-        let interceptorResult = interceptor.Intercept db req cancellationToken
+        let interceptorResult = interceptor.InterceptRequest db req cancellationToken
         if interceptorResult = Unchecked.defaultof<ValueTask<_>>
             then noInterceptorResult
             else interceptorResult
@@ -194,6 +210,11 @@ type ObjPipelineInterceptor(
                 invoke'' overrideDelay cancellationToken req
             | :? AmazonWebServiceResponse as r -> ValueTask<_>(result = r)
             | _ -> invalidOp $"Intercept response must be null or inherit from {nameof AmazonWebServiceRequest}"
+        |%>>= fun response ->
+            let interceptorResult = interceptor.InterceptResponse db req response cancellationToken
+            if interceptorResult = Unchecked.defaultof<ValueTask<_>>
+                then Io.retn response
+                else interceptorResult |%|> castToAmazonWebServiceResponse
 
     let invoke = invoke' ValueNone
 

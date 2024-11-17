@@ -22,6 +22,8 @@ type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
 type SmokeTests(output: ITestOutputHelper) =
     
+    let random = randomBuilder output
+    
     [<Fact>]
     let ``countDigits smoke tests`` () =
         // Numbers are variable length, with up to 38 significant digits.
@@ -364,13 +366,27 @@ type SmokeTests(output: ITestOutputHelper) =
             let expected = DescribeTableResponse()
             let interceptor =
                 { new IRequestInterceptor with
-                    member _.Intercept db req c =
+                    member _.InterceptRequest db req c =
                         Assert.Equal("r1", db.Id.regionId)
 
                         let req = Assert.IsType<DescribeTableRequest>(req)
                         if req.TableName = "ttt"
                         then ValueTask<_>(result = expected)
-                        else Unchecked.defaultof<_> }
+                        elif random.Next() % 2 = 0
+                        then Unchecked.defaultof<_>
+                        else box null |> Io.retn
+
+                    override this.InterceptResponse database request response var0 =
+                        let req = Assert.IsType<DescribeTableRequest>(request)
+                        if req.TableName = "ttt"
+                        then
+                            expected.ContentLength <- 54321
+                            Io.retn (box expected)
+                        elif random.Next() % 2 = 0
+                        then Unchecked.defaultof<_>
+                        else box null |> Io.retn
+                        
+                        }
 
             use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
 
@@ -384,6 +400,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
             // assert 1
             Assert.Equal(response, response)
+            Assert.Equal(54321L, response.ContentLength)
             r.TableName <- "uuu"
 
             // act 2

@@ -99,20 +99,21 @@ type SerializationTests(output: ITestOutputHelper) =
             // arrange
             use logger = new TestLogger(output, LogLevel.Warning) 
             let! struct (_, cluster, _, _, _) = setUp2Regions logger true
-            let db1 = cluster.GetDatabase ValueNone {regionId = "eu-north-1" }
+            use cluster = new Api.GlobalDatabase(cluster)
+            let db1 = cluster.GetDatabase({regionId = "eu-north-1" })
 
             // act
             let ser1 = DatabaseSerializer.Database.ToString(db1, schemaOnly = ``omit data``)
-            let db2 = DatabaseSerializer.Database.FromString(ser1)
+            use db2 = DatabaseSerializer.Database.FromString(ser1)
             let ser2 = DatabaseSerializer.Database.ToString(db2, schemaOnly = ``omit data``)
-
+            
             // assert
             Assert.True(ser1.Length > if ``omit data`` then 200 else 10_000)
             Assert.Equal(ser1, ser2)
 
-            let tableCount (db: Api.FSharp.Database) = List.length db.DebugTables
-            let indexCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Indexes |> Seq.length
-            let itemCount (db: Api.FSharp.Database) = db.DebugTables |> Seq.collect _.Values |> Seq.length 
+            let tableCount (db: Api.Database) = Seq.length db.DebugTables
+            let indexCount (db: Api.Database) = db.DebugTables |> Seq.collect _.Indexes |> Seq.length
+            let itemCount (db: Api.Database) = db.DebugTables |> Seq.collect _.Values |> Seq.length 
 
             Assert.Equal(tableCount db1, tableCount db2)
             Assert.Equal(indexCount db1, indexCount db2)
@@ -131,9 +132,9 @@ type SerializationTests(output: ITestOutputHelper) =
             let! struct (_, db1, _, _, _) = setUp2Regions logger true
 
             // act
-            let ser1 = DatabaseSerializer.GlobalDatabase.ToString(db1, schemaOnly = ``omit data``)
-            let db2 = DatabaseSerializer.GlobalDatabase.FromString(ser1)
-            let ser2 = DatabaseSerializer.GlobalDatabase.ToString(db2)
+            let ser1 = DatabaseSerializer.FSharp.GlobalDatabase.ToString(db1, schemaOnly = ``omit data``)
+            let db2 = DatabaseSerializer.FSharp.GlobalDatabase.FromString(ser1)
+            let ser2 = DatabaseSerializer.FSharp.GlobalDatabase.ToString(db2)
 
             // assert
             if ``omit data``
@@ -195,11 +196,11 @@ type SerializationTests(output: ITestOutputHelper) =
             let start = DateTimeOffset.Now
 
             // act
-            let! ser1 = DatabaseSerializer.GlobalDatabase.ToStreamAsync(db1)
+            let! ser1 = DatabaseSerializer.FSharp.GlobalDatabase.ToStreamAsync(db1)
             output.WriteLine($"SERIALIZE {DateTimeOffset.Now - start}, SERIALIZED LENGTH {ser1.Length}")
             let start = DateTimeOffset.Now
 
-            let! db2 = DatabaseSerializer.GlobalDatabase.FromStreamAsync(ser1)
+            let! db2 = DatabaseSerializer.FSharp.GlobalDatabase.FromStreamAsync(ser1)
             output.WriteLine($"DESERIALIZE {DateTimeOffset.Now - start}")
 
             // assert
@@ -229,7 +230,7 @@ type SerializationTests(output: ITestOutputHelper) =
                 .WithStreamsEnabled(true)
                 .AddTable()
 
-            let dbString = DatabaseSerializer.GlobalDatabase.ToString(preSerialization)
+            let dbString = DatabaseSerializer.FSharp.GlobalDatabase.ToString(preSerialization)
             let dbJson = JsonObject.Parse(dbString)
 
             // add replicate to somewhere-else
@@ -248,7 +249,7 @@ type SerializationTests(output: ITestOutputHelper) =
             else replicas.Add(newReplica)
 
             // output.WriteLine(dbJson.ToString())
-            let db = DatabaseSerializer.GlobalDatabase.FromString(dbJson.ToString())
+            let db = DatabaseSerializer.FSharp.GlobalDatabase.FromString(dbJson.ToString())
             use client1 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }, logger)
             use client2 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }, logger)
             use client3 = TestDynamoClientBuilder.Create(db.GetDatabase (ValueSome logger) { regionId = "somewhere-else" }, logger)

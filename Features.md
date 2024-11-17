@@ -2,17 +2,22 @@
 
  * [BatchGetItemAsync](#BatchGetItemAsync)
  * [BatchWriteItemAsync](#BatchWriteItemAsync)
+ * [CreateBackupAsync](#CreateBackupAsync)
  * [CreateGlobalTableAsync](#CreateGlobalTableAsync)
  * [CreateTableAsync](#CreateTableAsync)
+ * [DeleteBackupAsync](#DeleteBackupAsync)
  * [DeleteItemAsync](#DeleteItemAsync)
  * [DeleteTableAsync](#DeleteTableAsync)
+ * [DescribeBackupAsync](#DescribeBackupAsync)
  * [DescribeGlobalTableAsync](#DescribeGlobalTableAsync)
  * [DescribeTableAsync](#DescribeTableAsync)
  * [GetItemAsync](#GetItemAsync)
+ * [ListBackupsAsync](#ListBackupsAsync)
  * [ListGlobalTablesAsync](#ListGlobalTablesAsync)
  * [ListTablesAsync](#ListTablesAsync)
  * [PutItemAsync](#PutItemAsync)
  * [QueryAsync](#QueryAsync)
+ * [RestoreTableFromBackupAsync](#RestoreTableFromBackupAsync)
  * [ScanAsync](#ScanAsync)
  * [TransactGetItemsAsync](#TransactGetItemsAsync)
  * [TransactWriteItemsAsync](#TransactWriteItemsAsync)
@@ -47,6 +52,22 @@
  * ConsumedCapacity
  * ItemCollectionMetrics
 
+## CreateBackupAsync
+
+### Inputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
+### Outputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
 ## CreateGlobalTableAsync
 
 ### Inputs
@@ -61,7 +82,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -129,7 +150,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -156,6 +177,22 @@
      * SSEDescription
      * TableClassSummary
      * TableSizeBytes
+
+## DeleteBackupAsync
+
+### Inputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
+### Outputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
 
 ## DeleteItemAsync
 
@@ -214,7 +251,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -242,6 +279,22 @@
      * TableClassSummary
      * TableSizeBytes
 
+## DescribeBackupAsync
+
+### Inputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
+### Outputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
 ## DescribeGlobalTableAsync
 
 ### Inputs
@@ -255,7 +308,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -305,7 +358,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -350,6 +403,22 @@
  * ✅ IsItemSet
  * ✅ Item
  * ConsumedCapacity
+
+## ListBackupsAsync
+
+### Inputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
+### Outputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
 
 ## ListGlobalTablesAsync
 
@@ -427,6 +496,22 @@
  * ✅ LastEvaluatedKey
  * ✅ ScannedCount
  * ConsumedCapacity
+
+## RestoreTableFromBackupAsync
+
+### Inputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
+
+### Outputs
+
+ * There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)
+
+
+
 
 ## ScanAsync
 
@@ -528,7 +613,7 @@
      * ✅ GlobalTableArn
      * ✅ GlobalTableName
      * ✅ GlobalTableStatus
-     * ReplicationGroup - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * ReplicationGroup - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -629,7 +714,7 @@
          * ✅ KeySchema
          * ✅ Projection
          * IndexSizeBytes
-     * Replicas - Partial support. If a `TestDynamoClient` is aware that it's database is part of a global db, then Replicas will be accurate. Otherwise this value will be empty
+     * Replicas - [Partial support](#replica-description-support)
          * GlobalSecondaryIndexes
              * ✅ IndexName
              * OnDemandThroughputOverride
@@ -659,13 +744,7 @@
 
 ### ❌ BatchExecuteStatementAsync
 
-### ❌ CreateBackupAsync
-
-### ❌ DeleteBackupAsync
-
 ### ❌ DeleteResourcePolicyAsync
-
-### ❌ DescribeBackupAsync
 
 ### ❌ DescribeContinuousBackupsAsync
 
@@ -703,8 +782,6 @@
 
 ### ❌ ImportTableAsync
 
-### ❌ ListBackupsAsync
-
 ### ❌ ListContributorInsightsAsync
 
 ### ❌ ListExportsAsync
@@ -714,8 +791,6 @@
 ### ❌ ListTagsOfResourceAsync
 
 ### ❌ PutResourcePolicyAsync
-
-### ❌ RestoreTableFromBackupAsync
 
 ### ❌ RestoreTableToPointInTimeAsync
 
@@ -734,3 +809,7 @@
 ### ❌ UpdateTableReplicaAutoScalingAsync
 
 ### ❌ UpdateTimeToLiveAsync
+
+#### Replica Description Support
+
+Partial support. If an `AmazonDynamoDBClient` is built from a global database, then Replicas will be accurate. Otherwise this value will be empty

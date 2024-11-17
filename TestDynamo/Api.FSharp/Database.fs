@@ -23,11 +23,11 @@ type private DatabaseState =
       streams: TableStreams }
 
 type DatabaseCloneData =
-    { data: Model.DatabaseCloneData
+    { data: Model.DatabaseClone
       databaseId: DatabaseId }
     with
     static member empty databaseId =
-        { data = Model.DatabaseCloneData.empty
+        { data = Model.DatabaseClone.empty
           databaseId = databaseId }
 
     static member emptyDefault =
@@ -323,6 +323,12 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// </summary>
     member _.AddTable logger args =
         Database.addTable args |> lockedAndLogged "ADD TABLE" (iLoggerOrLoggerInput logger)
+
+    /// <summary>
+    /// Import some clone data. Cloned tables must not exist in the system already   
+    /// </summary>
+    member _.Import logger args =
+        Database.importClone args |> lockedAndLogged "IMPORT CLONE" (iLoggerOrLoggerInput logger)
 
     /// <summary>
     /// Return some info about the database as a string

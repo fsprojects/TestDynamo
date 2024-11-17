@@ -430,45 +430,146 @@ keeps client request tokens for 10 seconds. This cache time can be updated in `S
 
 Interceptors can be added to intercept and override certain database functionality.
 
+For example, this sample implements create and restore backup functionality
+
+#### Implement backups functionality
+
 ```C#
 using TestDynamo;
+using TestDynamo.Api.FSharp;
 using TestDynamo.Client;
+using TestDynamo.Model;
 
 /// <summary>
-/// An interceptor which implements the CreateBackup operation
+/// An interceptor which implements the CreateBackup and RestoreTableFromBackup operations
 /// </summary>
-public class CreateBackupInterceptor : IRequestInterceptor
+public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backupStore) : IRequestInterceptor
 {
-    public ValueTask<object> Intercept(Api.FSharp.Database database, object request, CancellationToken c)
+    public async ValueTask<object?> Intercept(Api.FSharp.Database database, object request, CancellationToken c)
     {
-        // ignore other requests by returning default
-        // if the interception is an async process, you can also return 
-        // a ValueTask that resolves to null
-        if (request is not CreateBackupRequest typedRequest)
-            return default;
+        if (request is CreateBackupRequest create)
+            return CreateBackup(database, create.TableName);
 
+        if (request is RestoreTableFromBackupRequest restore)
+            return await RestoreBackup(database, restore.BackupArn);
+
+        // return null to allow the client to process other request types as normal
+        return null;
+    }
+    
+    private CreateBackupResponse CreateBackup(Api.FSharp.Database database, string tableName)
+    {
         // wrap the database in something that is more C# friendly
-        var csDatabase = new Api.Database(database);
+        using var csDatabase = new Api.Database(database);
         
-        // check whether this is a valid request or not
-        var table = csDatabase.TryDescribeTable(typedRequest.TableName);
-        if (table.IsNone)
-            throw new AmazonDynamoDBException("Cannot find table");
+        // clone the required database and remove all other tables
+        var cloneData = csDatabase.BuildCloneData();
+        cloneData = new DatabaseCloneData(
+            cloneData.data.ExtractTables(new [] { tableName }),
+            cloneData.databaseId);
 
-        var response = new CreateBackupResponse
+        // create a fake arn and store a cloned DB as a backup
+        var arn = $"{database.Id.regionId}/{tableName}";
+        backupStore.Add(arn, cloneData);
+        
+        return new CreateBackupResponse
         {
             BackupDetails = new BackupDetails
             {
+                BackupArn = arn,
                 BackupStatus = BackupStatus.AVAILABLE
             }
         };
-
-        return new ValueTask<object>(response);
     }
+    
+    private async ValueTask<RestoreTableFromBackupResponse> RestoreBackup(Api.FSharp.Database database, string arn)
+    {
+        // parse fake ARN created in the CreateBackup method
+        var arnParts = arn.Split("/");
+        if (arnParts.Length != 2)
+            throw new AmazonDynamoDBException("Invalid backup arn");
+
+        var tableName = arnParts[1];
+        if (!backupStore.TryGetValue(arn, out var backup))
+            throw new AmazonDynamoDBException("Invalid backup arn");
+        
+        // wrap the database in something that is more C# friendly
+        using var csDatabase = new Api.Database(database);
+
+        // delete any existing data to make room for restore data
+        if (csDatabase.TryDescribeTable(tableName).IsSome)
+            await csDatabase.DeleteTable(tableName);
+        
+        csDatabase.Import(backup.data);
+        return new RestoreTableFromBackupResponse
+        {
+            TableDescription = new TableDescription
+            {
+                TableName = tableName
+            }
+        };
+    }
+    
+    // no need to intercept responses
+    public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c) => default;
 }
 
-using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>(new CreateBackupInterceptor());
-var createBackupResponse = await client.CreateBackupAsync(...);
+// create an in memory store for backups
+var backups = new Dictionary<string, DatabaseCloneData>();
+
+using var database = new Api.Database(new DatabaseId("us-west-1"));
+
+// create an interceptor and use in a client
+var interceptor = new CreateBackupInterceptor(backups);
+using var client = database.CreateClient<AmazonDynamoDBClient>(interceptor);
+
+// execute some requests which are not intercepted. These will execute normally
+await client.PutItemAsync(...);
+await client.PutItemAsync(...);
+
+// create a backup. This will be intercepted
+var backupResponse = await client.CreateBackupAsync(new CreateBackupRequest
+{
+   TableName = "Beatles"
+});
+
+// restore from backup. This will not be intercepted
+await client.RestoreTableFromBackupAsync(new RestoreTableFromBackupRequest
+{
+   BackupArn = backupResponse.BackupDetails.BackupArn
+});
+```
+
+#### Implement BillingMode functionality
+
+Here is another example of how to implement some out of scope [BillingMode](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_BillingModeSummary.html) functionality with an interceptor
+
+```C#
+/// <summary>
+/// An interceptor which implements BillingMode functionality for CreateTableAsync
+/// </summary>
+public class BillingModeInterceptor : IRequestInterceptor
+{
+    // request interception is not requred
+    public ValueTask<object?> InterceptRequest(Api.FSharp.Database database, object request, CancellationToken c) => default;
+    
+    public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c)
+    {
+        if (request is not CreateTableRequest req || response is not CreateTableResponse resp)
+            return default;
+
+        // modify the output
+        resp.TableDescription.BillingModeSummary = new BillingModeSummary
+        {
+            BillingMode = req.BillingMode ?? BillingMode.PAY_PER_REQUEST,
+            LastUpdateToPayPerRequestDateTime = DateTime.UtcNow
+        };
+
+        // Return default so that the response will be passed on after modification
+        // If a non null item is returned here, it will be passed on instead 
+        return default;
+    }
+}
 ```
 
 ### Logging

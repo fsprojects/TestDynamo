@@ -17,14 +17,13 @@ type FsDb = Api.FSharp.Database
 /// <summary>
 /// A mutable Database object containing Tables and Streams
 /// </summary>
-type Database private (db: FsDb, dispose: bool) =
+type Database (db: FsDb, [<Optional; DefaultParameterValue(false)>] disposeUnderlyingDatabase: bool) =
 
     static let formatLogger = CSharp.toOption ??|> Either1
 
     static let describeRequiredTable (db: Api.FSharp.Database) (name: string) =
         db.TryDescribeTable ValueNone name |> ValueOption.defaultWith (fun _ -> clientError $"Table {name} not found on database {db.Id}")
 
-    new(db: FsDb) = new Database(db, false)
     new() = new Database(new FsDb(), true)
     new(cloneData: Api.FSharp.DatabaseCloneData) = new Database(new FsDb(cloneData = cloneData), true)
     new(logger: ILogger) = new Database(new FsDb(logger), true)
@@ -43,10 +42,10 @@ type Database private (db: FsDb, dispose: bool) =
         | _ -> false
 
     static member (==) (x: Database, y: Database) = x.Equals(y)
-
+    
     interface IDisposable with member this.Dispose() = this.Dispose()
 
-    member _.Dispose() = if dispose then db.Dispose()
+    member _.Dispose() = if disposeUnderlyingDatabase then db.Dispose()
 
     /// <summary>
     /// Get a list of DebugTables. All Tables, Indexes and Items will be enumerated  
@@ -58,7 +57,11 @@ type Database private (db: FsDb, dispose: bool) =
 
     member _.Id = db.Id
 
-    member internal _. CoreDb = db
+    /// <summary>
+    /// The actual database.
+    /// This class is just a thin wrapper around the CoreDb
+    /// </summary>
+    member _. CoreDb = db
 
     /// <summary>
     /// Get a table for debugging purposes
@@ -208,9 +211,9 @@ type Database private (db: FsDb, dispose: bool) =
     member _.AddTable(args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.AddTable (CSharp.toOption logger) args
 
     /// <summary>
-    /// Add a new table  
+    /// Import some clone data. Cloned tables must not exist in the system already 
     /// </summary>
-    member _.AddTable args = db.AddTable ValueNone args
+    member _.Import(args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Import (CSharp.toOption logger) args
 
     member _.Print () = db.Print ()
 
