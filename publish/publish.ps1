@@ -31,7 +31,8 @@ $publishApps = @(
     "$rootDir\TestDynamo.Serialization\TestDynamo.Serialization.fsproj")
 
 $testApps = @(
-    "$rootDir\tests\TestDynamo.Tests\TestDynamo.Tests.fsproj")
+    "$rootDir\tests\TestDynamo.Tests\TestDynamo.Tests.fsproj",
+    "$rootDir\tests\TestDynamo.Tests.CSharp\TestDynamo.Tests.CSharp.csproj")
 
 Write-Host "Pre processing project files"
 node "$rootDir\publish\project-parser\init.js" @($testApps + $publishApps) --version "$version"
@@ -40,25 +41,54 @@ if (-not $?) { exit 1 }
 git add @($testApps + $publishApps)
 git commit -m "fsproj changes"
 
+function handle-pack-errors ($i, $err) {
+    Write-Error "ERROR $err"
+    if ($i -gt 30) {
+        Write-Error "Too many failures. Quitting"
+        exit 1
+    }
+    
+    # NU1603 means that a required nuget version is not present yet.
+    # This will happen after the core project is deployed and it is still indexing
+    if (!($err -match "NU1603" || $err -match "NU1102")) {
+        exit 1
+    }
+
+    Write-Host "Waiting for 1min before next attempt"
+    Start-Sleep -Seconds 60
+}
+
 $nugetKey = Read-Host "Enter a nuget key" -MaskInput
 $publishApps |
     ForEach-Object -Process {
-        Write-Host "Packing $_"
-        $project = $_
 
-        if (Select-String -Path $versionFile -Pattern $project -SimpleMatch) {
-            Write-Host "Project $_ already done"
-            return
-        }
+        $i = 0
+        while ($true) {
+            Write-Host "Packing $_, attempt $i"
+            $project = $_
 
-        $packResult = (dotnet pack `
-            "$project" `
-            --configuration Release `
-            -p:PackageVersion="$version")
-            
-        if (-not $?) {
-            Write-Error "ERROR $packResult"
-            exit 1
+            if (Select-String -Path $versionFile -Pattern $project -SimpleMatch) {
+                Write-Host "Project $_ already done"
+                return
+            }
+
+            $packResult = (dotnet restore --no-cache)
+            if (-not $?) {
+                handle-pack-errors $i $packResult
+            } else {
+                $packResult = (dotnet pack `
+                    "$project" `
+                    --configuration Release `
+                    -p:PackageVersion="$version")
+                    
+                if (-not $?) {
+                    handle-pack-errors $i $packResult
+                } else {
+                    break
+                }
+            }
+
+            $i = $i + 1
         }
 
         $match = select-string "Successfully created package '([\w-\.\\/:]+).nupkg'" -inputobject $packResult
@@ -97,6 +127,7 @@ $publishApps |
 
 $testApps |
     ForEach-Object -Process {
+        dotnet restore "$_" --no-cache
         dotnet test "$_"
 
         if (-not $?) { exit 1}
