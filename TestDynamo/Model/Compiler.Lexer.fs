@@ -147,6 +147,7 @@ module Token =
 /// <summary>Match against a full regex if it appears at the specified index</summary>
 let private matchAtIndex struct (rx: Regex, struct (text: string, index)) =
 #if NETSTANDARD2_1 || NETSTANDARD2_0
+    // TODO TEST
     // find match indexes over parse matches to avoid heavy (and unnecessary) substringing
     let rxMatch = rx.Match(text, index)
 

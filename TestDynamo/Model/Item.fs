@@ -15,7 +15,9 @@ type AttributeType =
     | Boolean
     | Binary
     | HashMap
-    | HashSet of AttributeType
+    | StringHashSet
+    | BinaryHashSet
+    | NumberHashSet
     | AttributeList
     | Null
 
@@ -32,10 +34,9 @@ type AttributeType =
         | HashMap -> "M"
         | AttributeList -> "L"
         | Null -> "NULL"
-        | HashSet String -> "SS"
-        | HashSet Number -> "NS"
-        | HashSet Binary -> "BS"
-        | HashSet x -> AttributeType.describeHashSet x
+        | StringHashSet -> "SS"
+        | NumberHashSet -> "NS"
+        | BinaryHashSet -> "BS"
 
     static member tryParse value =
         match value with
@@ -44,9 +45,9 @@ type AttributeType =
         | "BOOL" -> AttributeType.Boolean |> ValueSome
         | "B" -> AttributeType.Binary |> ValueSome
         | "M" -> AttributeType.HashMap |> ValueSome
-        | "SS" -> AttributeType.HashSet AttributeType.String |> ValueSome
-        | "NS" -> AttributeType.HashSet AttributeType.Number |> ValueSome
-        | "BS" -> AttributeType.HashSet AttributeType.Binary |> ValueSome
+        | "SS" -> AttributeType.StringHashSet |> ValueSome
+        | "NS" -> AttributeType.NumberHashSet |> ValueSome
+        | "BS" -> AttributeType.BinaryHashSet |> ValueSome
         | "L" -> AttributeType.AttributeList |> ValueSome
         | "NULL" -> AttributeType.Null |> ValueSome
         | _ -> ValueNone
@@ -58,9 +59,9 @@ type AttributeType =
         | "BOOL" -> AttributeType.Boolean
         | "B" -> AttributeType.Binary
         | "M" -> AttributeType.HashMap
-        | "SS" -> AttributeType.HashSet AttributeType.String
-        | "NS" -> AttributeType.HashSet AttributeType.Number
-        | "BS" -> AttributeType.HashSet AttributeType.Binary
+        | "SS" -> AttributeType.StringHashSet
+        | "NS" -> AttributeType.NumberHashSet
+        | "BS" -> AttributeType.BinaryHashSet
         | "L" -> AttributeType.AttributeList
         | "NULL" -> AttributeType.Null
         | x -> invalidOp $"Invalid AttributeType {x}"
@@ -92,9 +93,7 @@ type AttributeSet =
 
     static member asSet (As x) = sndT x
     static member getSetType (As x) = fstT x
-    // static member fromStrings = AttributeSet.fromTyped AttributeType.String
-    // static member fromNumbers = AttributeSet.fromTyped AttributeType.Number
-    // static member fromBinary = AttributeSet.fromTyped AttributeType.Binary
+    
     static member asBinarySeq = function
         | As struct (t, x) when t <> AttributeType.Binary ->
             clientError $"Set has type {t}, not {AttributeType.Binary}"
@@ -166,8 +165,12 @@ type AttributeSet =
                 | _, AttributeType.Boolean -> 1
                 | AttributeType.Binary, _ -> -1
                 | _, AttributeType.Binary -> 1
-                | AttributeType.HashSet _, _ -> -1
-                | _, AttributeType.HashSet _ -> 1
+                | AttributeType.StringHashSet, _ -> -1
+                | _, AttributeType.StringHashSet -> 1
+                | AttributeType.NumberHashSet, _ -> -1
+                | _, AttributeType.NumberHashSet -> 1
+                | AttributeType.BinaryHashSet, _ -> -1
+                | _, AttributeType.BinaryHashSet -> 1
                 | AttributeType.HashMap, _ -> -1
                 | _, AttributeType.HashMap -> 1
                 | AttributeType.AttributeList, _ -> -1
@@ -545,9 +548,11 @@ and
 
     static member private byteArrayComparer: IEqualityComparer<byte array> = Comparison.arrayComparer<byte> 10
 
-    static member private getHashSetType =
-        let inline keySelector (x: AttributeType) = x
-        memoize ValueNone keySelector AttributeType.HashSet >> sndT
+    static member private getHashSetType = function
+        | AttributeType.String -> StringHashSet
+        | AttributeType.Number -> NumberHashSet
+        | AttributeType.Binary -> BinaryHashSet
+        | x -> invalidOp $"{x} is not a valid Set type"
 
     static member getType (value: AttributeValue) =
         match value with
@@ -616,7 +621,10 @@ and
         | Binary _ -> if ``type`` = AttributeType.Binary then ValueSome value else ValueNone
         | Boolean _ -> if ``type`` = AttributeType.Boolean then ValueSome value else ValueNone
         | HashMap _ -> if ``type`` = AttributeType.HashMap then ValueSome value else ValueNone
-        | HashSet hs -> if ``type`` = AttributeType.HashSet (AttributeSet.getSetType hs) then ValueSome value else ValueNone
+        | HashSet hs when ``type`` = AttributeType.StringHashSet && AttributeSet.getSetType hs = AttributeType.String -> ValueSome value
+        | HashSet hs when ``type`` = AttributeType.NumberHashSet && AttributeSet.getSetType hs = AttributeType.Number -> ValueSome value
+        | HashSet hs when ``type`` = AttributeType.BinaryHashSet && AttributeSet.getSetType hs = AttributeType.Binary -> ValueSome value
+        | HashSet _ -> ValueNone
         | AttributeList _ -> if ``type`` = AttributeType.AttributeList then ValueSome value else ValueNone
 
     static member compare x y =

@@ -41,10 +41,6 @@ type internal IsReadOnlyAttribute() = inherit System.Attribute()
 let kvpToDictionary (xs: KeyValuePair<_, _> seq) = Dictionary<_, _> xs
 #endif
 
-#if (NETSTANDARD2_0 || NETSTANDARD2_1)
-
-#endif
-
 let shiftRight = (>>>)
 let inline (>>>) f g x y = f x y |> g
 let inline (>>>>) f g x y z = f x y z |> g
