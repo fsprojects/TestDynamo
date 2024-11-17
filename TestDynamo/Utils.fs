@@ -1180,7 +1180,7 @@ module Io =
     let private asAction (f: unit -> unit): System.Action = f
 
     // should not be public, but needs some complex testing
-    // very difficult (niche) case where it might be uses organically
+    // very difficult (niche) case where it might be used organically
     /// <summary>Less efficient version of Task.WaitAsync</summary>
     let addCancellationTokenNetStandard (c: CancellationToken) (t: Task<'a>) =
         let source = TaskCompletionSource<'a>(c)
