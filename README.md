@@ -269,8 +269,10 @@ propagated synchronously. For `AmazonDynamoDBClient`, the `AwaitAllSubscribers` 
 using TestDynamo;
 
 using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
-var context = new DynamoDbContext(client)
 
+... // initialize the database schema
+
+using var context = new DynamoDbContext(client)
 await context.SaveAsync(new Beatle
 {
    FirstName = "Ringo",
@@ -445,7 +447,7 @@ using TestDynamo.Model;
 /// </summary>
 public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backupStore) : IRequestInterceptor
 {
-    public async ValueTask<object?> Intercept(Api.FSharp.Database database, object request, CancellationToken c)
+    public async ValueTask<object?> InterceptRequest(Api.FSharp.Database database, object request, CancellationToken c)
     {
         if (request is CreateBackupRequest create)
             return CreateBackup(database, create.TableName);
