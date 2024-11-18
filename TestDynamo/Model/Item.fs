@@ -650,7 +650,7 @@ and
                 match AttributeValue.compressSparseLists' v with
                 | true, v' -> Map.add k v' map |> tpl true
                 | false, _ -> s) struct (false, map) map
-            |> mapSnd (HashMapX >> AttributeValue.create)
+            |> mapSnd (AttributeValue.createHashMap)
         | AttVal (:? AttributeListType as list) & fullList ->
             // quite optimised to avoid allocations, includes mutations
             let struct (arrChanged, arr') = AttributeListType.asArrayWithMetadata list
@@ -670,7 +670,7 @@ and
 
             match mutableArray with
             | null -> struct (false, fullList)
-            | x -> struct (true, x |> CompressedList |> AttributeListX |> AttributeValue.create)
+            | x -> struct (true, x |> CompressedList |> AttributeValue.createAttributeList)
         | AttVal _ & x -> struct (false, x)
 
     static member compressSparseLists = AttributeValue.compressSparseLists' >> sndT
@@ -951,7 +951,7 @@ module Item =
             | _, BooleanX _ -> Seq.empty
 
         fun item ->
-            match getAttrErrors ((1, []), HashMapX item |> AttributeValue.create) |> Str.join "; " with
+            match getAttrErrors ((1, []), AttributeValue.createHashMap item) |> Str.join "; " with
             | "" -> ()
             | e -> clientError $"Invalid item - {e}"
 

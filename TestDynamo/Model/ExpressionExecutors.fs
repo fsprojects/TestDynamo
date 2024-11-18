@@ -420,7 +420,7 @@ module Update =
         | HashMapX x -> x
         | _ -> serverError "Expected hash map"
 
-    let compressSparseLists = HashMapX >> AttributeValue.create >> AttributeValue.compressSparseLists >> expectHashMap
+    let compressSparseLists = AttributeValue.createHashMap >> AttributeValue.compressSparseLists >> expectHashMap
 
     let private returnInput = Map.empty |> asLazy |> asLazy
     let private buildUpdateProjector logger attributeNames =

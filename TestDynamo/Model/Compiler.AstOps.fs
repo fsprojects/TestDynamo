@@ -646,7 +646,7 @@ module Updates =
             | Projection
             | UpdatePlaceholder _ -> invalid2
 
-        let return0 = WorkingAttributeValue.NumberX 0M |> AttributeValue.create |> ValueSome |> asLazy
+        let return0 = AttributeValue.createNumber 0M |> ValueSome |> asLazy
 
         let private mutate (struct (_, arg1) & args) itemData =
             match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with

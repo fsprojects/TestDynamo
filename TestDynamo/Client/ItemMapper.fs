@@ -13,7 +13,7 @@ type MList<'a> = List<'a>
 
 let rec attributeFromDynamodb name (attr: DynamoAttributeValue) =
     if attr = null
-    then WorkingAttributeValue.NullX |> AttributeValue.create
+    then AttributeValue.createNull()
     else
     match struct (
         attr.IsBOOLSet,
@@ -27,38 +27,35 @@ let rec attributeFromDynamodb name (attr: DynamoAttributeValue) =
         attr.IsNSSet,
         attr.IsBSSet
         ) with
-    | true, null, null, null, false, false, false, false, false, false -> attr.BOOL |> WorkingAttributeValue.BooleanX |> AttributeValue.create
-    | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> WorkingAttributeValue.StringX |> AttributeValue.create
-    | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> WorkingAttributeValue.NumberX |> AttributeValue.create
+    | true, null, null, null, false, false, false, false, false, false -> attr.BOOL |> AttributeValue.createBoolean
+    | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> AttributeValue.createString
+    | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> AttributeValue.createNumber
     | false, null, null, bin, false, false, false, false, false, false when bin <> null ->
-        bin.ToArray() |> WorkingAttributeValue.BinaryX |> AttributeValue.create
-    | false, null, null, null, true, false, false, false, false, false -> WorkingAttributeValue.NullX |> AttributeValue.create
+        bin.ToArray() |> AttributeValue.createBinary
+    | false, null, null, null, true, false, false, false, false, false -> AttributeValue.createNull()
     | false, null, null, null, false, true, false, false, false, false ->
         if attr.M = null then clientError "Map data not set"
-        itemFromDynamodb name attr.M |> WorkingAttributeValue.HashMapX |> AttributeValue.create
+        itemFromDynamodb name attr.M |> AttributeValue.createHashMap
     | false, null, null, null, false, false, true, false, false, false ->
         CSharp.sanitizeSeq attr.L 
-        |> Seq.mapi (fun i -> attributeFromDynamodb $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> WorkingAttributeValue.AttributeListX |> AttributeValue.create
+        |> Seq.mapi (fun i -> attributeFromDynamodb $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.createAttributeList
     | false, null, null, null, false, false, false, true, false, false ->
         CSharp.sanitizeSeq attr.SS
-        |> Seq.map (StringX >> AttributeValue.create)
+        |> Seq.map (AttributeValue.createString)
         |> AttributeSet.create
-        |> HashSetX
-        |> AttributeValue.create
+        |> AttributeValue.createHashSet
     | false, null, null, null, false, false, false, false, true, false ->
 
         CSharp.sanitizeSeq attr.NS
-        |> Seq.map (Decimal.Parse >> NumberX >> AttributeValue.create)
+        |> Seq.map (Decimal.Parse >> AttributeValue.createNumber)
         |> AttributeSet.create
-        |> HashSetX
-        |> AttributeValue.create
+        |> AttributeValue.createHashSet
     | false, null, null, null, false, false, false, false, false, true ->
 
         CSharp.sanitizeSeq attr.BS
-        |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> BinaryX |> AttributeValue.create)
+        |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> AttributeValue.createBinary)
         |> AttributeSet.create
-        |> HashSetX
-        |> AttributeValue.create
+        |> AttributeValue.createHashSet
     | pp -> clientError $"Unknown attribute type for \"{name}\""
 
 and private mapAttribute name (attr: KeyValuePair<string, DynamoAttributeValue>) =

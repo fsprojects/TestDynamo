@@ -17,13 +17,13 @@ type ItemData = Compiler.ItemData
 
 // aka $
 
-let inline private boolResult x = x |> BooleanX |> AttributeValue.create |> ValueSome
-let inline private decimalResult x = x |> NumberX |> AttributeValue.create |> ValueSome
+let inline private boolResult x = x |> AttributeValue.createBoolean |> ValueSome
+let inline private decimalResult x = x |> AttributeValue.createNumber |> ValueSome
 let private intResult x = x |> decimal |> decimalResult
 let private falseResult = boolResult false
 let private trueResult = boolResult true
 
-let rootItem: ItemData -> AttributeValue voption = _.item >> Item.attributes >> HashMapX >> AttributeValue.create >> ValueSome
+let rootItem: ItemData -> AttributeValue voption = _.item >> Item.attributes >> AttributeValue.createHashMap >> ValueSome
 
 let attribute struct (expression, name) (itemData: ItemData) =
     let expression = ValueOption.defaultWith (fun _ _ -> rootItem itemData) expression
@@ -63,7 +63,7 @@ let private op' operator struct (left, right) itemData =
     ?|> operator
 
 let private op operator leftRight itemData =
-    op' operator leftRight itemData ?|> (BooleanX >> AttributeValue.create)
+    op' operator leftRight itemData ?|> (AttributeValue.createBoolean)
 
 type private BinaryOp = (struct ((ItemData -> AttributeValue voption) * (ItemData -> AttributeValue voption))) -> ItemData -> AttributeValue voption
 let eq: BinaryOp = op ((=)0)
@@ -120,8 +120,7 @@ let toList values =
     >> Maybe.traverse
     >> Array.ofSeq
     >> CompressedList
-    >> AttributeListX
-    >> AttributeValue.create
+    >> AttributeValue.createAttributeList
     >> ValueSome
 
 let inline private (>>>) f g x y = f x y |> g
@@ -158,7 +157,7 @@ let listContains struct (test, valueList) itemData =
     ?|> tpl
     <|? test itemData
     ?>>= applyTpl
-    ?|> (BooleanX >> AttributeValue.create)
+    ?|> (AttributeValue.createBoolean)
 
 module HashSets =
     // let private arithmetic operation args itemData =
@@ -171,21 +170,21 @@ module HashSets =
         match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
         | ValueSome (WorkingAttributeValue.HashSetX l), ValueSome (WorkingAttributeValue.HashSetX r) ->
             AttributeSet.tryUnion struct (l, r)
-            ?|> (WorkingAttributeValue.HashSetX >> AttributeValue.create)
+            ?|> (AttributeValue.createHashSet)
         | _ -> ValueNone
 
     let xOr args itemData =
         match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
         | ValueSome (WorkingAttributeValue.HashSetX l), ValueSome (WorkingAttributeValue.HashSetX r) ->
             AttributeSet.tryXOr struct (l, r)
-            ?|> (ValueOption.map (WorkingAttributeValue.HashSetX >> AttributeValue.create))
+            ?|> (ValueOption.map (AttributeValue.createHashSet))
         | _ -> ValueNone
 
 module Arithmetic =
     let private arithmetic operation args itemData =
         match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
         | ValueSome (WorkingAttributeValue.NumberX x), ValueSome (WorkingAttributeValue.NumberX y) ->
-            ValueSome (WorkingAttributeValue.NumberX (operation x y) |> AttributeValue.create)
+            ValueSome (AttributeValue.createNumber (operation x y))
         | _ -> ValueNone
 
     let add args = arithmetic (+) args
@@ -204,7 +203,7 @@ module Functions =
         | ValueSome (AttributeListX _ & x), ValueNone
         | ValueNone, ValueSome (AttributeListX _ & x) -> ValueSome (AttributeValue.create x)
         | ValueSome (AttributeListX l), ValueSome (AttributeListX r) ->
-            AttributeListType.append struct(l, r) |> AttributeListX |> AttributeValue.create |> ValueSome
+            AttributeListType.append struct(l, r) |> AttributeValue.createAttributeList |> ValueSome
         | _ -> ValueNone
 
     // requires validation: if r is expr attr value, the type must be a binary or string
@@ -251,7 +250,7 @@ module Functions =
         attr itemData
         ?|> AttributeValue.getType
         ?>>= testType
-        ?|> (BooleanX >> AttributeValue.create) 
+        ?|> (AttributeValue.createBoolean) 
 
     let contains struct (l, r) itemData =
         ValueOption.Some tpl

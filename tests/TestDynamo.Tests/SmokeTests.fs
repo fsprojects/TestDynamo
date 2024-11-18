@@ -417,7 +417,7 @@ type SmokeTests(output: ITestOutputHelper) =
     let ``A bunch of comparer tests`` alterABit =
         let buildMap1 alterABit =
             Map.empty
-            |> Map.add "P1" (WorkingAttributeValue.NullX |> AttributeValue.create)
+            |> Map.add "P1" (AttributeValue.createNull())
             |> Map.add "P2" (
                 Map.empty
                 |> Map.add "P3" (WorkingAttributeValue.StringX (if alterABit = 1 then "xy" else "xz") |> AttributeValue.create)
@@ -439,8 +439,8 @@ type SmokeTests(output: ITestOutputHelper) =
 
                     if alterABit = 5 then WorkingAttributeValue.NullX |> ValueSome else ValueNone
                 ] |> Seq.map AttributeValue.create |> Array.ofSeq |> CompressedList) |> AttributeValue.create)
-                |> WorkingAttributeValue.HashMapX |> AttributeValue.create)
-            |> WorkingAttributeValue.HashMapX |> AttributeValue.create
+                |> AttributeValue.createHashMap)
+            |> AttributeValue.createHashMap
 
         let map1 = buildMap1 0
         let map2 = buildMap1 alterABit

@@ -276,15 +276,15 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
 
         let result = 
             match t with
-            | "S" -> reader.GetString() |> WorkingAttributeValue.StringX |> AttributeValue.create
-            | "N" -> reader.GetDecimal() |> WorkingAttributeValue.NumberX |> AttributeValue.create
-            | "B" -> reader.GetString() |> Convert.FromBase64String |> WorkingAttributeValue.BinaryX |> AttributeValue.create
-            | "BOOL" -> reader.GetBoolean() |> WorkingAttributeValue.BooleanX |> AttributeValue.create
+            | "S" -> reader.GetString() |> AttributeValue.createString
+            | "N" -> reader.GetDecimal() |> AttributeValue.createNumber
+            | "B" -> reader.GetString() |> Convert.FromBase64String |> AttributeValue.createBinary
+            | "BOOL" -> reader.GetBoolean() |> AttributeValue.createBoolean
             | "SS"
             | "NS"
-            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.create |> WorkingAttributeValue.HashSetX |> AttributeValue.create
-            | "M" -> mapWriter.Read(&reader, typeof<Map<string, AttributeValue>>, opts) |> WorkingAttributeValue.HashMapX |> AttributeValue.create
-            | "L" -> arrayWriter.Read(&reader, typeof<AttributeValue array>, opts) |> AttributeListType.CompressedList |> WorkingAttributeValue.AttributeListX |> AttributeValue.create
+            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.create |> AttributeValue.createHashSet
+            | "M" -> mapWriter.Read(&reader, typeof<Map<string, AttributeValue>>, opts) |> AttributeValue.createHashMap
+            | "L" -> arrayWriter.Read(&reader, typeof<AttributeValue array>, opts) |> AttributeListType.CompressedList |> AttributeValue.createAttributeList
             | x -> JsonException $"Unknown attribute data type {x}" |> raise
 
         if reader.Read() |> not || reader.TokenType <> JsonTokenType.EndArray
@@ -294,7 +294,7 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
 
     override this.Read(reader: byref<Utf8JsonReader>, typeToConvert: Type, options: JsonSerializerOptions) =
         if reader.TokenType = JsonTokenType.String && "null".Equals(reader.GetString(), StringComparison.OrdinalIgnoreCase)
-        then WorkingAttributeValue.NullX |> AttributeValue.create
+        then AttributeValue.createNull()
         else this.ReadNonNull(&reader, options)
 
     override this.Write(writer: Utf8JsonWriter, value: AttributeValue, options: JsonSerializerOptions) =

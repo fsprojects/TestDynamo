@@ -17,14 +17,14 @@ open TestDynamo.Data.Monads.Operators
 
 module Accessor =
 
-    let private emptyMap = HashMapX Map.empty |> AttributeValue.create
+    let private emptyMap = Map.empty |> AttributeValue.createHashMap
     let private emptySparseList = SparseList Map.empty
-    let private emptySparseListAttr = AttributeListX emptySparseList |> AttributeValue.create
+    let private emptySparseListAttr = emptySparseList |> AttributeValue.createAttributeList
 
     let private emptySetterArgs attr =
         match attr |> AttributeValue.value with
-        | HashMapX _ & e -> struct (e |> AttributeValue.create, emptyMap) |> ValueSome
-        | AttributeListX _ & x -> struct (x |> AttributeValue.create, emptySparseListAttr) |> ValueSome
+        | HashMapX h -> struct (AttributeValue.createHashMap h, emptyMap) |> ValueSome
+        | AttributeListX l -> struct (AttributeValue.createAttributeList l, emptySparseListAttr) |> ValueSome
         | _ -> ValueNone
 
     let toWriter = function
@@ -41,23 +41,23 @@ module Accessor =
         match attrs' with
 
         // convert compressed lists to sparse lists (final)
-        | struct (struct (AttributeListX _ & f, AttributeListX (CompressedList _ & t)), [ResolvedListIndex _] & i) ->
-            mutatePath struct (struct (f |> AttributeValue.create, AttributeListType.asSparse t |> AttributeListX |> AttributeValue.create), i)
+        | struct (struct (AttributeListX f, AttributeListX (CompressedList _ & t)), [ResolvedListIndex _] & i) ->
+            mutatePath struct (struct (f |> AttributeValue.createAttributeList, AttributeListType.asSparse t |> AttributeValue.createAttributeList), i)
 
         // convert compressed lists to sparse lists (path part)
-        | (AttributeListX _ & f, AttributeListX (CompressedList _ & t)), ResolvedListIndex _::_ & i ->
-            mutatePath struct (struct (f |> AttributeValue.create, AttributeListType.asSparse t |> AttributeListX |> AttributeValue.create), i)
+        | (AttributeListX f, AttributeListX (CompressedList _ & t)), ResolvedListIndex _::_ & i ->
+            mutatePath struct (struct (f |> AttributeValue.createAttributeList, AttributeListType.asSparse t |> AttributeValue.createAttributeList), i)
 
         // process final path part map
         | (HashMapX from, HashMapX ``to`` & t), [ResolvedAttribute attr] ->
             MapUtils.tryFind attr from
-            ?|> (flip (Map.add attr) ``to`` >> HashMapX >> AttributeValue.create)
+            ?|> (flip (Map.add attr) ``to`` >> AttributeValue.createHashMap)
 
         // process final path part list
         | (AttributeListX from, AttributeListX ``to`` & t), [ResolvedListIndex i] ->
             AttributeListType.tryFind (int i) from
             ?>>= flip (AttributeListType.set (int i)) ``to``
-            ?|> (AttributeListX >> AttributeValue.create)
+            ?|> (AttributeValue.createAttributeList)
 
         // process path part map
         | (HashMapX from, HashMapX ``to`` & t), ResolvedAttribute attr::tail ->
@@ -69,7 +69,7 @@ module Accessor =
                 |> ValueOption.defaultWith (fun _ -> emptySetterArgs x))
             ?|> (flip tpl tail)
             ?>>= mutatePath
-            ?|> (flip (Map.add attr) ``to`` >> HashMapX >> AttributeValue.create)
+            ?|> (flip (Map.add attr) ``to`` >> AttributeValue.createHashMap)
 
         // process path part list
         | (AttributeListX from, AttributeListX ``to`` & t), ResolvedListIndex i::tail ->
@@ -81,7 +81,7 @@ module Accessor =
             ?|> (flip tpl tail)
             ?>>= mutatePath
             ?>>= flip (AttributeListType.set (int i)) ``to``
-            ?|> (AttributeListX >> AttributeValue.create)
+            ?|> (AttributeValue.createAttributeList)
 
         | _ -> ValueNone
 
@@ -117,12 +117,11 @@ module Accessor =
         | _, (ValueSome value, ValueSome (AttributeListX state)) ->
             AttributeListType.asSparse state
             |> AttributeListType.set i value
-            ?|> (AttributeListX >> AttributeValue.create)
+            ?|> (AttributeValue.createAttributeList)
         | _, (ValueNone, ValueSome (AttributeListX state)) ->
             AttributeListType.asSparse state
             |> AttributeListType.remove i
-            |> AttributeListX
-            |> AttributeValue.create
+            |> AttributeValue.createAttributeList
             |> ValueSome
         | _, (_, ValueSome x) -> clientError $"Cannot set list item [{i}] on type {x |> AttributeValue.create |> AttributeValue.getType}"
 
@@ -130,8 +129,8 @@ module Accessor =
         match x |> mapSnd (mapSnd (ValueOption.map AttributeValue.value)) with
         | struct (_, struct (ValueNone, ValueNone)) -> ValueNone
         | t, (value, ValueNone) -> attributeSetter attrName (t, (value, ValueSome emptyMap))
-        | _, (ValueSome value, ValueSome (HashMapX state)) -> Map.add attrName value state |> HashMapX |> AttributeValue.create |> ValueSome
-        | _, (ValueNone, ValueSome (HashMapX state)) -> Map.remove attrName state |> HashMapX |> AttributeValue.create |> ValueSome
+        | _, (ValueSome value, ValueSome (HashMapX state)) -> Map.add attrName value state |> AttributeValue.createHashMap |> ValueSome
+        | _, (ValueNone, ValueSome (HashMapX state)) -> Map.remove attrName state |> AttributeValue.createHashMap |> ValueSome
         | _, (_, ValueSome x) -> clientError $"Cannot set attribute \"{attrName}\" on type {x |> AttributeValue.create |> AttributeValue.getType}"
 
     let private expressionAttributeNameSetter attrName (struct (t: ProjectionTools, _) & input) =
@@ -147,7 +146,7 @@ module Accessor =
             |> tpl value |> tpl t
             |> next
             ?>>= flip (AttributeListType.set i) state
-            ?|> (AttributeListX >> AttributeValue.create)
+            ?|> (AttributeValue.createAttributeList)
         | _, (_, s) -> ValueNone
 
     let rec private midAttributeSetter (struct (attr, next) & config) x =
@@ -158,7 +157,7 @@ module Accessor =
             |> tpl value |> tpl t
             |> next
             ?|> flip (Map.add attr) state
-            ?|> (HashMapX >> AttributeValue.create)
+            ?|> (AttributeValue.createHashMap)
         | _, (_, s) -> ValueNone
 
     let private midExpressionAttributeNameSetter struct (attrName, next) (struct (t: ProjectionTools, _) & input) =
@@ -195,8 +194,7 @@ module Accessor =
         let getter (t: ProjectionTools) =
             t.item
             |> Item.attributes
-            |> HashMapX
-            |> AttributeValue.create
+            |> AttributeValue.createHashMap
             |> tpl t
             |> getter'
 
@@ -210,7 +208,7 @@ module Accessor =
                 |> MaybeLazyResult.execute t.filterParams
                 |> throw
 
-            setter' (t, (value, HashMapX state |> AttributeValue.create |> ValueSome))
+            setter' (t, (value, state |> AttributeValue.createHashMap |> ValueSome))
             ?|> expectHashMap
             |> ValueOption.defaultValue state
             |> flip tpl path
