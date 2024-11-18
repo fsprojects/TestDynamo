@@ -796,8 +796,8 @@ type PutItemTests(output: ITestOutputHelper) =
                 else $"override{uniqueId()}"
 
             let itemOverride =
-                Map.add "TablePk" (Model.AttributeValue.String pk) item
-                |> Map.add "TablePk_Copy" (Model.AttributeValue.String "override")
+                Map.add "TablePk" (Model.WorkingAttributeValue.StringX pk |> Model.AttributeValue.create) item
+                |> Map.add "TablePk_Copy" (Model.WorkingAttributeValue.StringX "override" |> Model.AttributeValue.create)
 
             let keys =
                 let keyCols = if table.hasSk then ["TablePk"; "TableSk"] else ["TablePk"]
@@ -838,7 +838,7 @@ type PutItemTests(output: ITestOutputHelper) =
                     |> CSharp.toDictionary id id
 
                 req.ExpressionAttributeValues <-
-                    Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
+                    Map.add ":v" (Model.WorkingAttributeValue.StringX "XX" |> Model.AttributeValue.create) Map.empty
                     |> itemToDynamoDb
 
             req.ReturnValues <- ReturnValue.ALL_OLD
@@ -919,14 +919,14 @@ type PutItemTests(output: ITestOutputHelper) =
             let struct (deletePk, struct (deleteSk, _)) = randomFilteredItem (fstT >> (<>)putPk) true random
 
             let fromKeys pk sk =
-                Map.add "TablePk" (TestDynamo.Model.AttributeValue.String pk) Map.empty
-                |> Map.add "TableSk" (TestDynamo.Model.AttributeValue.Number sk)
+                Map.add "TablePk" (TestDynamo.Model.WorkingAttributeValue.StringX pk |> Model.AttributeValue.create) Map.empty
+                |> Map.add "TableSk" (TestDynamo.Model.WorkingAttributeValue.NumberX sk |> Model.AttributeValue.create)
 
             let put = WriteRequest()
             put.PutRequest <- PutRequest()
             put.PutRequest.Item <-
                 putItem
-                |> Map.add "Blabla" (TestDynamo.Model.AttributeValue.Number 3344M)  
+                |> Map.add "Blabla" (TestDynamo.Model.WorkingAttributeValue.NumberX 3344M |> Model.AttributeValue.create)  
                 |> itemToDynamoDb
 
             let delete = WriteRequest()

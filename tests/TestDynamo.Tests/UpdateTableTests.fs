@@ -481,8 +481,8 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName defaultTable
                 |> QueryBuilder.setIndexName indexName
                 |> QueryBuilder.setKeyConditionExpression "Pk1 = :x AND Sk1 = :y"
-                |> QueryBuilder.setExpressionAttrValues ":x" (String "-99")
-                |> QueryBuilder.setExpressionAttrValues ":y" (String "99")
+                |> QueryBuilder.setExpressionAttrValues ":x" (StringX "-99" |> AttributeValue.create)
+                |> QueryBuilder.setExpressionAttrValues ":y" (StringX "99" |> AttributeValue.create)
                 |> QueryBuilder.setIndexName indexName
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync

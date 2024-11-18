@@ -255,7 +255,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let! defaultReq = buildReq client tableName id
 
             let! result = getFromWriteReq client defaultReq
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
@@ -290,7 +290,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let! result = executeWrite ValueNone ValueNone true id
 
             // assert
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
@@ -298,7 +298,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             sprintf "%A" result |> output.WriteLine
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
-            Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
+            Assert.Equal(AttributeValue.createString "xxx", updated.Value["AValue"])
         }
 
     [<Fact>]
@@ -312,7 +312,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 x)
 
             // assert
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
@@ -320,7 +320,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             sprintf "%A" result |> output.WriteLine
             Assert.NotEqual(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
-            Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
+            Assert.Equal(AttributeValue.createString "xxx", updated.Value["AValue"])
         }
 
     [<Theory>]
@@ -338,14 +338,14 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 x)
 
             // assert
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) result |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) result |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
 
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
-            Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
+            Assert.Equal(AttributeValue.createString "xxx", updated.Value["AValue"])
         }
 
     [<Theory>]
@@ -642,14 +642,14 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             // assert
             let! req = buildReq client1 table.name id
             let! written = getFromWriteReq client2 req
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) written |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) written |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
 
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
-            Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
+            Assert.Equal(AttributeValue.createString "xxx", updated.Value["AValue"])
         }
 
     [<Fact>]
@@ -673,12 +673,12 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 x)
 
             // assert
-            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.String |> ValueSome))) written |> Collection.tryHead
+            let find pk = List.filter (MapUtils.tryFind "TablePk" >> ((=) (pk |> AttributeValue.createString |> ValueSome))) written |> Collection.tryHead
             let deleted = find "DeleteItem"
             let updated = find "UpdateItem"
             let created = find "PutItem"
 
             Assert.Equal(ValueNone, deleted)
             Assert.NotEqual(ValueNone, created)
-            Assert.Equal(AttributeValue.String "xxx", updated.Value["AValue"])
+            Assert.Equal(AttributeValue.createString "xxx", updated.Value["AValue"])
         }

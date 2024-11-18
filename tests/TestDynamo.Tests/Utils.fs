@@ -17,7 +17,12 @@ open Tests.ClientLoggerContainer
 open Tests.Loggers
 
 type ApiDb = TestDynamo.Api.FSharp.Database
-let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f 
+let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f
+
+let consoleOutputHelper =
+    { new ITestOutputHelper with
+        member _.WriteLine msg = Console.WriteLine msg
+        member _.WriteLine(format, args) = Console.WriteLine(format, args) }
 
 let recordSubscription writer tableName (database: ApiDb) behaviour subscriber =
 

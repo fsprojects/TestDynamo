@@ -416,11 +416,11 @@ module Update =
           expressionAttrValues: Map<string, AttributeValue>
           expressionAttrNames: Map<string, string> }
 
-    let private expectHashMap = function
-        | HashMap x -> x
+    let private expectHashMap = AttributeValue.value >> function
+        | HashMapX x -> x
         | _ -> serverError "Expected hash map"
 
-    let compressSparseLists = HashMap >> AttributeValue.compressSparseLists >> expectHashMap
+    let compressSparseLists = HashMapX >> AttributeValue.create >> AttributeValue.compressSparseLists >> expectHashMap
 
     let private returnInput = Map.empty |> asLazy |> asLazy
     let private buildUpdateProjector logger attributeNames =

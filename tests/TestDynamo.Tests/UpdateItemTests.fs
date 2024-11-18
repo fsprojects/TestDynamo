@@ -87,8 +87,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName t
                 |> QueryBuilder.setUpdateKey (
-                    Map.add "TablePk" (AttributeValue.Number ((q["TablePk"]).N |> decimal)) Map.empty
-                    |> Map.add "TableSk" (AttributeValue.Number ((q["TableSk"]).N |> decimal)))
+                    Map.add "TablePk" (AttributeValue.createNumber ((q["TablePk"]).N |> decimal)) Map.empty
+                    |> Map.add "TableSk" (AttributeValue.createNumber ((q["TableSk"]).N |> decimal)))
 
             return queryBase
         }
@@ -122,12 +122,13 @@ type UpdateItemTests(output: ITestOutputHelper) =
             return e
         }
 
-    let expectHashMap = function
-        | HashMap x -> x
+    let expectHashMap =
+        AttributeValue.value >> function
+        | HashMapX x -> x
         | _ -> invalidOp "expeccted hash map"
 
-    let expectList = function
-        | AttributeList (CompressedList x) -> x
+    let expectList = AttributeValue.value >> function
+        | AttributeListX (CompressedList x) -> x
         | _ -> invalidOp "expeccted list"
 
     [<Fact>]
@@ -149,24 +150,24 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "DeleteMe" "SS" "[\"X\"]"
 
             let! updateBase = put req client
-            let xVal = AttributeValue.String "1234"
+            let xVal = AttributeValue.createString "1234"
 
             // act
             let! itemAfterUpdate =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "SET ((SetMe) = (:set)) REMOVE (RemoveMe) ADD (AddMe) (:add) DELETE (DeleteMe) (:del)"
                 |> QueryBuilder.setExpressionAttrValues ":set" xVal
-                |> QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.Number 1M)
-                |> QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet)
+                |> QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.createNumber 1M)
+                |> QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.createString "Y"] |> AttributeValue.createHashSet)
                 |> flip update client
 
             // assert
             let expected =
-                Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal)) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
                 |> Map.add "SetMe" xVal
-                |> Map.add "AddMe" (AttributeValue.Number 6M) 
-                |> Map.add "DeleteMe" (AttributeSet.create [AttributeValue.String "X"] |> AttributeValue.HashSet)
+                |> Map.add "AddMe" (AttributeValue.createNumber 6M) 
+                |> Map.add "DeleteMe" (AttributeSet.create [AttributeValue.createString "X"] |> AttributeValue.createHashSet)
 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
         }
@@ -194,7 +195,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "DeleteMe" "SS" "[\"X\"]"
 
             let! updateBase = put req client
-            let xVal = AttributeValue.String "1234"
+            let xVal = AttributeValue.createString "1234"
 
             // act
             // assert
@@ -224,8 +225,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "AddMe" "N" "5"
                 |> ItemBuilder.withAttribute "DeleteMe" "SS" "[\"X\"]"
 
-            let setVal = AttributeValue.String "1234"
-            let addVal = AttributeValue.Number 1M
+            let setVal = AttributeValue.createString "1234"
+            let addVal = AttributeValue.createNumber 1M
             let! updateBase = put req client
 
             let updateReq =
@@ -252,9 +253,9 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             let expected =
-                Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
-                |> Map.add "AddMe" (AttributeValue.Number 6M)
+                Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal)) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
+                |> Map.add "AddMe" (AttributeValue.createNumber 6M)
                 |> Map.add "SetMe" setVal
 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
@@ -280,7 +281,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "DeleteMe" "SS" "[\"X\"]"
 
             let! updateBase = put req client
-            let xVal = AttributeValue.String "1234"
+            let xVal = AttributeValue.createString "1234"
 
             let expression =
                 [
@@ -301,8 +302,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 updateBase
                 |> QueryBuilder.setUpdateExpression expression
                 |> if ``set missing`` then id else QueryBuilder.setExpressionAttrValues ":set" xVal
-                |> if ``add missing`` then id else QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.Number 1M)
-                |> if ``delete missing`` then id else QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.String "Y"] |> AttributeValue.HashSet)
+                |> if ``add missing`` then id else QueryBuilder.setExpressionAttrValues ":add" (AttributeValue.createNumber 1M)
+                |> if ``delete missing`` then id else QueryBuilder.setExpressionAttrValues ":del" (AttributeSet.create [AttributeValue.createString "Y"] |> AttributeValue.createHashSet)
                 |> flip updateExpectErrorAndAssertNotModified client
 
             assertError output "Error compiling expression" err
@@ -320,10 +321,10 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName t
                 |> QueryBuilder.setUpdateKey (
-                    Map.add "TablePk" (AttributeValue.Number (uniqueId() |> decimal)) Map.empty
-                    |> Map.add "TableSk" (AttributeValue.Number (uniqueId() |> decimal)))
+                    Map.add "TablePk" (AttributeValue.createNumber (uniqueId() |> decimal)) Map.empty
+                    |> Map.add "TableSk" (AttributeValue.createNumber (uniqueId() |> decimal)))
                 |> QueryBuilder.setUpdateExpression "SET XX = :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 1M)
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createNumber 1M)
                 |> QueryBuilder.updateRequest
 
             // act
@@ -357,7 +358,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! e =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "x = :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.String "1234")
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createString "1234")
                 |> flip updateExpectErrorAndAssertNotModified client
 
             assertError output "is not a valid upate expression" e
@@ -385,8 +386,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     else id
 
             let! updateBase = put req client
-            let xVal = AttributeValue.String "1234"
-            let yVal = AttributeValue.String "4321"
+            let xVal = AttributeValue.createString "1234"
+            let yVal = AttributeValue.createString "4321"
 
             // act
             let! itemAfterUpdate =
@@ -399,10 +400,10 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // assert
             let xx =
                 Map.add "yy" xVal Map.empty
-                |> if ``root has value`` then Map.add "k" (AttributeValue.String "v1") else id
+                |> if ``root has value`` then Map.add "k" (AttributeValue.createString "v1") else id
             let yy =
                 [yVal]
-                |> if ``root has value`` then Collection.prependL (AttributeValue.String "v2") else id
+                |> if ``root has value`` then Collection.prependL (AttributeValue.createString "v2") else id
 
             Assert.Equal(4, Map.count itemAfterUpdate)
             Assert.Equal<Map<string,AttributeValue>>(Map.find "xx" itemAfterUpdate |> expectHashMap, xx)
@@ -419,8 +420,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let attr1 = AttributeValue.String "1234"
-            let attr2 = AttributeValue.String "4321"
+            let attr1 = AttributeValue.createString "1234"
+            let attr2 = AttributeValue.createString "4321"
 
             let req =
                 ItemBuilder.empty
@@ -454,8 +455,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let listData = [|AttributeValue.Number 4321M|]
-            let data = AttributeValue.AttributeList (AttributeListType.CompressedList listData)
+            let listData = [|AttributeValue.createNumber 4321M|]
+            let data = AttributeValue.createAttributeList (AttributeListType.CompressedList listData)
 
             let req =
                 ItemBuilder.empty
@@ -478,7 +479,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             Assert.Equal((if exists then 4 else 3), Map.count itemAfterUpdate)
             Assert.Equal(
                 Map.find "Attr" itemAfterUpdate,
-                if exists then AttributeValue.AttributeList (AttributeListType.CompressedList (Array.concat [[|AttributeValue.String "v0"|]; listData;])) else data)
+                if exists then AttributeValue.createAttributeList (AttributeListType.CompressedList (Array.concat [[|AttributeValue.createString "v0"|]; listData;])) else data)
         }
 
     [<Theory>]
@@ -512,9 +513,9 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             let struct (expectedCount, vals) =
-                if ``1 exists`` && ``2 exists`` then struct (5, AttributeValue.AttributeList (AttributeListType.CompressedList [|AttributeValue.String "v1"; AttributeValue.String "v2"|]) |> ValueSome)
-                elif ``1 exists`` then struct (4, AttributeValue.AttributeList (AttributeListType.CompressedList [|AttributeValue.String "v1"; |]) |> ValueSome)
-                elif ``2 exists`` then struct (4, AttributeValue.AttributeList (AttributeListType.CompressedList [|AttributeValue.String "v2"|]) |> ValueSome)
+                if ``1 exists`` && ``2 exists`` then struct (5, AttributeValue.createAttributeList (AttributeListType.CompressedList [|AttributeValue.createString "v1"; AttributeValue.createString "v2"|]) |> ValueSome)
+                elif ``1 exists`` then struct (4, AttributeValue.createAttributeList (AttributeListType.CompressedList [|AttributeValue.createString "v1"; |]) |> ValueSome)
+                elif ``2 exists`` then struct (4, AttributeValue.createAttributeList (AttributeListType.CompressedList [|AttributeValue.createString "v2"|]) |> ValueSome)
                 else struct (2, ValueNone)
 
             Assert.Equal(expectedCount, Map.count itemAfterUpdate)
@@ -565,7 +566,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.Number 100M
+            let xVal = AttributeValue.createNumber 100M
 
             let req =
                 ItemBuilder.empty
@@ -587,7 +588,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             Assert.Equal(4, Map.count itemAfterUpdate)
-            Assert.Equal((if plus then AttributeValue.Number 105M else AttributeValue.Number -95M), Map.find "Attr" itemAfterUpdate)
+            Assert.Equal((if plus then AttributeValue.createNumber 105M else AttributeValue.createNumber -95M), Map.find "Attr" itemAfterUpdate)
         }
 
     [<Theory>]
@@ -600,7 +601,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.Number 100M
+            let xVal = AttributeValue.createNumber 100M
 
             let req =
                 ItemBuilder.empty
@@ -620,7 +621,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             Assert.Equal(4, Map.count itemAfterUpdate)
-            Assert.Equal((if exists then AttributeValue.Number 105M else AttributeValue.Number 110M), Map.find "Attr" itemAfterUpdate)
+            Assert.Equal((if exists then AttributeValue.createNumber 105M else AttributeValue.createNumber 110M), Map.find "Attr" itemAfterUpdate)
         }
 
     [<Fact>]
@@ -632,8 +633,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.Number 100M
-            let yVal = AttributeValue.HashSet (AttributeSet.create [AttributeValue.Number 20M])
+            let xVal = AttributeValue.createNumber 100M
+            let yVal = AttributeValue.createHashSet (AttributeSet.create [AttributeValue.createNumber 20M])
 
             let req =
                 ItemBuilder.empty
@@ -654,8 +655,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             let expected =
-                Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal)) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
                 |> Map.add "Attr1" xVal 
                 |> Map.add "Attr2" yVal 
             Assert.Equal<Map<string, AttributeValue>>(expected, itemAfterUpdate)
@@ -675,7 +676,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.Number 100M
+            let xVal = AttributeValue.createNumber 100M
 
             let req =
                 ItemBuilder.empty
@@ -713,7 +714,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.String "100M"
+            let xVal = AttributeValue.createString "100M"
 
             let req =
                 ItemBuilder.empty
@@ -769,7 +770,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             if not ``root has value``
             then Assert.Equal(2, Map.count itemAfterUpdate)
             else
-                let yy = [AttributeValue.String "v0"; AttributeValue.String "v2"]
+                let yy = [AttributeValue.createString "v0"; AttributeValue.createString "v2"]
                 Assert.Equal(4, Map.count itemAfterUpdate)
                 Assert.Equal<Map<string,AttributeValue>>(Map.find "xx" itemAfterUpdate |> expectHashMap, Map.empty)
                 Assert.Equal(Map.find "yy" itemAfterUpdate |> expectList, yy)
@@ -785,7 +786,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-            let xVal = AttributeValue.Number 100M
+            let xVal = AttributeValue.createNumber 100M
 
             let req =
                 ItemBuilder.empty
@@ -804,7 +805,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             Assert.Equal(3, Map.count itemAfterUpdate)
-            Assert.Equal(AttributeValue.Number (if ``attr exists`` then 105M else 100M), Map.find "Attr" itemAfterUpdate)
+            Assert.Equal(AttributeValue.createNumber (if ``attr exists`` then 105M else 100M), Map.find "Attr" itemAfterUpdate)
         }
 
     [<Theory>]
@@ -823,34 +824,34 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let aBin = Encoding.UTF8.GetBytes("a")
             let bBin = Encoding.UTF8.GetBytes("b")
-            let bsSet = AttributeSet.create [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
-            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
-            let nsSet = AttributeSet.create [AttributeValue.Number 1M; AttributeValue.Number 3M]
+            let bsSet = AttributeSet.create [AttributeValue.createBinary aBin; AttributeValue.createBinary [|5uy|]]
+            let ssSet = AttributeSet.create [AttributeValue.createString "a"; AttributeValue.createString "c"]
+            let nsSet = AttributeSet.create [AttributeValue.createNumber 1M; AttributeValue.createNumber 3M]
 
-            let bs = bsSet |> HashSet
-            let ss = ssSet |> HashSet
-            let ns = nsSet |> HashSet
+            let bs = bsSet |> AttributeValue.createHashSet
+            let ss = ssSet |> AttributeValue.createHashSet
+            let ns = nsSet |> AttributeValue.createHashSet
 
             let ssExpected =
                 ssSet
-                |> tpl (AttributeSet.create [AttributeValue.String "b"])
+                |> tpl (AttributeSet.create [AttributeValue.createString "b"])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
-                |> HashSet
+                |> AttributeValue.createHashSet
 
             let nsExpected =
                 nsSet
-                |> tpl (AttributeSet.create [AttributeValue.Number 2M])
+                |> tpl (AttributeSet.create [AttributeValue.createNumber 2M])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
-                |> HashSet
+                |> AttributeValue.createHashSet
 
             let bsExpected =
                 bsSet
-                |> tpl (AttributeSet.create [AttributeValue.Binary bBin])
+                |> tpl (AttributeSet.create [AttributeValue.createBinary bBin])
                 |> AttributeSet.tryUnion
                 |> Maybe.expectSome
-                |> HashSet
+                |> AttributeValue.createHashSet
 
             let req =
                 ItemBuilder.empty
@@ -914,8 +915,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
-            let ss = ssSet |> HashSet
+            let ssSet = AttributeSet.create [AttributeValue.createString "a"; AttributeValue.createString "c"]
+            let ss = ssSet |> AttributeValue.createHashSet
 
             let req =
                 ItemBuilder.empty
@@ -931,7 +932,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 >> QueryBuilder.setExpressionAttrValues ":str" ss
             let addNumber =
                 QueryBuilder.setUpdateExpression "ADD Nested2.TheNumber :num"
-                >> QueryBuilder.setExpressionAttrValues ":num" (AttributeValue.Number 1M)
+                >> QueryBuilder.setExpressionAttrValues ":num" (AttributeValue.createNumber 1M)
 
             // act
             // assert
@@ -977,7 +978,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 updateBase
                 |> QueryBuilder.setUpdateExpression updateExpr
                 |> if requiresValue
-                    then QueryBuilder.setExpressionAttrValues ":num" (AttributeValue.Number 77M)
+                    then QueryBuilder.setExpressionAttrValues ":num" (AttributeValue.createNumber 77M)
                     else id
                 |> flip updateExpectErrorAndAssertNotModified client
 
@@ -996,8 +997,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
-            let ss = ssSet |> HashSet
+            let ssSet = AttributeSet.create [AttributeValue.createString "a"; AttributeValue.createString "c"]
+            let ss = ssSet |> AttributeValue.createHashSet
 
             let req =
                 ItemBuilder.empty
@@ -1037,20 +1038,20 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let aBin = Encoding.UTF8.GetBytes("a")
             let bBin = Encoding.UTF8.GetBytes("b")
-            let bsSet = AttributeSet.create [AttributeValue.Binary aBin; AttributeValue.Binary [|5uy|]]
-            let ssSet = AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
-            let nsSet = AttributeSet.create [AttributeValue.Number 1M; AttributeValue.Number 3M]
+            let bsSet = AttributeSet.create [AttributeValue.createBinary aBin; AttributeValue.createBinary [|5uy|]]
+            let ssSet = AttributeSet.create [AttributeValue.createString "a"; AttributeValue.createString "c"]
+            let nsSet = AttributeSet.create [AttributeValue.createNumber 1M; AttributeValue.createNumber 3M]
 
-            let bs = bsSet |> HashSet
-            let ss = ssSet |> HashSet
-            let ns = nsSet |> HashSet
+            let bs = bsSet |> AttributeValue.createHashSet
+            let ss = ssSet |> AttributeValue.createHashSet
+            let ns = nsSet |> AttributeValue.createHashSet
 
             let ssExpected =
-                AttributeSet.create [AttributeValue.String "b"] |> HashSet
+                AttributeSet.create [AttributeValue.createString "b"] |> AttributeValue.createHashSet
             let nsExpected =
-                AttributeSet.create [AttributeValue.Number 2M] |> HashSet
+                AttributeSet.create [AttributeValue.createNumber 2M] |> AttributeValue.createHashSet
             let bsExpected =
-                AttributeSet.create [AttributeValue.Binary bBin] |> HashSet
+                AttributeSet.create [AttributeValue.createBinary bBin] |> AttributeValue.createHashSet
 
             let req =
                 ItemBuilder.empty
@@ -1135,8 +1136,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Str.join " "
 
             let ss =
-                AttributeSet.create [AttributeValue.String "a"; AttributeValue.String "c"]
-                |> HashSet
+                AttributeSet.create [AttributeValue.createString "a"; AttributeValue.createString "c"]
+                |> AttributeValue.createHashSet
 
             let req =
                 ItemBuilder.empty
@@ -1168,7 +1169,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let x = AttributeValue.Number 22M
+            let x = AttributeValue.createNumber 22M
 
             let req =
                 ItemBuilder.empty
@@ -1188,11 +1189,11 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             let expected =
-                Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal)) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
                 |> if ``nested list``
-                    then Map.add "P" ([|x; x|] |> CompressedList |> AttributeValue.AttributeList)
-                    else Map.add "P" ([struct ("X", x); struct ("Y", x)] |> MapUtils.ofSeq |> AttributeValue.HashMap)
+                    then Map.add "P" ([|x; x|] |> CompressedList |> AttributeValue.createAttributeList)
+                    else Map.add "P" ([struct ("X", x); struct ("Y", x)] |> MapUtils.ofSeq |> AttributeValue.createHashMap)
 
             Assert.Equal<Map<string, AttributeValue>>(expected, result)
         }
@@ -1208,32 +1209,32 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let x = AttributeValue.Number 22M
+            let x = AttributeValue.createNumber 22M
 
             let listAttr =
                 [|
                     Map.empty
                     |> Map.add "V1" (
                         [|
-                            AttributeValue.String "hi2"
+                            AttributeValue.createString "hi2"
 
                             Map.empty
-                            |> Map.add "V2" (AttributeValue.String "hi")
-                            |> HashMap
+                            |> Map.add "V2" (AttributeValue.createString "hi")
+                            |> AttributeValue.createHashMap
                         |]
                         |> CompressedList
-                        |> AttributeList
+                        |> AttributeValue.createAttributeList
                     )
-                    |> Map.add "V11" (AttributeValue.String "hi")
-                    |> HashMap
+                    |> Map.add "V11" (AttributeValue.createString "hi")
+                    |> AttributeValue.createHashMap
                 |]
                 |> CompressedList
-                |> AttributeList
+                |> AttributeValue.createAttributeList
 
             let mapAttr =
                 Map.empty
                 |> Map.add "V0" listAttr
-                |> HashMap
+                |> AttributeValue.createHashMap
 
             let req =
                 ItemBuilder.empty
@@ -1255,11 +1256,11 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             // assert
             let expected =
-                Map.add "TablePk" (AttributeValue.Number (pk |> decimal)) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal)) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
                 |> if ``nested list``
-                    then Map.add "P" ([|x; x|] |> CompressedList |> AttributeValue.AttributeList)
-                    else Map.add "P" ([struct ("X", x); struct ("Y", x)] |> MapUtils.ofSeq |> AttributeValue.HashMap)
+                    then Map.add "P" ([|x; x|] |> CompressedList |> AttributeValue.createAttributeList)
+                    else Map.add "P" ([struct ("X", x); struct ("Y", x)] |> MapUtils.ofSeq |> AttributeValue.createHashMap)
 
             if ``nested list``
             then
@@ -1284,8 +1285,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let x =
                 if ``nested list``
-                then [||] |> CompressedList |> AttributeValue.AttributeList
-                else Map.empty |> AttributeValue.HashMap
+                then [||] |> CompressedList |> AttributeValue.createAttributeList
+                else Map.empty |> AttributeValue.createHashMap
 
             let req =
                 ItemBuilder.empty
@@ -1320,7 +1321,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let x = AttributeValue.Number 22M
+            let x = AttributeValue.createNumber 22M
 
             let req =
                 ItemBuilder.empty
@@ -1377,8 +1378,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let oldValue = AttributeValue.String "old"
-            let newValue = AttributeValue.String "new"
+            let oldValue = AttributeValue.createString "old"
+            let newValue = AttributeValue.createString "new"
 
             let req =
                 ItemBuilder.empty
@@ -1406,8 +1407,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     match ``return vaulues`` with
                     | "ALL_NEW"
                     | "ALL_OLD" ->
-                        Map.add "TablePk" (AttributeValue.Number (pk |> decimal))
-                        >> Map.add "TableSk" (AttributeValue.Number (sk |> decimal))
+                        Map.add "TablePk" (AttributeValue.createNumber (pk |> decimal))
+                        >> Map.add "TableSk" (AttributeValue.createNumber (sk |> decimal))
                     | "UPDATED_NEW"
                     | "UPDATED_OLD"
                     | "NONE"
@@ -1442,8 +1443,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
 
-            let oldValue = AttributeValue.String "old"
-            let newValue = AttributeValue.String "new"
+            let oldValue = AttributeValue.createString "old"
+            let newValue = AttributeValue.createString "new"
 
             let req =
                 ItemBuilder.empty
@@ -1500,7 +1501,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 else $"override{uniqueId()}"
 
             let itemOverride =
-                Map.add "TablePk" (Model.AttributeValue.String pk) item
+                Map.add "TablePk" (Model.AttributeValue.createString pk) item
 
             let keys =
                 let keyCols = if table.hasSk then ["TablePk"; "TableSk"] else ["TablePk"]
@@ -1514,7 +1515,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             req.UpdateExpression <- "SET xxx = :y"
             req.ExpressionAttributeValues <-
-                Map.add ":y" (Model.AttributeValue.String "pp") Map.empty
+                Map.add ":y" (Model.AttributeValue.createString "pp") Map.empty
                 |> itemToDynamoDb
 
             if ``use legacy inputs``
@@ -1546,7 +1547,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     Map.add "#attr" "TableSk" Map.empty
                     |> CSharp.toDictionary id id
 
-                req.ExpressionAttributeValues.Add(":v", (Model.AttributeValue.String "XX") |> attributeToDynamoDb)
+                req.ExpressionAttributeValues.Add(":v", (Model.AttributeValue.createString "XX") |> attributeToDynamoDb)
 
             req.ReturnValues <- ReturnValue.ALL_OLD
 
@@ -1600,7 +1601,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! actual =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "DELETE ASet :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeSet.create [AttributeValue.String "v1"] |> AttributeValue.HashSet)
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeSet.create [AttributeValue.createString "v1"] |> AttributeValue.createHashSet)
                 |> flip update client
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)
@@ -1623,7 +1624,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let expected =
                 ItemBuilder.attributes reqBase
-                |> Map.add "AList" (CompressedList [|AttributeValue.String "v1";AttributeValue.String "v2"|] |> AttributeList)
+                |> Map.add "AList" (CompressedList [|AttributeValue.createString "v1";AttributeValue.createString "v2"|] |> AttributeValue.createAttributeList)
 
             let req =
                 reqBase
@@ -1635,7 +1636,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! actual =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "SET AList[123] = :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.String "v2")
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createString "v2")
                 |> flip update client
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)
@@ -1669,7 +1670,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                    elif ``is list`` then QueryBuilder.setUpdateExpression "SET AVal[0] = :x"
                    elif deep then QueryBuilder.setUpdateExpression "SET DeepVal.AVal.C = :x"
                    else QueryBuilder.setUpdateExpression "SET AVal.C = :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.String "v2")
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createString "v2")
                 |> flip updateExpectErrorAndAssertNotModified client
 
             assertError output "Cannot set" e
@@ -1696,7 +1697,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! e =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "SET x = x + :x"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 55M)
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createNumber 55M)
                 |> flip updateExpectErrorAndAssertNotModified client
 
             assertError output "Both operands of a + operation must be numbers" e
@@ -1721,8 +1722,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let expected =
                 ItemBuilder.attributes req
-                |> Map.add "val1" (AttributeValue.Number 66M)
-                |> Map.add "val2" (AttributeValue.Number 55M)
+                |> Map.add "val1" (AttributeValue.createNumber 66M)
+                |> Map.add "val2" (AttributeValue.createNumber 55M)
 
             let! updateBase = put req client
 
@@ -1738,7 +1739,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let! actual =
                 updateBase
                 |> QueryBuilder.setUpdateExpression $"SET {terms}"
-                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 66M)
+                |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.createNumber 66M)
                 |> flip update client
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)

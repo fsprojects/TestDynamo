@@ -272,7 +272,7 @@ type SerializationTests(output: ITestOutputHelper) =
                 QueryBuilder.empty ValueNone
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.String "&&&")
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString "&&&")
                 |> QueryBuilder.queryRequest
 
             let! items1 = client1.QueryAsync req

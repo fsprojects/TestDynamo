@@ -166,8 +166,9 @@ module Filters =
             compileAst
             buildFilterCompiler
 
-    let private booleanAnswer = function
-        | ValueSome (Boolean x) -> x
+    let private booleanAnswer =
+        ValueOption.map AttributeValue.value >> function
+        | ValueSome (BooleanX x) -> x
         | ValueNone
         | ValueSome _ -> false
 

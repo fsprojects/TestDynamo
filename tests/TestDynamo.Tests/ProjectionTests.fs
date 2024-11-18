@@ -37,7 +37,7 @@ type ProjectionTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.setSelect Select.COUNT
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
@@ -66,7 +66,7 @@ type ProjectionTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setFilterExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.setSelect Select.SPECIFIC_ATTRIBUTES
                 |> QueryBuilder.scanRequest
                 |> client.ScanAsync
@@ -135,7 +135,7 @@ type ProjectionTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setFilterExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.setSelect Select.SPECIFIC_ATTRIBUTES
                 |> setProjection
                 |> setAttributesToGet
@@ -194,27 +194,27 @@ type ProjectionTests(output: ITestOutputHelper) =
         }
 
     let theMap =
-        String "EndMap"
-        |> flip (Map.add "0") Map.empty |> HashMap
+        AttributeValue.createString "EndMap"
+        |> flip (Map.add "0") Map.empty |> AttributeValue.createHashMap
         |> Array.singleton
-        |> flip Array.append [|String "MapBranch2"|]
+        |> flip Array.append [|AttributeValue.createString "MapBranch2"|]
         |> CompressedList
-        |> AttributeList
+        |> AttributeValue.createAttributeList
         |> flip (Map.add "0") Map.empty
-        |> Map.add "Branch" (String "MapBranch") |> HashMap
+        |> Map.add "Branch" (AttributeValue.createString "MapBranch") |> AttributeValue.createHashMap
 
     let theList =
-        String "EndList"
+        AttributeValue.createString "EndList"
         |> Array.singleton
         |> CompressedList
-        |> AttributeList
+        |> AttributeValue.createAttributeList
         |> flip (Map.add "0") Map.empty
-        |> Map.add "Branch" (String "ListBranch2")
-        |> HashMap
+        |> Map.add "Branch" (AttributeValue.createString "ListBranch2")
+        |> AttributeValue.createHashMap
         |> Array.singleton
-        |> flip Array.append [|String "ListBranch"|]
+        |> flip Array.append [|AttributeValue.createString "ListBranch"|]
         |> CompressedList
-        |> AttributeList
+        |> AttributeValue.createAttributeList
 
     [<Theory>]
     [<ClassData(typedefof<TwoFlags>)>]
@@ -234,7 +234,7 @@ type ProjectionTests(output: ITestOutputHelper) =
                 result |> MapUtils.toSeq |> Seq.sortBy fstT,
                 (fun struct (k, v) ->
                     Assert.Equal("TablePk", k)
-                    Assert.Equal(String pk, v)),
+                    Assert.Equal(AttributeValue.createString pk, v)),
                 (fun struct (k, v) ->
                     Assert.Equal("TheList", k)
                     Assert.Equal(theList, v)),
@@ -257,10 +257,10 @@ type ProjectionTests(output: ITestOutputHelper) =
                 result |> MapUtils.toSeq |> Seq.sortBy fstT,
                 (fun struct (k, v) ->
                     Assert.Equal("TheList", k)
-                    Assert.Equal(AttributeList (CompressedList [|String "ListBranch"|]), v)),
+                    Assert.Equal(AttributeValue.createAttributeList (CompressedList [|AttributeValue.createString "ListBranch"|]), v)),
                 (fun struct (k, v) ->
                     Assert.Equal("TheMap", k)
-                    Assert.Equal(HashMap (Map.add "Branch" (String "MapBranch") Map.empty), v)))
+                    Assert.Equal(AttributeValue.createHashMap (Map.add "Branch" (AttributeValue.createString "MapBranch") Map.empty), v)))
         }
 
     [<Fact>]
@@ -277,10 +277,10 @@ type ProjectionTests(output: ITestOutputHelper) =
                 result |> MapUtils.toSeq |> Seq.sortBy fstT,
                 (fun struct (k, v) ->
                     Assert.Equal("TheList", k)
-                    Assert.Equal(AttributeList (CompressedList [|(Map.add "Branch" (String "ListBranch2") Map.empty) |> HashMap|]), v)),
+                    Assert.Equal(AttributeValue.createAttributeList (CompressedList [|(Map.add "Branch" (AttributeValue.createString "ListBranch2") Map.empty) |> AttributeValue.createHashMap|]), v)),
                 (fun struct (k, v) ->
                     Assert.Equal("TheMap", k)
-                    Assert.Equal(HashMap (Map.add "0" (AttributeList (CompressedList [|String "MapBranch2"|])) Map.empty), v)))
+                    Assert.Equal(AttributeValue.createHashMap (Map.add "0" (AttributeValue.createAttributeList (CompressedList [|AttributeValue.createString "MapBranch2"|])) Map.empty), v)))
         }
 
     [<Fact>]
@@ -387,5 +387,5 @@ type ProjectionTests(output: ITestOutputHelper) =
                 result |> MapUtils.toSeq |> Seq.sortBy fstT,
                 (fun struct (k, v) ->
                     Assert.Equal("TablePk", k)
-                    Assert.Equal(String pk, v)))
+                    Assert.Equal(AttributeValue.createString pk, v)))
         }

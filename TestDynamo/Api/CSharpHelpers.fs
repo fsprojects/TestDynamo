@@ -105,18 +105,18 @@ type ListBuilder private(itemsReversed: AttributeValue list voption) =
 
     private new (itemsReversed: AttributeValue list) = ListBuilder(ValueSome itemsReversed)
 
-    member this.AsAttributeList() = itemsReversed ?|? [] |> Seq.rev |> Array.ofSeq |> CompressedList |> AttributeList
+    member this.AsAttributeList() = itemsReversed ?|? [] |> Seq.rev |> Array.ofSeq |> CompressedList |> AttributeListX |> AttributeValue.create
 
-    member this.AppendNull() = ListBuilder(AttributeValue.Null::(itemsReversed  ?|? []))
+    member this.AppendNull() = ListBuilder((WorkingAttributeValue.NullX |> AttributeValue.create)::(itemsReversed  ?|? []))
 
-    member this.Append(value: string) = ListBuilder((AttributeValue.String value)::(itemsReversed  ?|? []))
+    member this.Append(value: string) = ListBuilder((WorkingAttributeValue.StringX value |> AttributeValue.create)::(itemsReversed  ?|? []))
 
-    member this.Append(value: decimal) = ListBuilder((AttributeValue.Number value)::(itemsReversed  ?|? []))
+    member this.Append(value: decimal) = ListBuilder((WorkingAttributeValue.NumberX value |> AttributeValue.create)::(itemsReversed  ?|? []))
 
-    member this.Append(value: bool) = ListBuilder((AttributeValue.Boolean value)::(itemsReversed  ?|? []))
+    member this.Append(value: bool) = ListBuilder((WorkingAttributeValue.BooleanX value |> AttributeValue.create)::(itemsReversed  ?|? []))
 
     member this.Append(value: byte array) =
-        ListBuilder((AttributeValue.Binary (Array.copy value))::(itemsReversed  ?|? []))
+        ListBuilder((WorkingAttributeValue.BinaryX (Array.copy value) |> AttributeValue.create)::(itemsReversed  ?|? []))
 
     member this.Append(value: ListBuilder) =
         ListBuilder(value.AsAttributeList()::(itemsReversed  ?|? []))
@@ -125,15 +125,15 @@ type ListBuilder private(itemsReversed: AttributeValue list voption) =
         ListBuilder(value.AsMap()::(itemsReversed  ?|? []))
 
     member this.AppendSet(setValues: string seq) =
-        let setValues = Seq.map AttributeValue.String setValues |> AttributeSet.create |> HashSet
+        let setValues = Seq.map (WorkingAttributeValue.StringX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
         ListBuilder(setValues::(itemsReversed  ?|? []))
 
     member this.AppendSet(setValues: decimal seq) =
-        let setValues = Seq.map AttributeValue.Number setValues |> AttributeSet.create |> HashSet
+        let setValues = Seq.map (WorkingAttributeValue.NumberX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
         ListBuilder(setValues::(itemsReversed  ?|? []))
 
     member this.AppendSet(setValues: byte array seq) =
-        let setValues = Seq.map (Array.copy >> AttributeValue.Binary) setValues |> AttributeSet.create |> HashSet
+        let setValues = Seq.map (Array.copy >> WorkingAttributeValue.BinaryX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
         ListBuilder(setValues::(itemsReversed  ?|? []))
 
 and
@@ -146,18 +146,18 @@ and
 
         member this.AsRawMap() = item ?|? Map.empty
 
-        member this.AsMap() = item ?|? Map.empty |> HashMap
+        member this.AsMap() = item ?|? Map.empty |> HashMapX |> AttributeValue.create   
 
-        member this.Null(name: string) = MapBuilder(Map.add name AttributeValue.Null (item  ?|? Map.empty))
+        member this.Null(name: string) = MapBuilder(Map.add name (WorkingAttributeValue.NullX |> AttributeValue.create) (item  ?|? Map.empty))
 
-        member this.Attribute(name: string, value: string) = MapBuilder(Map.add name (AttributeValue.String value) (item  ?|? Map.empty))
+        member this.Attribute(name: string, value: string) = MapBuilder(Map.add name (WorkingAttributeValue.StringX value |> AttributeValue.create) (item  ?|? Map.empty))
 
-        member this.Attribute(name: string, value: decimal) = MapBuilder(Map.add name (AttributeValue.Number value) (item  ?|? Map.empty))
+        member this.Attribute(name: string, value: decimal) = MapBuilder(Map.add name (WorkingAttributeValue.NumberX value |> AttributeValue.create) (item  ?|? Map.empty))
 
         member this.Attribute(name: string, value: byte array) =
-            MapBuilder(Map.add name (AttributeValue.Binary (Array.copy value)) (item  ?|? Map.empty))
+            MapBuilder(Map.add name (WorkingAttributeValue.BinaryX (Array.copy value) |> AttributeValue.create) (item  ?|? Map.empty))
 
-        member this.Attribute(name: string, value: bool) = MapBuilder(Map.add name (AttributeValue.Boolean value) (item  ?|? Map.empty))
+        member this.Attribute(name: string, value: bool) = MapBuilder(Map.add name (WorkingAttributeValue.BooleanX value |> AttributeValue.create) (item  ?|? Map.empty))
 
         member this.Attribute(name: string, value: MapBuilder) = MapBuilder(Map.add name (value.AsMap()) (item  ?|? Map.empty))
 
@@ -165,15 +165,15 @@ and
             MapBuilder(Map.add name (value.AsAttributeList()) (item  ?|? Map.empty))
 
         member this.AttributeSet(name: string, setValues: string seq) =
-            let setValues = Seq.map AttributeValue.String setValues |> AttributeSet.create |> HashSet
+            let setValues = Seq.map (WorkingAttributeValue.StringX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
             MapBuilder(Map.add name setValues (item  ?|? Map.empty))
 
         member this.AttributeSet(name: string, setValues: decimal seq) =
-            let setValues = Seq.map AttributeValue.Number setValues |> AttributeSet.create |> HashSet
+            let setValues = Seq.map (WorkingAttributeValue.NumberX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
             MapBuilder(Map.add name setValues (item  ?|? Map.empty))
 
         member this.AttributeSet(name: string, setValues: byte array seq) =
-            let setValues = Seq.map (Array.copy >> AttributeValue.Binary) setValues |> AttributeSet.create |> HashSet
+            let setValues = Seq.map (Array.copy >> WorkingAttributeValue.BinaryX >> AttributeValue.create) setValues |> AttributeSet.create |> HashSetX |> AttributeValue.create
             MapBuilder(Map.add name setValues (item  ?|? Map.empty))
 
 type ItemBuilder =

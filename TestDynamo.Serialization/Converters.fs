@@ -276,15 +276,15 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
 
         let result = 
             match t with
-            | "S" -> reader.GetString() |> AttributeValue.String
-            | "N" -> reader.GetDecimal() |> AttributeValue.Number
-            | "B" -> reader.GetString() |> Convert.FromBase64String |> AttributeValue.Binary
-            | "BOOL" -> reader.GetBoolean() |> AttributeValue.Boolean
+            | "S" -> reader.GetString() |> WorkingAttributeValue.StringX |> AttributeValue.create
+            | "N" -> reader.GetDecimal() |> WorkingAttributeValue.NumberX |> AttributeValue.create
+            | "B" -> reader.GetString() |> Convert.FromBase64String |> WorkingAttributeValue.BinaryX |> AttributeValue.create
+            | "BOOL" -> reader.GetBoolean() |> WorkingAttributeValue.BooleanX |> AttributeValue.create
             | "SS"
             | "NS"
-            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.create |> AttributeValue.HashSet
-            | "M" -> mapWriter.Read(&reader, typeof<Map<string, AttributeValue>>, opts) |> AttributeValue.HashMap
-            | "L" -> arrayWriter.Read(&reader, typeof<AttributeValue array>, opts) |> AttributeListType.CompressedList |> AttributeValue.AttributeList
+            | "BS" -> setConverter.Read(&reader, typeof<Set<AttributeValue>>, opts) |> Set.toSeq |> AttributeSet.create |> WorkingAttributeValue.HashSetX |> AttributeValue.create
+            | "M" -> mapWriter.Read(&reader, typeof<Map<string, AttributeValue>>, opts) |> WorkingAttributeValue.HashMapX |> AttributeValue.create
+            | "L" -> arrayWriter.Read(&reader, typeof<AttributeValue array>, opts) |> AttributeListType.CompressedList |> WorkingAttributeValue.AttributeListX |> AttributeValue.create
             | x -> JsonException $"Unknown attribute data type {x}" |> raise
 
         if reader.Read() |> not || reader.TokenType <> JsonTokenType.EndArray
@@ -294,39 +294,39 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
 
     override this.Read(reader: byref<Utf8JsonReader>, typeToConvert: Type, options: JsonSerializerOptions) =
         if reader.TokenType = JsonTokenType.String && "null".Equals(reader.GetString(), StringComparison.OrdinalIgnoreCase)
-        then AttributeValue.Null
+        then WorkingAttributeValue.NullX |> AttributeValue.create
         else this.ReadNonNull(&reader, options)
 
     override this.Write(writer: Utf8JsonWriter, value: AttributeValue, options: JsonSerializerOptions) =
-        match value with
-        | AttributeValue.Null -> writer.WriteStringValue "null"
+        match value.Value with
+        | WorkingAttributeValue.NullX -> writer.WriteStringValue "null"
         | v ->
             writer.WriteStartArray()
             match v with
-            | AttributeValue.String x ->
+            | WorkingAttributeValue.StringX x ->
                 writer.WriteStringValue "S"
                 writer.WriteStringValue x
-            | AttributeValue.Number x ->
+            | WorkingAttributeValue.NumberX x ->
                 writer.WriteStringValue "N"
                 writer.WriteNumberValue x
-            | AttributeValue.Binary x ->
+            | WorkingAttributeValue.BinaryX x ->
                 writer.WriteStringValue "B"
                 Convert.ToBase64String x |> writer.WriteStringValue
-            | AttributeValue.Boolean x ->
+            | WorkingAttributeValue.BooleanX x ->
                 writer.WriteStringValue "BOOL"
                 writer.WriteBooleanValue x
-            | AttributeValue.AttributeList xs ->
+            | WorkingAttributeValue.AttributeListX xs ->
                 writer.WriteStringValue "L"
                 let xs = AttributeListType.asArray xs
                 arrayWriter.Write(writer, xs, options)
-            | AttributeValue.HashSet xs ->
+            | WorkingAttributeValue.HashSetX xs ->
                 AttributeSet.getSetType xs |> AttributeType.describe |> hashMapType |> writer.WriteStringValue
                 let xs = AttributeSet.asSet xs
                 setConverter.Write(writer, xs, options)
-            | AttributeValue.HashMap x ->
+            | WorkingAttributeValue.HashMapX x ->
                 writer.WriteStringValue "M"
                 mapWriter.Write(writer, x, options)
-            | AttributeValue.Null -> invalidOp "Handled in case before"
+            | WorkingAttributeValue.NullX -> invalidOp "Handled in case before"
             writer.WriteEndArray()
 
 type private SurrogateConverter<'a, 'surrogate>(surrogateConverter: JsonConverter<'surrogate>, toSurrogate, fromSurrogate) =

@@ -39,7 +39,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.setForwards forward
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
@@ -73,8 +73,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression $"{word} = :p AND TableSk = :s"
                 |> QueryBuilder.setFilterExpression $"{word} = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createNumber sk)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask)
@@ -102,8 +102,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p AND TableSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createNumber sk)
                 |> QueryBuilder.setForwards forward
                 |> QueryBuilder.queryRequest |> client.QueryAsync
 
@@ -130,8 +130,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk < :p AND TableSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createNumber sk)
                 |> QueryBuilder.queryRequest
 
             // assert
@@ -160,7 +160,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if ``use alias``
                     then QueryBuilder.setKeyConditionExpression "#TablePk = :p AND #TablePk = :p"
                     else QueryBuilder.setKeyConditionExpression "TablePk = :p AND TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> if ``use alias``
                     then QueryBuilder.setExpressionAttrName "#TablePk" "TablePk"
                     else id
@@ -192,8 +192,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if ``use alias``
                     then QueryBuilder.setKeyConditionExpression "TablePk = :p AND #TableSk = :s AND #TableSk = :s"
                     else QueryBuilder.setKeyConditionExpression "TablePk = :p AND  TableSk = :s AND  TableSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createNumber sk)
                 |> if ``use alias``
                     then QueryBuilder.setExpressionAttrName "#TableSk" "TableSk"
                     else id
@@ -226,7 +226,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setIndexName "TheIndex"
                 |> QueryBuilder.setKeyConditionExpression "IndexPk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber pk)
                 |> QueryBuilder.setForwards forwards
                 |> QueryBuilder.queryRequest |> client.QueryAsync
 
@@ -257,8 +257,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setIndexName "TheIndex"
                 |> QueryBuilder.setKeyConditionExpression "IndexPk = :p AND IndexSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (String sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createString sk)
                 |> QueryBuilder.setForwards forward
                 |> QueryBuilder.queryRequest |> client.QueryAsync
 
@@ -288,8 +288,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setIndexName "TheIndex"
                 |> QueryBuilder.setKeyConditionExpression "IndexPk < :p AND IndexSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (String sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createString sk)
                 |> QueryBuilder.queryRequest
 
             // assert
@@ -519,8 +519,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setIndexName "TheIndex"
                 |> QueryBuilder.setKeyConditionExpression $"IndexPk = :p AND begins_with(IndexSk, :s)"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number pk)
-                |> QueryBuilder.setExpressionAttrValues ":s" (String startsWith)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber pk)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createString startsWith)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
 
@@ -560,8 +560,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if filter
                     then QueryBuilder.setFilterExpression $"TablePk = :p AND begins_with(TableSk, :s)"
                     else QueryBuilder.setKeyConditionExpression $"TablePk = :p AND begins_with(TableSk, :s)"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Binary keyBytes)
-                |> QueryBuilder.setExpressionAttrValues ":s" (Binary sk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createBinary keyBytes)
+                |> QueryBuilder.setExpressionAttrValues ":s" (AttributeValue.createBinary sk)
                 |> if filter
                     then
                         QueryBuilder.scanRequest
@@ -601,7 +601,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p" 
                 |> QueryBuilder.setFilterExpression "1x = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk) 
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk) 
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask)
@@ -633,7 +633,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if ``err in filter``
                     then QueryBuilder.setFilterExpression "#-bad = :p"
                     else QueryBuilder.setFilterExpression "#good = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> if ``err in filter``
                     then QueryBuilder.setExpressionAttrName "#good" "TablePk" >> QueryBuilder.setExpressionAttrName "#-bad" "ABC"
                     else QueryBuilder.setExpressionAttrName "#-bad" "TablePk" >> QueryBuilder.setExpressionAttrName "#good" "ABC"
@@ -668,8 +668,8 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if ``err in filter``
                     then QueryBuilder.setFilterExpression "XX = :-p"
                     else QueryBuilder.setFilterExpression "XX = :p"
-                |> QueryBuilder.setExpressionAttrValues ":-p" (String pk)
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":-p" (AttributeValue.createString pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
                 |> Io.ignoreTask)
@@ -697,7 +697,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p AND TableSk = :s"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String "1")
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString "1")
                 |> QueryBuilder.queryRequest
 
             baseReq.ExpressionAttributeValues.Add(
@@ -760,7 +760,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
                 |> if ``on index`` then QueryBuilder.setIndexName "TheIndex" else id
                 |> QueryBuilder.setKeyConditionExpression (if ``on index`` then "IndexPk = :p" else "TablePk = :p")
                 |> QueryBuilder.setFilterExpression "BinaryData = :b1 OR BinaryData = :b2"
-                |> QueryBuilder.setExpressionAttrValues ":p" (if ``on index`` then Number (decimal pk) else String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (if ``on index`` then AttributeValue.createNumber (decimal pk) else AttributeValue.createString pk)
                 |> QueryBuilder.setExpressionAttrValues ":b1" fstBinary
                 |> QueryBuilder.setExpressionAttrValues ":b2" sndBinary
                 |> QueryBuilder.setForwards forward
@@ -836,9 +836,9 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             let result =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
-                |> if hasPartition then QueryBuilder.setExpressionAttrValues ":p" (String p) else id
-                |> if hasSort1 then QueryBuilder.setExpressionAttrValues ":s1" (Number s1) else id
-                |> if hasSort2 then QueryBuilder.setExpressionAttrValues ":s2" (Number s2) else id
+                |> if hasPartition then QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString p) else id
+                |> if hasSort1 then QueryBuilder.setExpressionAttrValues ":s1" (AttributeValue.createNumber s1) else id
+                |> if hasSort2 then QueryBuilder.setExpressionAttrValues ":s2" (AttributeValue.createNumber s2) else id
 
             return result
         }

@@ -129,21 +129,21 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
             let shouldHave =
                 if ``table has sk``
-                    then [struct ("TablePk", String tablePk); struct ("TableSk", Number tableSk2)]
-                    else [struct ("TablePk", String tablePk2)]
+                    then [struct ("TablePk", AttributeValue.createString tablePk); struct ("TableSk", AttributeValue.createNumber tableSk2)]
+                    else [struct ("TablePk", AttributeValue.createString tablePk2)]
                 |> getItems
 
             let shouldNotHave =
                 if ``table has sk``
-                    then [struct ("TablePk", String tablePk); struct ("TableSk", Number tableSk)]
-                    else [struct ("TablePk", String tablePk)]
+                    then [struct ("TablePk", AttributeValue.createString tablePk); struct ("TableSk", AttributeValue.createNumber tableSk)]
+                    else [struct ("TablePk", AttributeValue.createString tablePk)]
                 |> getItems
                 |> List.concat
 
             let assertShouldHave indexValues =
                 Assert.Collection(indexValues, (fun (x: DebugItem) ->
                     let data = Seq.filter (fstT >> ((=) "RandomData")) x |> Seq.head |> sndT
-                    Assert.Equal(String "item 2", data)))
+                    Assert.Equal(AttributeValue.createString "item 2", data)))
 
             Assert.Equal(0, List.length shouldNotHave)
             Assert.Collection(shouldHave, assertShouldHave, assertShouldHave)
@@ -179,7 +179,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 else $"override{uniqueId()}"
 
             let itemOverride =
-                Map.add "TablePk" (Model.AttributeValue.String pk) item
+                Map.add "TablePk" (Model.AttributeValue.createString pk) item
 
             let keys =
                 let keyCols = if table.hasSk then ["TablePk"; "TableSk"] else ["TablePk"]
@@ -224,7 +224,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                     Map.add "#attr" "TableSk" Map.empty
                     |> CSharp.toDictionary id id
                 req.ExpressionAttributeValues <-
-                    Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
+                    Map.add ":v" (Model.AttributeValue.createString "XX") Map.empty
                     |> itemToDynamoDb
 
             req.ReturnValues <- ReturnValue.ALL_OLD

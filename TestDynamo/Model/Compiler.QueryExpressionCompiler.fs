@@ -119,11 +119,12 @@ module QueryExpressionCompiler =
             MapUtils.tryFind expressionAttrValueName
             >> ValueOption.defaultWith (fun _ -> clientError $"Expression attribute value {expressionAttrValueName} not defined")
 
-        let startsWith = function
-            | struct (String x, String y) -> x.StartsWith(y)
-            | struct (Binary x, Binary y) when x.Length < y.Length -> false
-            | struct (Binary x, Binary y) -> Comparison.compareArrays 0 (y.Length - 1) x y
-            | x, y -> clientError $"Cannot use begins_with function on a {AttributeValue.getType x} and {AttributeValue.getType y}"
+        let startsWith =
+            mapFst AttributeValue.value >> mapSnd AttributeValue.value >> function
+            | struct (StringX x, StringX y) -> x.StartsWith(y)
+            | struct (BinaryX x, BinaryX y) when x.Length < y.Length -> false
+            | struct (BinaryX x, BinaryX y) -> Comparison.compareArrays 0 (y.Length - 1) x y
+            | x, y -> clientError $"Cannot use begins_with function on a {x |> AttributeValue.create |> AttributeValue.getType} and {y |> AttributeValue.create |> AttributeValue.getType}"
 
         fun (query: QueryParams) (partition: Partition) ->
 

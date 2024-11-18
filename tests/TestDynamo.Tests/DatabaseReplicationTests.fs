@@ -231,9 +231,9 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! (struct (_, _, _, _, disposer) & args) = setUp2Regions logger true
             use _ = disposer
 
-            let pk = AttributeValue.String $"{IncrementingId.next()}"
-            let sk = IncrementingId.next() |> IncrementingId.value |> decimal |> AttributeValue.Number
-            let prop = AttributeValue.String $"{IncrementingId.next()}"
+            let pk = AttributeValue.createString $"{IncrementingId.next()}"
+            let sk = IncrementingId.next() |> IncrementingId.value |> decimal |> AttributeValue.createNumber
+            let prop = AttributeValue.createString $"{IncrementingId.next()}"
             let newItemKeys =
                 Map.add "TablePk" pk Map.empty
                 |> Map.add "TableSk" sk
@@ -264,9 +264,9 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 |> Seq.map sndT
                 |> Seq.head
 
-            let pk = item.tablePk |> AttributeValue.String
-            let sk = if table.hasSk then item.tableSk |> AttributeValue.Number |> ValueSome else ValueNone
-            let prop = AttributeValue.String $"{IncrementingId.next()}"
+            let pk = item.tablePk |> AttributeValue.createString
+            let sk = if table.hasSk then item.tableSk |> AttributeValue.createNumber |> ValueSome else ValueNone
+            let prop = AttributeValue.createString $"{IncrementingId.next()}"
             let newItemKeys =
                 Map.add "TablePk" pk Map.empty
                 |> (ValueOption.map (Map.add "TableSk") sk |> ValueOption.defaultValue id)
@@ -298,8 +298,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 |> Seq.map sndT
                 |> Seq.head
 
-            let pk = item.tablePk |> AttributeValue.String
-            let sk = if table.hasSk then item.tableSk |> AttributeValue.Number |> ValueSome else ValueNone
+            let pk = item.tablePk |> AttributeValue.createString
+            let sk = if table.hasSk then item.tableSk |> AttributeValue.createNumber |> ValueSome else ValueNone
             let keys =
                 Map.add "TablePk" pk Map.empty
                 |> (ValueOption.map (Map.add "TableSk") sk |> ValueOption.defaultValue id)
@@ -353,14 +353,14 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 |> Seq.map sndT
                 |> Seq.head
 
-            let pk = item.tablePk |> AttributeValue.String
-            let sk = if table.hasSk then item.tableSk |> AttributeValue.Number |> ValueSome else ValueNone
+            let pk = item.tablePk |> AttributeValue.createString
+            let sk = if table.hasSk then item.tableSk |> AttributeValue.createNumber |> ValueSome else ValueNone
             let keys =
                 Map.add "TablePk" pk Map.empty
                 |> (ValueOption.map (Map.add "TableSk") sk |> ValueOption.defaultValue id)
 
-            let dominant = Map.add "Type" (AttributeValue.String "Dominant") keys
-            let notDominant = Map.add "Type" (AttributeValue.String "Not dominant") keys
+            let dominant = Map.add "Type" (AttributeValue.createString "Dominant") keys
+            let notDominant = Map.add "Type" (AttributeValue.createString "Not dominant") keys
 
             let struct (dominantClient, notDominantClient) =
                 match dominantDirection with
@@ -400,20 +400,20 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                     |> Seq.map sndT
                     |> Seq.head
                     |> tplDouble
-                    |> mapFst (_.tablePk >> AttributeValue.String)
-                    |> mapSnd (if table.hasSk then _.tableSk >> AttributeValue.Number >> ValueSome else asLazy ValueNone)
+                    |> mapFst (_.tablePk >> AttributeValue.createString)
+                    |> mapSnd (if table.hasSk then _.tableSk >> AttributeValue.createNumber >> ValueSome else asLazy ValueNone)
                 else
-                    AttributeValue.String $"Id-{IncrementingId.next()}"
+                    AttributeValue.createString $"Id-{IncrementingId.next()}"
                     |> flip tpl (
                         if table.hasSk
-                            then IncrementingId.next() |> IncrementingId.value |> decimal |> AttributeValue.Number |> ValueSome
+                            then IncrementingId.next() |> IncrementingId.value |> decimal |> AttributeValue.createNumber |> ValueSome
                             else ValueNone)
 
             let keys =
                 Map.add "TablePk" pk Map.empty
                 |> (ValueOption.map (Map.add "TableSk") sk |> ValueOption.defaultValue id)
 
-            let value = Map.add "Val" (AttributeValue.String "U") keys
+            let value = Map.add "Val" (AttributeValue.createString "U") keys
 
             let doPut (client: AmazonDynamoDBClient) = client.PutItemAsync(table.name, itemToDynamoDb value) |> Io.ignoreTask
             let doDelete (client: AmazonDynamoDBClient) = client.DeleteItemAsync(table.name, itemToDynamoDb keys) |> Io.ignoreTask
@@ -476,7 +476,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 [create1; create2; create3]
                 |> Seq.map (
                     TableItem.asItem
-                    >> Map.add "TablePk" (String $"new-item-${IncrementingId.next()}")
+                    >> Map.add "TablePk" (AttributeValue.createString $"new-item-${IncrementingId.next()}")
                     >> itemToDynamoDb)
                 |> List.ofSeq
 
@@ -484,7 +484,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 [update1; update2; update3]
                 |> Seq.mapi (fun i ->
                     TableItem.asItem
-                    >> Map.add "SomeData" (String $"new-item-${i}")
+                    >> Map.add "SomeData" (AttributeValue.createString $"new-item-${i}")
                     >> itemToDynamoDb)
                 |> List.ofSeq
 
@@ -566,7 +566,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 [update1; update2]
                 |> Seq.mapi (fun i ->
                     TableItem.asItem
-                    >> Map.add someData (String $"new-item-${i}")
+                    >> Map.add someData (AttributeValue.createString $"new-item-${i}")
                     >> itemToDynamoDb)
                 |> List.ofSeq
 
@@ -786,7 +786,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
                 [update1; update2]
                 |> Seq.mapi (fun i ->
                     TableItem.asItem
-                    >> Map.add someData (String $"new-item-${i}")
+                    >> Map.add someData (AttributeValue.createString $"new-item-${i}")
                     >> itemToDynamoDb)
                 |> List.ofSeq
 
@@ -930,7 +930,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let assertItem (client: AmazonDynamoDBClient) pk =
                 TestDynamoClient.GetTable(client, tableName)
-                |> fun x -> x.GetValues [struct ("TablePk", String pk)]
+                |> fun x -> x.GetValues [struct ("TablePk", AttributeValue.createString pk)]
                 |> single (asLazy true)
                 |> ignore
 
@@ -984,7 +984,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let assertItem (client: AmazonDynamoDBClient) pk =
                 TestDynamoClient.GetTable(client, tableName)
-                |> fun x -> x.GetValues [struct ("TablePk", String pk)]
+                |> fun x -> x.GetValues [struct ("TablePk", AttributeValue.createString pk)]
                 |> single (asLazy true)
                 |> ignore
 
@@ -1046,7 +1046,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             let assertItem (client: AmazonDynamoDBClient) pk =
                 TestDynamoClient.GetTable(client, tableName)
-                |> fun x -> x.GetValues [struct ("TablePk", String pk)]
+                |> fun x -> x.GetValues [struct ("TablePk", AttributeValue.createString pk)]
                 |> single (asLazy true)
                 |> ignore
 
@@ -1322,8 +1322,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             |> QueryBuilder.setTableName table
             |> QueryBuilder.setUpdateExpression "REMOVE TablePk_Copy"
             |> QueryBuilder.setUpdateKey (
-                Map.add "TablePk" (AttributeValue.String pk) Map.empty
-                |> (sk ?|> (decimal >> AttributeValue.Number >> Map.add "TableSk") ?|? id))
+                Map.add "TablePk" (AttributeValue.createString pk) Map.empty
+                |> (sk ?|> (decimal >> AttributeValue.createNumber >> Map.add "TableSk") ?|? id))
             |> QueryBuilder.setConditionExpression "attribute_exists(akljsgdaksjlgdkaslgd)"
             |> QueryBuilder.updateRequest
             |> client.UpdateItemAsync

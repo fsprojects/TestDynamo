@@ -126,7 +126,7 @@ type PagingTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String tablePk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString tablePk)
                 |> match ``filter type`` with
                    | null -> id
                    | "even" -> QueryBuilder.setFilterExpression "IsEven"
@@ -253,7 +253,7 @@ type PagingTests(output: ITestOutputHelper) =
                 |> if query
                     then QueryBuilder.setKeyConditionExpression "IndexPk = :p"
                     else QueryBuilder.setFilterExpression "IndexPk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number (decimal indexKey))
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber (decimal indexKey))
                 |> if query then QueryBuilder.setForwards forwards else id
                 |> if limit then QueryBuilder.setLimit 6 else id
 
@@ -291,7 +291,7 @@ type PagingTests(output: ITestOutputHelper) =
             |> Seq.filter (
                 Item.attributes
                 >> MapUtils.tryFind "TablePk"
-                >> ValueOption.map ((=) (String tablePk))
+                >> ValueOption.map ((=) (AttributeValue.createString tablePk))
                 >> ValueOption.defaultValue false)
             |> Seq.map Item.size
             |> Seq.head
@@ -319,7 +319,7 @@ type PagingTests(output: ITestOutputHelper) =
                 |> if query
                     then QueryBuilder.setKeyConditionExpression "IndexPk = :p"
                     else QueryBuilder.setFilterExpression "IndexPk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Number (decimal indexKey))
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createNumber (decimal indexKey))
                 |> if query then QueryBuilder.setForwards forwards else id
                 |> if limit then QueryBuilder.setLimit 51 else id
 
@@ -344,7 +344,7 @@ type PagingTests(output: ITestOutputHelper) =
 
         // arrange
         let baseItem =
-            Map.add "X1" (String "abcdefghi") Map.empty
+            Map.add "X1" (AttributeValue.createString "abcdefghi") Map.empty
 
         Assert.Equal(20, Item.create "" baseItem |> Item.size)
 
@@ -355,104 +355,104 @@ type PagingTests(output: ITestOutputHelper) =
             Assert.Equal(expected, Item.size i - Item.size bI)
 
         // N
-        Number 12345678901234M
+        AttributeValue.createNumber 12345678901234M
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 10
 
         // S
-        String "123456789M"
+        AttributeValue.createString "123456789M"
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 10
 
         // B
-        Binary (Encoding.UTF8.GetBytes "123456789M")
+        AttributeValue.createBinary (Encoding.UTF8.GetBytes "123456789M")
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 10
 
         // skipping bool and null as values are too small for rounding error
 
         // quad nested map
-        HashMap baseItem
-        |> (flip (Map.add "D4") baseItem >> HashMap)
-        |> (flip (Map.add "D3") baseItem >> HashMap)
+        AttributeValue.createHashMap baseItem
+        |> (flip (Map.add "D4") baseItem >> AttributeValue.createHashMap)
+        |> (flip (Map.add "D3") baseItem >> AttributeValue.createHashMap)
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 50
 
         // quad nested list
-        HashMap baseItem
-        |> (Array.singleton >> CompressedList >> AttributeList)
-        |> (Array.singleton >> CompressedList >> AttributeList)
-        |> (Array.singleton >> CompressedList >> AttributeList)
+        AttributeValue.createHashMap baseItem
+        |> (Array.singleton >> CompressedList >> AttributeValue.createAttributeList)
+        |> (Array.singleton >> CompressedList >> AttributeValue.createAttributeList)
+        |> (Array.singleton >> CompressedList >> AttributeValue.createAttributeList)
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 20
 
         // quad list
-        [|HashMap baseItem;HashMap baseItem;HashMap baseItem;HashMap baseItem|]
+        [|AttributeValue.createHashMap baseItem;AttributeValue.createHashMap baseItem;AttributeValue.createHashMap baseItem;AttributeValue.createHashMap baseItem|]
         |> CompressedList 
-        |> AttributeList
+        |> AttributeValue.createAttributeList
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 60
 
         // numbers
         [|
-            Number 0M
-            Number -0M
-            Number 12345678M
-            Number -12345678M
-            Number 1234.5678M
-            Number -1234.5678M
-            Number 0.5678M
-            Number -0.5678M
+            AttributeValue.createNumber 0M
+            AttributeValue.createNumber -0M
+            AttributeValue.createNumber 12345678M
+            AttributeValue.createNumber -12345678M
+            AttributeValue.createNumber 1234.5678M
+            AttributeValue.createNumber -1234.5678M
+            AttributeValue.createNumber 0.5678M
+            AttributeValue.createNumber -0.5678M
         |]
         |> CompressedList
-        |> AttributeList
+        |> AttributeValue.createAttributeList
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 40
 
         // NS
         [|
-            Number 0M
-            Number 12345678M
-            Number -12345678M
-            Number 1234.5678M
-            Number -1234.5678M
-            Number 0.5678M
-            Number -0.5678M
+            AttributeValue.createNumber 0M
+            AttributeValue.createNumber 12345678M
+            AttributeValue.createNumber -12345678M
+            AttributeValue.createNumber 1234.5678M
+            AttributeValue.createNumber -1234.5678M
+            AttributeValue.createNumber 0.5678M
+            AttributeValue.createNumber -0.5678M
         |]
         |> Seq.ofArray
         |> AttributeSet.create
-        |> HashSet
+        |> AttributeValue.createHashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 40
 
         // SS
         [|
-            String "0"
-            String "12345678"
-            String "-12345678"
-            String "1234.5678"
-            String "-1234.5678"
-            String "0.5678"
-            String "-0.5678"
+            AttributeValue.createString "0"
+            AttributeValue.createString "12345678"
+            AttributeValue.createString "-12345678"
+            AttributeValue.createString "1234.5678"
+            AttributeValue.createString "-1234.5678"
+            AttributeValue.createString "0.5678"
+            AttributeValue.createString "-0.5678"
         |]
         |> Seq.ofArray
         |> AttributeSet.create
-        |> HashSet
+        |> AttributeValue.createHashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 50
 
         // BS
         [|
-            Binary (Encoding.UTF8.GetBytes "0")
-            Binary (Encoding.UTF8.GetBytes  "12345678")
-            Binary (Encoding.UTF8.GetBytes  "-12345678")
-            Binary (Encoding.UTF8.GetBytes  "1234.5678")
-            Binary (Encoding.UTF8.GetBytes  "-1234.5678")
-            Binary (Encoding.UTF8.GetBytes  "0.5678")
-            Binary (Encoding.UTF8.GetBytes  "-0.5678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes "0")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "12345678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "-12345678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "1234.5678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "-1234.5678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "0.5678")
+            AttributeValue.createBinary (Encoding.UTF8.GetBytes  "-0.5678")
         |]
         |> Seq.ofArray
         |> AttributeSet.create
-        |> HashSet
+        |> AttributeValue.createHashSet
         |> (flip (Map.add "D2") baseItem)
         |> sizeDiff 50

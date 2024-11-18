@@ -199,7 +199,7 @@ type GetItemTests(output: ITestOutputHelper) =
                 let keyCols = if table.hasSk then ["TablePk"; "TableSk"] else ["TablePk"]
                 item
                 |> Map.filter (fun k _ -> List.contains k keyCols)
-                |> Map.add "TablePk" (String "invalid")
+                |> Map.add "TablePk" (AttributeValue.createString "invalid")
                 |> itemToDynamoDb
 
             let req = GetItemRequest()
@@ -294,9 +294,9 @@ type GetItemTests(output: ITestOutputHelper) =
 
             // arrange
             let keys hasSk (table: TestDynamo.Tests.TableDescription) =
-                Map.add "TablePk" (AttributeValue.String "Str") Map.empty
+                Map.add "TablePk" (AttributeValue.createString "Str") Map.empty
                 |> if hasSk
-                    then Map.add "TableSk" (AttributeValue.Number 888888M)
+                    then Map.add "TableSk" (AttributeValue.createNumber 888888M)
                     else id
                 |> itemToDynamoDb
                 |> tpl table.name
@@ -397,8 +397,8 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
             let key =
-                Map.add "TablePk" (AttributeValue.String pk) Map.empty
-                |> Map.add "TableSk" (AttributeValue.Number sk)
+                Map.add "TablePk" (AttributeValue.createString pk) Map.empty
+                |> Map.add "TableSk" (AttributeValue.createNumber sk)
                 |> itemToDynamoDb
 
             let req =
@@ -450,8 +450,8 @@ type GetItemTests(output: ITestOutputHelper) =
 
             use host = cloneHost writer'
 
-            let bigBinary = Array.create 399_000 1uy |> AttributeValue.Binary
-            let pks = [1..50] |> List.map (_.ToString() >> AttributeValue.String >> flip (Map.add "TablePk")  Map.empty) 
+            let bigBinary = Array.create 399_000 1uy |> AttributeValue.createBinary
+            let pks = [1..50] |> List.map (_.ToString() >> AttributeValue.createString >> flip (Map.add "TablePk")  Map.empty) 
             let conditionExpression =
               { tableName = table.name
                 conditionExpression = ValueNone

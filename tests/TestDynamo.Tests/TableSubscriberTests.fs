@@ -141,12 +141,12 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let pkAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes pk)
-                else String pk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes pk)
+                else AttributeValue.createString pk
             let skAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes $"{sk}")
-                else Number sk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes $"{sk}")
+                else AttributeValue.createNumber sk
 
             use subscription =
                 host.SubscribeToStream writer' table.name struct (SubscriberBehaviour.defaultOptions, streamType)
@@ -196,7 +196,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
                 Assert.Equal(pkAttr, Map.find "TablePk" added)
                 if expectSk then Assert.Equal(skAttr, Map.find "TableSk" added)
-                if expectData then Assert.Equal(String "random data", Map.find "RandomData" added)
+                if expectData then Assert.Equal(AttributeValue.createString "random data", Map.find "RandomData" added)
 
             // random double dispose of subscription
             subscription.Dispose() 
@@ -275,12 +275,12 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let pkAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes pk)
-                else String pk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes pk)
+                else AttributeValue.createString pk
             let skAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes $"{sk}")
-                else Number sk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes $"{sk}")
+                else AttributeValue.createNumber sk
 
             use subscription =
                 host.SubscribeToStream writer' table.name struct (SubscriberBehaviour.defaultOptions, streamType)
@@ -335,7 +335,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
                 Assert.Equal(pkAttr, Map.find "TablePk" removed)
                 if expectSk then Assert.Equal(skAttr, Map.find "TableSk" removed)
-                if expectData then Assert.Equal(String "random data", Map.find "RandomData" removed)
+                if expectData then Assert.Equal(AttributeValue.createString "random data", Map.find "RandomData" removed)
 
             if hasAdded then
                 let added = List.head added
@@ -344,7 +344,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
                 Assert.Equal(pkAttr, Map.find "TablePk" added)
                 if expectSk then Assert.Equal(skAttr, Map.find "TableSk" added)
-                if expectData then Assert.Equal(String "more random data", Map.find "RandomData" added)
+                if expectData then Assert.Equal(AttributeValue.createString "more random data", Map.find "RandomData" added)
 
             // random double dispose of subscription
             subscription.Dispose()
@@ -380,12 +380,12 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let pkAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes pk)
-                else String pk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes pk)
+                else AttributeValue.createString pk
             let skAttr =
                 if table.isBinaryTable
-                then Binary (Encoding.UTF8.GetBytes $"{sk}")
-                else Number sk
+                then AttributeValue.createBinary (Encoding.UTF8.GetBytes $"{sk}")
+                else AttributeValue.createNumber sk
 
             use _ =
                 host.SubscribeToStream writer' table.name struct (SubscriberBehaviour.defaultOptions, streamType)
@@ -448,7 +448,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
                 Assert.Equal(pkAttr, Map.find "TablePk" removed)
                 if expectSk then Assert.Equal(skAttr, Map.find "TableSk" removed)
-                if expectData then Assert.Equal(String "random data", Map.find "RandomData" removed)
+                if expectData then Assert.Equal(AttributeValue.createString "random data", Map.find "RandomData" removed)
         }
 
     [<Fact>]
@@ -708,7 +708,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName table.name
                 |> QueryBuilder.setKeyConditionExpression "TablePk = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":p" (AttributeValue.createString pk)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
 

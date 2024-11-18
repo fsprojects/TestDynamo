@@ -180,8 +180,8 @@ module BinaryOps =
 
         let err = $"Both operands of a {name} operation must be numbers"
         let arithmetic args itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-            | struct (ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _)) -> op args itemData
+            match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
+            | struct (ValueSome (WorkingAttributeValue.NumberX _), ValueSome (WorkingAttributeValue.NumberX _)) -> op args itemData
             | _ -> clientError err
 
         ExpressionPartCompiler.build2
@@ -347,17 +347,19 @@ module Call =
 
         let validateR (x: ResolvedDescription): Result<UnresolvedDescription, NonEmptyList<string>> =
             match x with
-            | ResolvedPath _ & x
-            | ResolvedExpressionAttrValue (_, String _) & x
-            | ResolvedExpressionAttrValue (_, Binary _) & x -> Resolved x |> Ok
+            | ResolvedPath _ & x -> Resolved x |> Ok
+            | ResolvedExpressionAttrValue (_, x') & x ->
+                match x'.Value with
+                | BinaryX _ 
+                | StringX _ -> Resolved x |> Ok
+                | _ -> err
             | Comparer _
             | Arithmetic _
             | ResolvedCsv _
             | BooleanLogic _
             | FunctionCall _
             | UpdatePlaceholder _
-            | Projection
-            | ResolvedExpressionAttrValue _ -> err
+            | Projection -> err
 
         ExpressionPartCompiler.build2
             name
@@ -422,11 +424,11 @@ module Call =
             | UpdatePlaceholder _ -> err
 
         let argValueValidator lr itemData =
-            match lr |> mapFst (apply itemData) |> mapSnd (apply itemData) with
+            match lr |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
             | ValueNone, ValueNone
-            | ValueSome (AttributeList _), ValueNone
-            | ValueNone, ValueSome (AttributeList _)
-            | ValueSome (AttributeList _), ValueSome (AttributeList _) -> GetOps.Functions.list_append lr itemData
+            | ValueSome (AttributeListX _), ValueNone
+            | ValueNone, ValueSome (AttributeListX _)
+            | ValueSome (AttributeListX _), ValueSome (AttributeListX _) -> GetOps.Functions.list_append lr itemData
             | _ -> clientError "Arguments to list_append function must be lists"
 
         ExpressionPartCompiler.build2
@@ -443,18 +445,19 @@ module Call =
         let err = NonEmptyList.singleton $"Right operand for {name} must be an expression attribute value" |> Error
 
         let resolveRhs = function
-            | ResolvedExpressionAttrValue struct (_, String "S") & x
-            | ResolvedExpressionAttrValue struct (_, String "N") & x
-            | ResolvedExpressionAttrValue struct (_, String "B") & x
-            | ResolvedExpressionAttrValue struct (_, String "BOOL") & x
-            | ResolvedExpressionAttrValue struct (_, String "L") & x
-            | ResolvedExpressionAttrValue struct (_, String "M") & x
-            | ResolvedExpressionAttrValue struct (_, String "SS") & x
-            | ResolvedExpressionAttrValue struct (_, String "NS") & x
-            | ResolvedExpressionAttrValue struct (_, String "BS") & x
-            | ResolvedExpressionAttrValue struct (_, String "NULL") & x -> noValidator x
-            | ResolvedExpressionAttrValue struct (_, String x) -> NonEmptyList.singleton $"Invalid attribute type parameter \"{x}\"" |> Error
-            | ResolvedExpressionAttrValue struct (_, x) -> NonEmptyList.singleton $"Invalid attribute type parameter \"{x}\"" |> Error
+            | ResolvedExpressionAttrValue struct (_, attr) & x ->
+                match AttributeValue.value attr with
+                | StringX "S"
+                | StringX "N"
+                | StringX "B"
+                | StringX "BOOL"
+                | StringX "L"
+                | StringX "M"
+                | StringX "SS"
+                | StringX "NS"
+                | StringX "BS"
+                | StringX "NULL" -> noValidator x
+                | x -> NonEmptyList.singleton $"Invalid attribute type parameter \"{x}\"" |> Error
             | Projection
             | Comparer _
             | Arithmetic _
@@ -643,16 +646,16 @@ module Updates =
             | Projection
             | UpdatePlaceholder _ -> invalid2
 
-        let return0 = AttributeValue.Number 0M |> ValueSome |> asLazy
+        let return0 = WorkingAttributeValue.NumberX 0M |> AttributeValue.create |> ValueSome |> asLazy
 
         let private mutate (struct (_, arg1) & args) itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
+            match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
             // special case for add a numer to nothing
-            | ValueNone, ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add struct (return0, arg1) itemData
+            | ValueNone, ValueSome (WorkingAttributeValue.NumberX _) -> GetOps.Arithmetic.add struct (return0, arg1) itemData
             | ValueNone, _
             | _, ValueNone -> clientError "Invalid ADD update expression. Attribute has no value"
-            | ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add args itemData
-            | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
+            | ValueSome (WorkingAttributeValue.NumberX _), ValueSome (WorkingAttributeValue.NumberX _) -> GetOps.Arithmetic.add args itemData
+            | ValueSome (WorkingAttributeValue.HashSetX _), ValueSome (WorkingAttributeValue.HashSetX _) ->
                 GetOps.HashSets.union args itemData
                 ?|> ValueSome
                 |> ValueOption.defaultWith (fun _ -> clientError "Invalid ADD update expression. Sets contain two different types")
@@ -719,10 +722,10 @@ module Updates =
             | UpdatePlaceholder _ -> invalid2
 
         let private mutate args itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
+            match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
             | ValueNone, _
             | _, ValueNone -> clientError "Invalid DELETE update expression. Attribute has no value"
-            | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
+            | ValueSome (WorkingAttributeValue.HashSetX _), ValueSome (WorkingAttributeValue.HashSetX _) ->
                 GetOps.HashSets.xOr args itemData
                 |> ValueOption.defaultWith (fun _ -> clientError "Invalid DELETE update expression. Sets contain two different types")
             | s1, s2 ->

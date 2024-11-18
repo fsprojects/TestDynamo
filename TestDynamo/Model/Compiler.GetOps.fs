@@ -17,21 +17,22 @@ type ItemData = Compiler.ItemData
 
 // aka $
 
-let inline private boolResult x = x |> Boolean |> ValueSome
-let inline private decimalResult x = x |> Number |> ValueSome
+let inline private boolResult x = x |> BooleanX |> AttributeValue.create |> ValueSome
+let inline private decimalResult x = x |> NumberX |> AttributeValue.create |> ValueSome
 let private intResult x = x |> decimal |> decimalResult
 let private falseResult = boolResult false
 let private trueResult = boolResult true
 
-let rootItem: ItemData -> AttributeValue voption = _.item >> Item.attributes >> HashMap >> ValueSome
+let rootItem: ItemData -> AttributeValue voption = _.item >> Item.attributes >> HashMapX >> AttributeValue.create >> ValueSome
 
 let attribute struct (expression, name) (itemData: ItemData) =
     let expression = ValueOption.defaultWith (fun _ _ -> rootItem itemData) expression
     ValueSome tpl
     <|? expression itemData
     <|? ValueSome name
-    ?>>= function
-        | struct (HashMap x, name) -> MapUtils.tryFind name x
+    ?>>= fun attr ->
+        match mapFst AttributeValue.value attr with
+        | struct (HashMapX x, name) -> MapUtils.tryFind name x
         | _ -> ValueNone
 
 let expressionAttrName struct (item, name) (itemData: ItemData) =
@@ -44,9 +45,10 @@ let listIndex struct (expression, index) (itemData: ItemData) =
     ValueSome tpl
     <|? expression itemData
     <|? (ValueSome index)
-    ?>>= function
-        | struct (AttributeList (CompressedList x), index) when index >= 0 && Array.length x > index -> Array.get x index |> ValueSome
-        | struct (AttributeList (SparseList x & sl), index) when index >= 0 && Map.count x > index -> AttributeListType.asSeq sl |> Seq.skip index |> Collection.tryHead
+    ?>>= fun attr ->
+        match mapFst AttributeValue.value attr with
+        | struct (AttributeListX (CompressedList x), index) when index >= 0 && Array.length x > index -> Array.get x index |> ValueSome
+        | struct (AttributeListX (SparseList x & sl), index) when index >= 0 && Map.count x > index -> AttributeListType.asSeq sl |> Seq.skip index |> Collection.tryHead
         | _ -> ValueNone
 
 let inline expressionAttrValue name (itemData: ItemData) =
@@ -61,7 +63,7 @@ let private op' operator struct (left, right) itemData =
     ?|> operator
 
 let private op operator leftRight itemData =
-    op' operator leftRight itemData ?|> Boolean
+    op' operator leftRight itemData ?|> (BooleanX >> AttributeValue.create)
 
 type private BinaryOp = (struct ((ItemData -> AttributeValue voption) * (ItemData -> AttributeValue voption))) -> ItemData -> AttributeValue voption
 let eq: BinaryOp = op ((=)0)
@@ -89,8 +91,9 @@ let between struct (item, low, high) itemData =
         | false -> falseResult
         | true -> lte struct (item, high) itemData
 
-let not' = function
-    | Boolean x -> not x |> boolResult
+let not' attr = 
+    match AttributeValue.value attr with
+    | BooleanX x -> not x |> boolResult
     | _ -> ValueNone
 
 let private sysNot = not
@@ -98,16 +101,17 @@ let inline not item = item ?>=> not'
 
 let ``and`` struct (left, right) itemData =
     left itemData
-    ?>>= function
-        | Boolean true -> right itemData
-        | Boolean false -> falseResult
+    ?>>= fun attr ->
+        match AttributeValue.value attr with
+        | BooleanX true -> right itemData
+        | BooleanX false -> falseResult
         | _ -> ValueNone
 
 let ``or`` struct (left, right) itemData =
-    match left itemData with
-    | ValueSome (Boolean true) -> trueResult
+    match left itemData ?|> AttributeValue.value with
+    | ValueSome (BooleanX true) -> trueResult
     | ValueNone
-    | ValueSome (Boolean false) -> right itemData
+    | ValueSome (BooleanX false) -> right itemData
     | ValueSome _ -> ValueNone
 
 let toList values =
@@ -116,7 +120,8 @@ let toList values =
     >> Maybe.traverse
     >> Array.ofSeq
     >> CompressedList
-    >> AttributeList
+    >> AttributeListX
+    >> AttributeValue.create
     >> ValueSome
 
 let inline private (>>>) f g x y = f x y |> g
@@ -147,40 +152,40 @@ let private listContainsEq: AttributeValue seq -> AttributeValue -> bool voption
 let listContains struct (test, valueList) itemData =
 
     valueList itemData
-    ?>>= function | AttributeList xs -> ValueSome xs | _ -> ValueNone
+    ?>>= fun attr -> match AttributeValue.value attr with | AttributeListX xs -> ValueSome xs | _ -> ValueNone
     ?|> AttributeListType.asSeq
     ?|> listContainsEq
     ?|> tpl
     <|? test itemData
     ?>>= applyTpl
-    ?|> Boolean
+    ?|> (BooleanX >> AttributeValue.create)
 
 module HashSets =
-    let private arithmetic operation args itemData =
-        match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-        | ValueSome (AttributeValue.Number x), ValueSome (AttributeValue.Number y) ->
-            ValueSome (AttributeValue.Number (operation x y))
-        | _ -> ValueNone
+    // let private arithmetic operation args itemData =
+    //     match args |> mapFst (apply itemData >> AttributeValue.value) |> mapSnd (apply itemData >> AttributeValue.value) with
+    //     | ValueSome (WorkingAttributeValue.NumberX x), ValueSome (WorkingAttributeValue.NumberX y) ->
+    //         ValueSome (AttributeValue.Number (operation x y))
+    //     | _ -> ValueNone
 
     let union args itemData =
-        match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-        | ValueSome (AttributeValue.HashSet l), ValueSome (AttributeValue.HashSet r) ->
+        match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
+        | ValueSome (WorkingAttributeValue.HashSetX l), ValueSome (WorkingAttributeValue.HashSetX r) ->
             AttributeSet.tryUnion struct (l, r)
-            ?|> AttributeValue.HashSet
+            ?|> (WorkingAttributeValue.HashSetX >> AttributeValue.create)
         | _ -> ValueNone
 
     let xOr args itemData =
-        match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-        | ValueSome (AttributeValue.HashSet l), ValueSome (AttributeValue.HashSet r) ->
+        match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
+        | ValueSome (WorkingAttributeValue.HashSetX l), ValueSome (WorkingAttributeValue.HashSetX r) ->
             AttributeSet.tryXOr struct (l, r)
-            ?|> (ValueOption.map AttributeValue.HashSet)
+            ?|> (ValueOption.map (WorkingAttributeValue.HashSetX >> AttributeValue.create))
         | _ -> ValueNone
 
 module Arithmetic =
     let private arithmetic operation args itemData =
-        match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-        | ValueSome (AttributeValue.Number x), ValueSome (AttributeValue.Number y) ->
-            ValueSome (AttributeValue.Number (operation x y))
+        match args |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
+        | ValueSome (WorkingAttributeValue.NumberX x), ValueSome (WorkingAttributeValue.NumberX y) ->
+            ValueSome (WorkingAttributeValue.NumberX (operation x y) |> AttributeValue.create)
         | _ -> ValueNone
 
     let add args = arithmetic (+) args
@@ -194,12 +199,12 @@ module Functions =
         |> ValueOption.defaultWith (fun _ -> r itemData)
 
     let list_append lr itemData =
-        match lr |> mapFst (apply itemData) |> mapSnd (apply itemData) with
+        match lr |> mapFst (apply itemData ??|> AttributeValue.value) |> mapSnd (apply itemData ??|> AttributeValue.value) with
         | ValueNone, ValueNone -> ValueNone
-        | ValueSome (AttributeList _ & x), ValueNone
-        | ValueNone, ValueSome (AttributeList _ & x) -> ValueSome x
-        | ValueSome (AttributeList l), ValueSome (AttributeList r) ->
-            AttributeListType.append struct(l, r) |> AttributeList |> ValueSome
+        | ValueSome (AttributeListX _ & x), ValueNone
+        | ValueNone, ValueSome (AttributeListX _ & x) -> ValueSome (AttributeValue.create x)
+        | ValueSome (AttributeListX l), ValueSome (AttributeListX r) ->
+            AttributeListType.append struct(l, r) |> AttributeListX |> AttributeValue.create |> ValueSome
         | _ -> ValueNone
 
     // requires validation: if r is expr attr value, the type must be a binary or string
@@ -208,12 +213,13 @@ module Functions =
         ValueOption.Some tpl
         <|? l itemData
         <|? r itemData
-        ?>>= function
+        ?>>= fun attrs ->
+            match attrs |> mapFst AttributeValue.value |> mapSnd AttributeValue.value with
             // not 100% sure if this is a valid operation or not
-            | struct (AttributeValue.Binary x, AttributeValue.Binary y) ->
+            | struct (WorkingAttributeValue.BinaryX x, WorkingAttributeValue.BinaryX y) ->
                 (x.Length >= y.Length && Comparison.compareArrays 0 (Array.length y - 1) x y)
                 |> boolResult
-            | struct (AttributeValue.String x, AttributeValue.String y) ->
+            | struct (WorkingAttributeValue.StringX x, WorkingAttributeValue.StringX y) ->
                 x.StartsWith(y)
                 |> boolResult
             | _ -> ValueNone
@@ -235,8 +241,9 @@ module Functions =
 
         let testType =
             typ itemData
-            ?>>= function
-                | String x -> AttributeType.tryParse x
+            ?>>= fun attr ->
+                match AttributeValue.value attr with
+                | StringX x -> AttributeType.tryParse x
                 | _ -> ValueNone
             ?|> (=)
             |> Maybe.traverseFn
@@ -244,36 +251,38 @@ module Functions =
         attr itemData
         ?|> AttributeValue.getType
         ?>>= testType
-        ?|> Boolean
+        ?|> (BooleanX >> AttributeValue.create) 
 
     let contains struct (l, r) itemData =
         ValueOption.Some tpl
         <|? l itemData
         <|? r itemData
-        ?>>= function
-            | struct (AttributeValue.String path, AttributeValue.String operand) ->
+        ?>>= fun attrs ->
+            let operand' = sndT attrs
+            match attrs |> mapFst AttributeValue.value |> mapSnd AttributeValue.value with
+            | struct (WorkingAttributeValue.StringX path, WorkingAttributeValue.StringX operand) ->
                 path.Contains operand |> boolResult
-            | struct (AttributeValue.HashSet set, AttributeValue.String _ & operand)
+            | struct (WorkingAttributeValue.HashSetX set, WorkingAttributeValue.StringX _ & operand)
                when AttributeSet.getSetType set = AttributeType.String ->
-                   AttributeSet.contains operand set |> boolResult
-            | struct (AttributeValue.HashSet set, AttributeValue.Number _ & operand)
+                   AttributeSet.contains operand' set |> boolResult
+            | struct (WorkingAttributeValue.HashSetX set, WorkingAttributeValue.NumberX _ & operand)
                when AttributeSet.getSetType set = AttributeType.Number ->
-                   AttributeSet.contains operand set |> boolResult
-            | struct (AttributeValue.HashSet set, AttributeValue.Binary _ & operand)
+                   AttributeSet.contains operand' set |> boolResult
+            | struct (WorkingAttributeValue.HashSetX set, WorkingAttributeValue.BinaryX _ & operand)
                when AttributeSet.getSetType set = AttributeType.Binary ->
-                   AttributeSet.contains operand set |> boolResult
-            | struct (AttributeValue.AttributeList (CompressedList list), operand) ->
-                   Array.contains operand list |> boolResult
-            | struct (AttributeValue.AttributeList (SparseList list), operand) ->
-                   Seq.contains operand list.Values |> boolResult
+                   AttributeSet.contains operand' set |> boolResult
+            | struct (WorkingAttributeValue.AttributeListX (CompressedList list), operand) ->
+                   Array.contains operand' list |> boolResult
+            | struct (WorkingAttributeValue.AttributeListX (SparseList list), operand) ->
+                   Seq.contains operand' list.Values |> boolResult
             | _ -> ValueNone
 
     let size item =
         item
-        ?>=> function
-            | AttributeValue.String str -> str.Length |> intResult
-            | AttributeValue.Binary bin -> bin.Length |> intResult
-            | AttributeValue.HashMap h -> Map.count h |> intResult
-            | AttributeValue.AttributeList l -> AttributeListType.length l |> intResult
-            | AttributeValue.HashSet s -> AttributeSet.asSet s |> Set.count |> intResult
-            | _ -> ValueNone
+        ?>=> (AttributeValue.value >> function
+                | WorkingAttributeValue.StringX str -> str.Length |> intResult
+                | WorkingAttributeValue.BinaryX bin -> bin.Length |> intResult
+                | WorkingAttributeValue.HashMapX h -> Map.count h |> intResult
+                | WorkingAttributeValue.AttributeListX l -> AttributeListType.length l |> intResult
+                | WorkingAttributeValue.HashSetX s -> AttributeSet.asSet s |> Set.count |> intResult
+                | _ -> ValueNone)

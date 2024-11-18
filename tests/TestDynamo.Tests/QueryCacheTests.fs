@@ -94,7 +94,7 @@ type QueryCacheTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setFilterExpression "Something = :p"
                 |> QueryBuilder.setSelect Select.SPECIFIC_ATTRIBUTES
                 |> QueryBuilder.setProjectionExpression "Something"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Model.AttributeValue.String "123")
+                |> QueryBuilder.setExpressionAttrValues ":p" (Model.AttributeValue.createString "123")
 
             let baseQuery (client: AmazonDynamoDBClient) = 
                 baseReq
@@ -107,7 +107,7 @@ type QueryCacheTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setIndexName indexName
                 |> QueryBuilder.setKeyConditionExpression $"{indexPk} = :p" 
                 |> QueryBuilder.setFilterExpression "Something = :p"
-                |> QueryBuilder.setExpressionAttrValues ":p" (Model.AttributeValue.String "123")
+                |> QueryBuilder.setExpressionAttrValues ":p" (Model.AttributeValue.createString "123")
                 |> QueryBuilder.setProjectionExpression "SomethingElseElse"
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync

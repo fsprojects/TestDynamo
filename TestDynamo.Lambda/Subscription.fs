@@ -33,35 +33,38 @@ module LambdaSubscriberUtils =
             attr.NS <> null,
             attr.BS <> null
             ) with
-        | true, null, null, null, false, false, false, false, false, false -> attr.BOOL.Value |> AttributeValue.Boolean
-        | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> AttributeValue.String
-        | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> AttributeValue.Number
+        | true, null, null, null, false, false, false, false, false, false -> attr.BOOL.Value |> WorkingAttributeValue.BooleanX |> AttributeValue.create
+        | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> WorkingAttributeValue.StringX |> AttributeValue.create
+        | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> WorkingAttributeValue.NumberX |> AttributeValue.create
         | false, null, null, bin, false, false, false, false, false, false when bin <> null ->
-            bin.ToArray() |> AttributeValue.Binary
-        | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
+            bin.ToArray() |> WorkingAttributeValue.BinaryX |> AttributeValue.create
+        | false, null, null, null, true, false, false, false, false, false -> WorkingAttributeValue.NullX |> AttributeValue.create
         | false, null, null, null, false, true, false, false, false, false ->
             if attr.M = null then TestDynamo.Utils.clientError "Map data not set"
-            itemFromDynamodb' name attr.M |> AttributeValue.HashMap
+            itemFromDynamodb' name attr.M |> WorkingAttributeValue.HashMapX |> AttributeValue.create
         | false, null, null, null, false, false, true, false, false, false ->
             CSharp.sanitizeSeq attr.L 
-            |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
+            |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> WorkingAttributeValue.AttributeListX |> AttributeValue.create
         | false, null, null, null, false, false, false, true, false, false ->
             CSharp.sanitizeSeq attr.SS
-            |> Seq.map String
+            |> Seq.map (StringX >> AttributeValue.create)
             |> AttributeSet.create
-            |> HashSet
+            |> HashSetX
+            |> AttributeValue.create
         | false, null, null, null, false, false, false, false, true, false ->
 
             CSharp.sanitizeSeq attr.NS
-            |> Seq.map (Decimal.Parse >> Number)
+            |> Seq.map (Decimal.Parse >> NumberX >> AttributeValue.create)
             |> AttributeSet.create
-            |> HashSet
+            |> HashSetX
+            |> AttributeValue.create
         | false, null, null, null, false, false, false, false, false, true ->
 
             CSharp.sanitizeSeq attr.BS
-            |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
+            |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> BinaryX |> AttributeValue.create)
             |> AttributeSet.create
-            |> HashSet
+            |> HashSetX
+            |> AttributeValue.create
         | pp -> clientError $"Unknown attribute type for \"{name}\""
 
     and attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
@@ -72,32 +75,33 @@ module LambdaSubscriberUtils =
     and private itemFromDynamodb' name x = x |> Seq.map (mapAttribute name) |> MapUtils.fromTuple
     and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$"
 
-    let rec attributeToDynamoDbEvent = function
-        | AttributeValue.String x ->
+    let rec attributeToDynamoDbEvent attr = 
+        match AttributeValue.value attr with
+        | WorkingAttributeValue.StringX x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.S <- x
             attr
-        | AttributeValue.Number x ->
+        | WorkingAttributeValue.NumberX x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.N <- x.ToString()
             attr
-        | AttributeValue.Binary x ->
+        | WorkingAttributeValue.BinaryX x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.B <- new MemoryStream(x)
             attr
-        | AttributeValue.Boolean x ->
+        | WorkingAttributeValue.BooleanX x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.BOOL <- x
             attr
-        | AttributeValue.Null ->
+        | WorkingAttributeValue.NullX ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.NULL <- true
             attr
-        | AttributeValue.HashMap x ->
+        | WorkingAttributeValue.HashMapX x ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.M <- itemToDynamoDbEvent x
             attr
-        | AttributeValue.HashSet x ->
+        | WorkingAttributeValue.HashSetX x ->
             let attr = DynamoDBEvent.AttributeValue()
             match AttributeSet.getSetType x with
             | AttributeType.Binary ->
@@ -120,7 +124,7 @@ module LambdaSubscriberUtils =
             | x -> clientError $"Unknown set type {x}"
 
             attr
-        | AttributeValue.AttributeList xs ->
+        | WorkingAttributeValue.AttributeListX xs ->
             let attr = DynamoDBEvent.AttributeValue()
             attr.L <- xs |> AttributeListType.asSeq |> Seq.map attributeToDynamoDbEvent |> Enumerable.ToList
             attr

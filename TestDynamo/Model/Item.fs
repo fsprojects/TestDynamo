@@ -66,6 +66,30 @@ type AttributeType =
         | "NULL" -> AttributeType.Null
         | x -> invalidOp $"Invalid AttributeType {x}"
 
+type NullConst private() =
+    static member Value = NullConst()
+    
+    override _.Equals(x: obj) =
+        match x with
+        | :? NullConst -> true
+        | _ -> false
+        
+    override _.GetHashCode() = 0
+    
+type BoolConst private(v: bool) =
+    static member True = BoolConst(true)
+    static member False = BoolConst(false)
+    
+    member private _.v = v 
+    
+    override _.Equals(x: obj) =
+        match x with
+        | :? BoolConst as x' -> x'.v = v
+        | _ -> false
+        
+    override _.GetHashCode() = if v then 1 else 0
+        
+
 /// <summary>
 /// A set of attribute values which have a specified type
 /// </summary>
@@ -98,22 +122,22 @@ type AttributeSet =
         | As struct (t, x) when t <> AttributeType.Binary ->
             clientError $"Set has type {t}, not {AttributeType.Binary}"
         | As struct (_, xs) ->
-            Seq.map (function
-                | Binary x -> x
+            Seq.map (AttributeValue.value >> function
+                | BinaryX x -> x
                 | x -> clientError $"Set item {x} is not {AttributeType.Binary}") xs
     static member asNumberSeq = function
         | As struct (t, x) when t <> AttributeType.Number ->
             clientError $"Set has type {t}, not {AttributeType.Number}"
         | As struct (_, xs) ->
-            Seq.map (function
-                | Number x -> x
+            Seq.map (AttributeValue.value >> function
+                | NumberX x -> x
                 | x -> clientError $"Set item {x} is not {AttributeType.Number}") xs
     static member asStringSeq = function
         | As struct (t, x) when t <> AttributeType.String ->
             clientError $"Set has type {t}, not {AttributeType.String}"
         | As struct (_, xs) ->
-            Seq.map (function
-                | String x -> x
+            Seq.map (AttributeValue.value >> function
+                | StringX x -> x
                 | x -> clientError $"Set item {x} is not {AttributeType.String}") xs
     static member contains =
         function
@@ -334,18 +358,81 @@ and
     /// A dynamodb attribute of any valid type
     /// Implements equality and comparison
     /// </summary>
-    [<CustomEquality; CustomComparison>]
-    AttributeValue =
-    | Null
-    | String of string
-    | Number of decimal
-    | Binary of byte array
-    | Boolean of bool
-    | HashMap of Map<string, AttributeValue>
-    | HashSet of AttributeSet
-    | AttributeList of AttributeListType
+    [<CustomEquality; CustomComparison; Struct; IsReadOnly>]
+    WorkingAttributeValue =
+    | NullX
+    | StringX of s: string
+    | NumberX of d: decimal
+    | BinaryX of b: byte array
+    | BooleanX of bl: bool
+    | HashMapX of m: Map<string, AttributeValue>
+    | HashSetX of hs: AttributeSet
+    | AttributeListX of al: AttributeListType
 
     with
+
+    interface IComparable with
+            // TODO perf, boxing
+        member this.CompareTo obj = (AttributeValue.create this :> IComparable).CompareTo obj
+
+    override this.ToString() = (AttributeValue.create this).ToString()
+
+    override this.Equals(yobj) = (AttributeValue.create this).Equals(yobj)
+
+    override this.GetHashCode() = (AttributeValue.create this).GetHashCode()
+
+and        
+    /// <summary>
+    /// A dynamodb attribute of any valid type
+    /// Implements equality and comparison
+    /// </summary>
+    [<CustomEquality; CustomComparison; Struct; IsReadOnly>]
+    AttributeValue =
+    private
+    | AttVal of obj
+
+    with
+    
+    static member createNull () = AttVal AttributeValue._null
+    static member createString (x: string) = AttVal x
+    static member createNumber (x: decimal) = AttVal (box x)// todo: create new object rather than box
+    static member createBinary (x: byte array) = AttVal x
+    static member createBoolean (x: bool) = (if x then AttributeValue._true else AttributeValue._false) |> AttVal
+    static member createHashMap (x: Map<string, AttributeValue>) = AttVal x
+    static member createHashSet (x: AttributeSet) = AttVal x
+    static member createAttributeList (x: AttributeListType) = AttVal x
+    
+    static member private _null = NullConst.Value
+    static member private _false = BoolConst.False
+    static member private _true = BoolConst.True
+    
+    // TODO: delete in favor of specific create methods
+    static member create worker =
+        match worker with
+        | NullX -> AttVal AttributeValue._null
+        | StringX x -> AttVal x
+        | NumberX x -> AttVal (box x)// todo: create new object rather than box
+        | BinaryX x -> AttVal x
+        | BooleanX x when x -> AttVal AttributeValue._true
+        | BooleanX x -> AttVal AttributeValue._false
+        | HashMapX x -> AttVal x
+        | HashSetX x -> AttVal x
+        | AttributeListX x -> AttVal x
+    
+    static member value x =
+        match x with
+        | AttVal x when x = AttributeValue._null -> NullX
+        | AttVal (:? string as x) -> StringX x
+        | AttVal (:? decimal as x) -> NumberX x// todo: create new object rather than unbox
+        | AttVal (:? (byte array) as x) -> BinaryX x
+        | AttVal x when x = AttributeValue._false -> BooleanX false
+        | AttVal x when x = AttributeValue._true -> BooleanX true
+        | AttVal (:? Map<string, AttributeValue> as x) -> HashMapX x
+        | AttVal (:? AttributeSet as x) -> HashSetX x
+        | AttVal (:? AttributeListType as x) -> AttributeListX x
+        | AttVal x -> invalidOp $"Unknown type {x.GetType()}"
+        
+    member this.Value = AttributeValue.value this
 
     /// <summary>
     /// The type shorthand of the dynamodb object.
@@ -353,70 +440,72 @@ and
     /// </summary>
     member this.AttributeType = this |> AttributeValue.getType |> toString
 
-    // member this.IsNull =
-    //     match this with
-    //     | Null -> true
-    //     | _ -> false
+    member this.IsNull =
+        match this with
+        | AttVal x -> x = AttributeValue._null
 
     member this.TryString([<Out>] value: byref<string>) =
         match this with
-        | String x ->
+        | AttVal (:? string as x) ->
             value <- x
             true
         | _ -> false
 
     member this.TryNumber([<Out>] value: byref<decimal>) =
         match this with
-        | Number x ->
+        | AttVal (:? decimal as x) -> // todo: create new object rather than unbox
             value <- x
             true
         | _ -> false
 
     member this.TryBinary([<Out>] value: byref<IReadOnlyList<byte>>) =
         match this with
-        | Binary x ->
+        | AttVal (:? (byte array) as x) ->
             value <- x
             true
         | _ -> false
 
     member this.TryBoolean([<Out>] value: byref<bool>) =
         match this with
-        | Boolean x ->
-            value <- x
+        | AttVal x when x = AttributeValue._false ->
+            value <- false
+            true
+        | AttVal x when x = AttributeValue._true ->
+            value <- true
             true
         | _ -> false
 
     member this.TryMap([<Out>] value: byref<IReadOnlyDictionary<string, AttributeValue>>) =
         match this with
-        | HashMap x ->
+        | AttVal (:? Map<string, AttributeValue> as x) ->
             value <- x
             true
         | _ -> false
 
     member this.TryStringSet([<Out>] value: byref<Set<AttributeValue>>) =
         match this with
-        | HashSet x when AttributeSet.getSetType x = AttributeType.String ->
+        | AttVal (:? AttributeSet as x) when AttributeSet.getSetType x = AttributeType.String ->
             value <- AttributeSet.asSet x
             true
         | _ -> false
 
     member this.TryNumberSet([<Out>] value: byref<Set<AttributeValue>>) =
         match this with
-        | HashSet x when AttributeSet.getSetType x = AttributeType.Number ->
+        | AttVal (:? AttributeSet as x) when AttributeSet.getSetType x = AttributeType.Number ->
             value <- AttributeSet.asSet x
             true
         | _ -> false
 
     member this.TryBinarySet([<Out>] value: byref<Set<AttributeValue>>) =
         match this with
-        | HashSet x when AttributeSet.getSetType x = AttributeType.Binary ->
+        | AttVal (:? AttributeSet as x) when AttributeSet.getSetType x = AttributeType.Binary ->
             value <- AttributeSet.asSet x
             true
         | _ -> false
 
     member this.TryList([<Out>] value: byref<IReadOnlyList<AttributeValue>>) =
         match this with
-        | AttributeList x ->
+        | AttVal (:? AttributeListType as x) ->
             // should not have to do any conversion here
             // data at reset should always be in array format
             value <- AttributeListType.asArray x
@@ -491,60 +580,67 @@ and
             match obj with
             | :? AttributeValue as y ->
                 match struct (this, y) with
-                | String v1, String v2 -> compare v1 v2
-                | Number v1, Number v2 -> compare v1 v2
-                | Boolean v1, Boolean v2 -> compare v1 v2
-                | Binary v1, Binary v2 -> compare v1 v2
-                | HashMap v1, HashMap v2 -> compare v1 v2
-                | HashSet v1, HashSet v2 -> compare v1 v2
-                | AttributeList v1, AttributeList v2 -> AttributeListType.compare struct (v1, v2)
-                | Null, Null -> 0
-                | String _, _ -> -1
-                | _, String _ -> 1
-                | Number _, _ -> -1
-                | _, Number _ -> 1
-                | Boolean _, _ -> -1
-                | _, Boolean _ -> 1
-                | Binary _, _ -> -1
-                | _, Binary _ -> 1
-                | HashSet _, _ -> -1
-                | _, HashSet _ -> 1
-                | HashMap _, _ -> -1
-                | _, HashMap _ -> 1
-                | AttributeList _, _ -> -1
-                | _, AttributeList _ -> 1
+                | AttVal v1, AttVal v2 when v1 = v2 -> 0
+                | AttVal (:? string as v1), AttVal (:? string as v2) -> compare v1 v2
+                | AttVal (:? decimal as v1), AttVal (:? decimal as v2) -> compare v1 v2
+                | AttVal v1, AttVal v2 when v1 = AttributeValue._true && v2 = AttributeValue._false -> 1
+                | AttVal v1, AttVal v2 when v1 = AttributeValue._false && v2 = AttributeValue._true -> -1
+                | AttVal (:? (byte array) as v1), AttVal (:? (byte array) as v2) -> compare v1 v2 // TODO: how does this work?
+                | AttVal (:? Map<string, AttributeValue> as v1), AttVal (:? Map<string, AttributeValue> as v2) -> compare v1 v2
+                | AttVal (:? AttributeSet as v1), AttVal (:? AttributeSet as v2) -> compare v1 v2
+                | AttVal (:? AttributeListType as v1), AttVal (:? AttributeListType as v2) -> AttributeListType.compare struct (v1, v2)
+                | AttVal x, AttVal y when x = AttributeValue._null && x = y -> 0
+                | AttVal (:? string), _ -> -1
+                | _, AttVal (:? string) -> 1
+                | AttVal (:? decimal), _ -> -1
+                | _, AttVal (:? decimal) -> 1
+                | AttVal x, _ when x = AttributeValue._false || x = AttributeValue._true -> -1
+                | _, AttVal x when x = AttributeValue._false || x = AttributeValue._true -> 1
+                | AttVal (:? (byte array)), _ -> -1
+                | _, AttVal (:? (byte array)) -> 1
+                | AttVal (:? AttributeSet), _ -> -1
+                | _, AttVal (:? AttributeSet) -> 1
+                | AttVal (:? Map<string, AttributeValue>), _ -> -1
+                | _, AttVal (:? Map<string, AttributeValue>) -> 1
+                | AttVal (:? AttributeListType), _ -> -1
+                | _, AttVal (:? AttributeListType) -> 1
+                | AttVal x, AttVal y -> invalidOp $"Invalid attr type {x.GetType()} {y.GetType()}"
             | _ -> invalidArg "obj" "cannot compare value of different types"
 
     override this.ToString() =
         match this with
-        | Null -> "NULL"
-        | String x -> x
-        | Number x -> x.ToString()
-        | Binary x -> x.ToString()
-        | Boolean x -> x.ToString()
-        | HashMap x -> x.ToString()
-        | HashSet x -> x.ToString()
-        | AttributeList x -> x.ToString()
+        | AttVal x when x = AttributeValue._null -> "NULL"
+        | AttVal (:? string as x) -> x
+        | AttVal (:? decimal as x) -> x.ToString()
+        | AttVal (:? (byte array) as x) -> x.ToString()  // todo How does this work?
+        | AttVal x when x = AttributeValue._false -> "false"
+        | AttVal x when x = AttributeValue._true -> "true"
+        | AttVal (:? Map<string, AttributeValue> as x) -> x.ToString()
+        | AttVal (:? AttributeSet as x) -> x.ToString()
+        | AttVal (:? AttributeListType as x) -> x.ToString()
+        | AttVal x -> x.ToString()
 
     override this.Equals(yobj) =
         match yobj with
         | :? AttributeValue as y ->
             match struct (this, y) with
-            | Binary this, Binary ys ->
+            | AttVal (:? (byte array) as this), AttVal (:? (byte array) as ys) ->
                 AttributeValue.byteArrayComparer.Equals(this, ys)
             | this, ys -> (this :> IComparable).CompareTo ys = 0
         | _ -> false
 
     override this.GetHashCode() =
         match this with
-        | Null -> 0
-        | String v1 -> HashCode.Combine(1, v1)
-        | Number v1 -> HashCode.Combine(2, v1)
-        | Binary v1 -> HashCode.Combine(4, AttributeValue.byteArrayComparer.GetHashCode v1)
-        | Boolean v1 -> HashCode.Combine(3, v1)
-        | HashMap v1 -> HashCode.Combine(5, v1)
-        | HashSet v1 -> HashCode.Combine(6, v1)
-        | AttributeList v1 -> HashCode.Combine(7, AttributeListType.getHashCode v1)
+        | AttVal x when x = AttributeValue._null -> 0
+        | AttVal (:? string as v1) -> HashCode.Combine(1, v1)
+        | AttVal (:? decimal as v1) -> HashCode.Combine(2, v1)
+        | AttVal (:? (byte array) as v1) -> HashCode.Combine(4, AttributeValue.byteArrayComparer.GetHashCode v1)
+        | AttVal x when x = AttributeValue._false -> HashCode.Combine(3, false)
+        | AttVal x when x = AttributeValue._true -> HashCode.Combine(3, true)
+        | AttVal (:? Map<string, AttributeValue> as v1) -> HashCode.Combine(5, v1)
+        | AttVal (:? AttributeSet as v1) -> HashCode.Combine(6, v1)
+        | AttVal (:? AttributeListType as v1) -> HashCode.Combine(7, AttributeListType.getHashCode v1)
+        | AttVal x -> HashCode.Combine(-1, x)
 
     static member private byteArrayComparer: IEqualityComparer<byte array> = Comparison.arrayComparer<byte> 10
 
@@ -556,29 +652,32 @@ and
 
     static member getType (value: AttributeValue) =
         match value with
-        | Null -> AttributeType.Null
-        | String _ -> AttributeType.String
-        | Number _ -> AttributeType.Number
-        | Binary _ -> AttributeType.Binary
-        | Boolean _ -> AttributeType.Boolean
-        | HashMap _ -> AttributeType.HashMap
-        | HashSet x -> AttributeSet.getSetType x |> AttributeValue.getHashSetType
-        | AttributeList _ -> AttributeType.AttributeList
+        | AttVal x when x = AttributeValue._null -> AttributeType.Null
+        | AttVal (:? string) -> AttributeType.String
+        | AttVal (:? decimal) -> AttributeType.Number
+        | AttVal (:? (byte array)) -> AttributeType.Binary
+        | AttVal x when x = AttributeValue._false -> AttributeType.Boolean
+        | AttVal x when x = AttributeValue._true -> AttributeType.Boolean
+        | AttVal (:? Map<string, AttributeValue>) -> AttributeType.HashMap
+        | AttVal (:? AttributeSet as x) -> AttributeSet.getSetType x |> AttributeValue.getHashSetType
+        | AttVal (:? AttributeListType) -> AttributeType.AttributeList
+        | AttVal x -> invalidOp $"Invalid attr type {x.GetType()}"
 
     static member private compressSparseLists': AttributeValue -> struct (RequiredConversion * AttributeValue) = function
-        | Null & x
-        | Binary _ & x
-        | String _ & x
-        | Number _ & x
-        | Boolean _ & x
-        | HashSet _ & x -> struct (false, x)
-        | HashMap map & x ->
+        | AttVal x & x' when x = AttributeValue._null -> struct (false, x')
+        | AttVal x & x' when x = AttributeValue._true -> struct (false, x')
+        | AttVal x & x' when x = AttributeValue._false -> struct (false, x')
+        | AttVal (:? (byte array)) & x
+        | AttVal (:? string) & x
+        | AttVal (:? decimal) & x
+        | AttVal (:? AttributeSet) & x -> struct (false, x)
+        | AttVal (:? Map<string, AttributeValue> as map) & x ->
             Map.fold (fun (struct (modified, map) & s) k v ->
                 match AttributeValue.compressSparseLists' v with
                 | true, v' -> Map.add k v' map |> tpl true
                 | false, _ -> s) struct (false, map) map
-            |> mapSnd HashMap
-        | AttributeList list & fullList ->
+            |> mapSnd (HashMapX >> AttributeValue.create)
+        | AttVal (:? AttributeListType as list) & fullList ->
             // quite optimised to avoid allocations, includes mutations
             let struct (arrChanged, arr') = AttributeListType.asArrayWithMetadata list
 
@@ -597,54 +696,52 @@ and
 
             match mutableArray with
             | null -> struct (false, fullList)
-            | x -> struct (true, x |> CompressedList |> AttributeList)
+            | x -> struct (true, x |> CompressedList |> AttributeListX |> AttributeValue.create)
+        | AttVal _ & x -> struct (false, x)
 
     static member compressSparseLists = AttributeValue.compressSparseLists' >> sndT
 
     static member describe v =
         let typ = AttributeValue.getType v |> AttributeType.describe
         match v with
-        | Null -> typ
-        | Binary _ -> $"{typ}:BINARY_DATA"
-        | String x -> $"{typ}:{x}"
-        | Number x -> $"{typ}:{x}"
-        | Boolean x -> $"{typ}:{x}"
-        | HashMap _ -> $"{typ}:MAP"
-        | HashSet _ -> $"{typ}:SET"
-        | AttributeList _ -> $"{typ}:LIST"
+        | AttVal x when x = AttributeValue._null -> typ
+        | AttVal (:? (byte array)) -> $"{typ}:BINARY_DATA"
+        | AttVal (:? string as x) -> $"{typ}:{x}"
+        | AttVal (:? decimal as x) -> $"{typ}:{x}"
+        | AttVal x when x = AttributeValue._false -> $"{typ}:false"
+        | AttVal x when x = AttributeValue._true -> $"{typ}:true"
+        | AttVal (:? Map<string, AttributeValue>) -> $"{typ}:MAP"
+        | AttVal (:? AttributeSet) -> $"{typ}:SET"
+        | AttVal (:? AttributeListType) -> $"{typ}:LIST"
+        | AttVal x -> $"{x}:UNKNOWN"
 
     static member asType ``type`` value =
         match value with
-        | Null -> if ``type`` = AttributeType.Null then ValueSome value else ValueNone
-        | String _ -> if ``type`` = AttributeType.String then ValueSome value else ValueNone
-        | Number _ -> if ``type`` = AttributeType.Number then ValueSome value else ValueNone
-        | Binary _ -> if ``type`` = AttributeType.Binary then ValueSome value else ValueNone
-        | Boolean _ -> if ``type`` = AttributeType.Boolean then ValueSome value else ValueNone
-        | HashMap _ -> if ``type`` = AttributeType.HashMap then ValueSome value else ValueNone
-        | HashSet hs when ``type`` = AttributeType.StringHashSet && AttributeSet.getSetType hs = AttributeType.String -> ValueSome value
-        | HashSet hs when ``type`` = AttributeType.NumberHashSet && AttributeSet.getSetType hs = AttributeType.Number -> ValueSome value
-        | HashSet hs when ``type`` = AttributeType.BinaryHashSet && AttributeSet.getSetType hs = AttributeType.Binary -> ValueSome value
-        | HashSet _ -> ValueNone
-        | AttributeList _ -> if ``type`` = AttributeType.AttributeList then ValueSome value else ValueNone
+        | AttVal x when x = AttributeValue._null -> if ``type`` = AttributeType.Null then ValueSome value else ValueNone
+        | AttVal (:? string) -> if ``type`` = AttributeType.String then ValueSome value else ValueNone
+        | AttVal (:? decimal) -> if ``type`` = AttributeType.Number then ValueSome value else ValueNone
+        | AttVal (:? (byte array)) -> if ``type`` = AttributeType.Binary then ValueSome value else ValueNone
+        | AttVal x when x = AttributeValue._false -> if ``type`` = AttributeType.Boolean then ValueSome value else ValueNone
+        | AttVal x when x = AttributeValue._true -> if ``type`` = AttributeType.Boolean then ValueSome value else ValueNone
+        | AttVal (:? Map<string, AttributeValue>) -> if ``type`` = AttributeType.HashMap then ValueSome value else ValueNone
+        | AttVal (:? AttributeSet as hs) when ``type`` = AttributeType.StringHashSet && AttributeSet.getSetType hs = AttributeType.String -> ValueSome value
+        | AttVal (:? AttributeSet as hs) when ``type`` = AttributeType.NumberHashSet && AttributeSet.getSetType hs = AttributeType.Number -> ValueSome value
+        | AttVal (:? AttributeSet as hs) when ``type`` = AttributeType.BinaryHashSet && AttributeSet.getSetType hs = AttributeType.Binary -> ValueSome value
+        | AttVal (:? AttributeListType) -> if ``type`` = AttributeType.AttributeList then ValueSome value else ValueNone
+        | AttVal _ -> ValueNone
 
-    static member compare x y =
+    static member compare x y = // TODO: duplication with IComparable interface
         match struct (x, y) with
-        | Null, Null -> 0 |> ValueSome
-        | String x', String y' -> compare x' y' |> ValueSome
-        | Boolean x', Boolean y' -> compare x' y' |> ValueSome
-        | Number x', Number y' -> compare x' y' |> ValueSome
-        | Binary x', Binary y' -> compare x' y' |> ValueSome
-        | AttributeList x', AttributeList y' -> AttributeListType.compare struct (x', y') |> ValueSome
-        | HashSet x', HashSet y' -> compare x' y' |> ValueSome
-        | HashMap x', HashMap y' -> compare x' y' |> ValueSome
-        | String _, _ -> ValueNone
-        | Boolean _, _ -> ValueNone
-        | Number _, _ -> ValueNone
-        | Binary _, _ -> ValueNone
-        | AttributeList _, _ -> ValueNone
-        | HashSet _, _ -> ValueNone
-        | HashMap _, _ -> ValueNone
-        | Null, _ -> ValueNone
+        | AttVal x, AttVal y when x = y -> 0 |> ValueSome
+        | AttVal (:? string as x'), AttVal (:? string as y') -> compare x' y' |> ValueSome
+        | AttVal x', AttVal y' when x' = AttributeValue._false && y' = AttributeValue._true  -> -1 |> ValueSome
+        | AttVal x', AttVal y' when x' = AttributeValue._true && y' = AttributeValue._false  -> 1 |> ValueSome
+        | AttVal (:? decimal as x'), AttVal (:? decimal as y') -> compare x' y' |> ValueSome
+        | AttVal (:? (byte array) as x'), AttVal (:? (byte array) as y') -> compare x' y' |> ValueSome    // TODO: does this work???
+        | AttVal (:? AttributeListType as x'), AttVal (:? AttributeListType as y') -> AttributeListType.compare struct (x', y') |> ValueSome
+        | AttVal (:? AttributeSet as x'), AttVal (:? AttributeSet as y') -> compare x' y' |> ValueSome
+        | AttVal (:? Map<string, AttributeValue> as x'), AttVal (:? Map<string, AttributeValue> as y') -> compare x' y' |> ValueSome
+        | AttVal _, AttVal _ -> ValueNone
 
 /// <summary>
 /// A lookup result on a typed value
@@ -736,16 +833,17 @@ module ItemSize =
 
     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/CapacityUnitCalculations.html
     let private mapAndListInfoAndOverhead = 3 + 1
-    let rec private attrSize = function
-        | AttributeValue.String x -> stringSize x
-        | AttributeValue.Number x -> numberSize x
-        | AttributeValue.Boolean _
-        | AttributeValue.Null -> 1
-        | AttributeValue.Binary x -> Array.length x
-        | AttributeValue.HashMap m -> mapAndListInfoAndOverhead + attrsSize m
-        | AttributeValue.AttributeList (CompressedList xs) -> mapAndListInfoAndOverhead + Array.sumBy attrSize xs
-        | AttributeValue.AttributeList xs -> mapAndListInfoAndOverhead + (AttributeListType.asSeq xs |> Seq.sumBy attrSize)
-        | AttributeValue.HashSet x ->
+    let rec private attrSize x =
+        match AttributeValue.value x with
+        | WorkingAttributeValue.StringX x -> stringSize x
+        | WorkingAttributeValue.NumberX x -> numberSize x
+        | WorkingAttributeValue.BooleanX _
+        | WorkingAttributeValue.NullX -> 1
+        | WorkingAttributeValue.BinaryX x -> Array.length x
+        | WorkingAttributeValue.HashMapX m -> mapAndListInfoAndOverhead + attrsSize m
+        | WorkingAttributeValue.AttributeListX (CompressedList xs) -> mapAndListInfoAndOverhead + Array.sumBy attrSize xs
+        | WorkingAttributeValue.AttributeListX xs -> mapAndListInfoAndOverhead + (AttributeListType.asSeq xs |> Seq.sumBy attrSize)
+        | WorkingAttributeValue.HashSetX x ->
             AttributeSet.asSet x
             |> Set.fold (fun s x -> s + attrSize x) mapAndListInfoAndOverhead
 
@@ -819,11 +917,12 @@ module Item =
 
     let private validateMap =
         let dot = "."
-        let rec getAttrErrors = function
+        let rec getAttrErrors x =
+            match mapSnd AttributeValue.value x with
             | struct (struct (depth, path), _) when depth > 32 ->
                 $"Maximum nested attribute depth is 32: \"{path |> List.rev |> Str.join dot}\""
                 |> Seq.singleton 
-            | struct (depth, prop), HashMap item ->
+            | struct (depth, prop), HashMapX item ->
 
                 let invalidNested =
                     item
@@ -837,16 +936,16 @@ module Item =
                 match struct (Map.containsKey null item || Map.containsKey "" item, prop) with
                 | false, _ -> invalidNested
                 | true, name -> Collection.prepend $"Item has map or property attribute with null or empty name: \"{prop |> List.rev |> Str.join dot}\"" invalidNested
-            | (depth, prop), HashSet xs -> AttributeSet.asSet xs |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
-            | (depth, prop), AttributeList xs -> xs |> AttributeListType.asSeq |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
-            | _, Null -> Seq.empty
-            | _, String _ -> Seq.empty
-            | _, Number _ -> Seq.empty
-            | _, Binary _ -> Seq.empty
-            | _, Boolean _ -> Seq.empty
+            | (depth, prop), HashSetX xs -> AttributeSet.asSet xs |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
+            | (depth, prop), AttributeListX xs -> xs |> AttributeListType.asSeq |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
+            | _, NullX -> Seq.empty
+            | _, StringX _ -> Seq.empty
+            | _, NumberX _ -> Seq.empty
+            | _, BinaryX _ -> Seq.empty
+            | _, BooleanX _ -> Seq.empty
 
         fun item ->
-            match getAttrErrors ((1, []), HashMap item) |> Str.join "; " with
+            match getAttrErrors ((1, []), HashMapX item |> AttributeValue.create) |> Str.join "; " with
             | "" -> ()
             | e -> clientError $"Invalid item - {e}"
 

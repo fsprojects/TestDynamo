@@ -84,9 +84,10 @@ module KeyConfig =
     let sortKeyName = function
         | Kc struct (_, sk) -> sk ?|> _.attributeName
 
-    let private noEmptyStrings name = function
-        | String x when x = "" -> clientError $"Empty string for key {name} is not permitted"
-        | x -> x
+    let private noEmptyStrings name attr =
+        match AttributeValue.value attr with
+        | StringX x when x = "" -> clientError $"Empty string for key {name} is not permitted"
+        | x -> attr
 
     let partitionKey item (Kc (pk, _)) =
         AttributeSelector.get item pk |> noEmptyStrings pk.attributeName

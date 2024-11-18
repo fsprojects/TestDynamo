@@ -417,27 +417,30 @@ type SmokeTests(output: ITestOutputHelper) =
     let ``A bunch of comparer tests`` alterABit =
         let buildMap1 alterABit =
             Map.empty
-            |> Map.add "P1" AttributeValue.Null
+            |> Map.add "P1" (WorkingAttributeValue.NullX |> AttributeValue.create)
             |> Map.add "P2" (
                 Map.empty
-                |> Map.add "P3" (AttributeValue.String (if alterABit = 1 then "xy" else "xz"))
-                |> Map.add "P4" (AttributeValue.AttributeList (Maybe.traverse [
+                |> Map.add "P3" (WorkingAttributeValue.StringX (if alterABit = 1 then "xy" else "xz") |> AttributeValue.create)
+                |> Map.add "P4" (WorkingAttributeValue.AttributeListX (Maybe.traverse [
                     AttributeSet.create [
-                        AttributeValue.Number 1M; AttributeValue.Number (if alterABit = 2 then 7M else 8M)
-                    ] |> AttributeValue.HashSet |> ValueSome
+                        WorkingAttributeValue.NumberX 1M |> AttributeValue.create
+                        WorkingAttributeValue.NumberX (if alterABit = 2 then 7M else 8M) |> AttributeValue.create
+                    ] |> WorkingAttributeValue.HashSetX |> ValueSome
 
                     AttributeSet.create [
-                        AttributeValue.String "1"; AttributeValue.String (if alterABit = 3 then "7" else "8")
-                    ] |> AttributeValue.HashSet |> ValueSome
+                        WorkingAttributeValue.StringX "1" |> AttributeValue.create
+                        WorkingAttributeValue.StringX (if alterABit = 3 then "7" else "8") |> AttributeValue.create
+                    ] |> WorkingAttributeValue.HashSetX |> ValueSome
 
                     AttributeSet.create [
-                        AttributeValue.Binary [|1uy|]; AttributeValue.Binary [|if alterABit = 4 then 7uy else 8uy|]
-                    ] |> AttributeValue.HashSet |> ValueSome
+                        WorkingAttributeValue.BinaryX [|1uy|] |> AttributeValue.create
+                        WorkingAttributeValue.BinaryX [|if alterABit = 4 then 7uy else 8uy|] |> AttributeValue.create
+                    ] |> WorkingAttributeValue.HashSetX |> ValueSome
 
-                    if alterABit = 5 then AttributeValue.Null |> ValueSome else ValueNone
-                ] |> Array.ofSeq |> CompressedList))
-                |> AttributeValue.HashMap)
-            |> AttributeValue.HashMap
+                    if alterABit = 5 then WorkingAttributeValue.NullX |> ValueSome else ValueNone
+                ] |> Seq.map AttributeValue.create |> Array.ofSeq |> CompressedList) |> AttributeValue.create)
+                |> WorkingAttributeValue.HashMapX |> AttributeValue.create)
+            |> WorkingAttributeValue.HashMapX |> AttributeValue.create
 
         let map1 = buildMap1 0
         let map2 = buildMap1 alterABit
