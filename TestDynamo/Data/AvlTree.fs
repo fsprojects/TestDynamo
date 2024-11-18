@@ -638,6 +638,26 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
         member _.GetEnumerator() =
             (AvlTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
+    interface System.IComparable with 
+        member m.CompareTo(obj: obj) = 
+            match obj with 
+            | :? AvlTree<'Key,'Value>  as m2->
+                Seq.compareWith 
+                   (fun struct (k1, v1) struct (k2, v2)-> 
+                       let c = comparer.Compare(k1, k2) in 
+                       if c <> 0 then c else Unchecked.compare v1 v2) m m2 
+            | _ ->
+                let t = if obj = null then "null" else obj.GetType().ToString()
+                invalidArg "obj" $"AvlTree is not comparable to ${t}"
+                
+    interface IReadOnlyDictionary<'Key,'Value> with
+        member m.ContainsKey k = m.ContainsKey k
+        member m.TryGetValue(k, [<System.Runtime.InteropServices.Out>] v: byref<'Value>) = m.TryGetValue(k, &v)
+        member m.Item
+            with get (key: 'Key) = AvlTree.find comparer key tree
+        member m.Keys = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map fstT
+        member m.Values = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map sndT
+
 [<RequireQualifiedAccess>]
 module AvlTree =
 
@@ -675,6 +695,8 @@ module AvlTree =
         AvlTree.foldBack folder table.Tree state
 
     let toSeq (table: AvlTree<_, _>): struct (_ * _) seq = table
+    
+    let keys (table: AvlTree<_, _>) = toSeq table |> Seq.map fstT
 
     let ofList (elements: struct ('Key * 'Value) list) =
         AvlTree<_, _>.ofList elements
