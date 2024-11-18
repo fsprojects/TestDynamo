@@ -1,0 +1,45 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 1 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\obj\Release\net8.0/" /p:OutDir="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0/" /p:OutputPath="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0/" in C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92
+// command took 1.4 sec and exited with 0
+// start dotnet  build -c Release --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\obj\Release\net8.0/" /p:OutDir="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0/" /p:OutputPath="C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0/" --output "C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0/" in C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92
+// command took 34.69 sec and exited with 0
+// ***** Done, took 00:00:36 (36.15 sec)   *****
+// Found 1 benchmarks:
+//   Runner.Run: DefaultJob
+
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: Runner.Run: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet e0929366-6024-4a78-b35b-09614437af92.dll --anonymousPipes 768 1336 --benchmarkName Program+Program+Runner.Run --job Default --benchmarkId 0 in C:\Dev\TestDynamo\tests\TestDynamo.Tests\bin\Release\net8.0\e0929366-6024-4a78-b35b-09614437af92\bin\Release\net8.0
+// BeforeAnythingElse
+Seed 557183263
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 8.0.11 (8.0.1124.51707), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: DefaultJob
+
+OverheadJitting  1: 1 op, 250800.00 ns, 250.8000 us/op
+WorkloadJitting  1: 1 op, 15419081900.00 ns, 15.4191 s/op
+
+WorkloadWarmup   1: 1 op, 14131400700.00 ns, 14.1314 s/op
+WorkloadWarmup   2: 1 op, 14067706100.00 ns, 14.0677 s/op
+WorkloadWarmup   3: 1 op, 14137680700.00 ns, 14.1377 s/op
+WorkloadWarmup   4: 1 op, 14084287000.00 ns, 14.0843 s/op
+WorkloadWarmup   5: 1 op, 14053875300.00 ns, 14.0539 s/op
+WorkloadWarmup   6: 1 op, 14081661000.00 ns, 14.0817 s/op
+WorkloadWarmup   7: 1 op, 14134217400.00 ns, 14.1342 s/op
+WorkloadWarmup   8: 1 op, 14016910900.00 ns, 14.0169 s/op
+
+// BeforeActualRun
+WorkloadActual   1: 1 op, 14034282800.00 ns, 14.0343 s/op
+WorkloadActual   2: 1 op, 14049845800.00 ns, 14.0498 s/op
+WorkloadActual   3: 1 op, 14093579100.00 ns, 14.0936 s/op
+WorkloadActual   4: 1 op, 14080329600.00 ns, 14.0803 s/op

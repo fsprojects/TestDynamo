@@ -469,18 +469,18 @@ module private AvlTreeSeek =
 
     let inline returnTrue _ = true
 
-    let private includeNodeLess inclusive =
+    let private includeNodeLess (comparer: IComparer<_>) inclusive =
         ValueOption.map (fun key node ->
-            compare key node
+            comparer.Compare(key, node)
             |> tpl inclusive
             |> function
                 | true, 0 -> true
                 | _, cmp -> cmp > 0)
         >> ValueOption.defaultValue returnTrue
 
-    let private includeNodeGreater inclusive =
+    let private includeNodeGreater (comparer: IComparer<_>) inclusive =
         ValueOption.map (fun key node ->
-            compare key node
+            comparer.Compare(key, node)
             |> tpl inclusive
             |> function
                 | true, 0 -> true
@@ -516,7 +516,7 @@ module private AvlTreeSeek =
         |> Seq.mapi tpl
         |> Seq.collect (enumerateNode includeNode getPrev getNext)
 
-    let getRange from ``to`` inclusive tree =
+    let getRange comparer from ``to`` inclusive tree =
         let filter =
             match ``to`` with
             | ValueNone -> id
@@ -526,10 +526,10 @@ module private AvlTreeSeek =
                     | 0, true -> true
                     | c, _ -> c < 0)
 
-        getSorted (includeNodeGreater inclusive from) _.Left _.Right tree []
+        getSorted (includeNodeGreater comparer inclusive from) _.Left _.Right tree []
         |> filter
 
-    let getRangeDescending from ``to`` inclusive tree =
+    let getRangeDescending comparer from ``to`` inclusive tree =
         let filter =
             match ``to`` with
             | ValueNone -> id
@@ -539,7 +539,7 @@ module private AvlTreeSeek =
                     | 0, true -> true
                     | c, _ -> c > 0)
 
-        getSorted (includeNodeLess inclusive from) _.Right _.Left tree []
+        getSorted (includeNodeLess comparer inclusive from) _.Right _.Left tree []
         |> filter
 open AvlTreeSeek
 
@@ -593,8 +593,8 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
 
     member m.Seek(from, ``to``, inclusive, forwards) =
         match forwards with
-        | true -> getRange from ``to`` inclusive m.Tree
-        | false -> getRangeDescending from ``to`` inclusive m.Tree
+        | true -> getRange comparer from ``to`` inclusive m.Tree
+        | false -> getRangeDescending comparer from ``to`` inclusive m.Tree
 
     member m.Item
         with get (key: 'Key) =

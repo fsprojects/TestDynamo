@@ -710,7 +710,7 @@ and
         | AttVal (:? string as x'), AttVal (:? string as y') -> compare x' y' |> ValueSome
         | AttVal x', AttVal y' when x' = AttributeValue._false && y' = AttributeValue._true  -> -1 |> ValueSome
         | AttVal x', AttVal y' when x' = AttributeValue._true && y' = AttributeValue._false  -> 1 |> ValueSome
-        | AttVal (:? decimal as x'), AttVal (:? decimal as y') -> compare x' y' |> ValueSome
+        | AttVal (:? decimal as x'), AttVal (:? decimal as y') -> x' - y' |> int |> ValueSome
         | AttVal (:? (byte array) as x'), AttVal (:? (byte array) as y') -> compare x' y' |> ValueSome    // TODO: does this work???
         | AttVal (:? AttributeListType as x'), AttVal (:? AttributeListType as y') -> AttributeListType.compare struct (x', y') |> ValueSome
         | AttVal (:? AttributeSet as x'), AttVal (:? AttributeSet as y') -> compare x' y' |> ValueSome
@@ -721,7 +721,7 @@ and
         match struct (x, y) with
         | AttVal v1, AttVal v2 when v1 = v2 -> 0
         | AttVal (:? string as v1), AttVal (:? string as v2) -> compare v1 v2
-        | AttVal (:? decimal as v1), AttVal (:? decimal as v2) -> compare v1 v2
+        | AttVal (:? decimal as v1), AttVal (:? decimal as v2) -> v1.CompareTo v2 |> int
         | AttVal v1, AttVal v2 when v1 = AttributeValue._true && v2 = AttributeValue._false -> 1
         | AttVal v1, AttVal v2 when v1 = AttributeValue._false && v2 = AttributeValue._true -> -1
         | AttVal (:? (byte array) as v1), AttVal (:? (byte array) as v2) -> compare v1 v2 // TODO: how does this work?

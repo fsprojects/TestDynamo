@@ -336,5 +336,5 @@ module Partition =
                     let xF = first x |> Item.attributes |> flip KeyConfig.partitionKey xk
                     let yF = first y |> Item.attributes |> flip KeyConfig.partitionKey yk
 
-                    compare xF yF
+                    AttributeValue.compareTo xF yF
                 }
