@@ -638,17 +638,17 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
         member _.GetEnumerator() =
             (AvlTree.mkIEnumerator tree :> System.Collections.IEnumerator)
 
-    interface System.IComparable with 
-        member m.CompareTo(obj: obj) = 
-            match obj with 
-            | :? AvlTree<'Key,'Value>  as m2->
-                Seq.compareWith 
-                   (fun struct (k1, v1) struct (k2, v2)-> 
-                       let c = comparer.Compare(k1, k2) in 
-                       if c <> 0 then c else Unchecked.compare v1 v2) m m2 
-            | _ ->
-                let t = if obj = null then "null" else obj.GetType().ToString()
-                invalidArg "obj" $"AvlTree is not comparable to ${t}"
+    // interface System.IComparable with 
+    //     member m.CompareTo(obj: obj) = 
+    //         match obj with 
+    //         | :? AvlTree<'Key,'Value>  as m2->
+    //             Seq.compareWith 
+    //                (fun struct (k1, v1) struct (k2, v2)-> 
+    //                    let c = comparer.Compare(k1, k2) in 
+    //                    if c <> 0 then c else Unchecked.compare v1 v2) m m2 
+    //         | _ ->
+    //             let t = if obj = null then "null" else obj.GetType().ToString()
+    //             invalidArg "obj" $"AvlTree is not comparable to ${t}"
                 
     interface IReadOnlyDictionary<'Key,'Value> with
         member m.ContainsKey k = m.ContainsKey k
