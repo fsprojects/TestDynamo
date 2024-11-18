@@ -10,4 +10,4 @@ AMD Ryzen 7 5800H with Radeon Graphics, 1 CPU, 16 logical and 8 physical cores
 ```
 | Method | Mean    | Error   | StdDev  | Gen0        | Exceptions | Gen1       | Gen2      | Allocated |
 |------- |--------:|--------:|--------:|------------:|-----------:|-----------:|----------:|----------:|
-| Run    | 14.24 s | 0.050 s | 0.047 s | 713000.0000 |          - | 47000.0000 | 4000.0000 |   5.53 GB |
+| Run    | 14.30 s | 0.151 s | 0.142 s | 697000.0000 |          - | 46000.0000 | 4000.0000 |    5.4 GB |

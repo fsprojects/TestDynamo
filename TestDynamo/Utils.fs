@@ -92,6 +92,7 @@ let inline flip1To4 f w x y z = f z w x y
 let inline flipTpl struct (x, y) = struct (y, x)
 let kvpToRefTuple (kvp: KeyValuePair<'a, 'b>) = (kvp.Key, kvp.Value)
 let kvpToTuple (kvp: KeyValuePair<'a, 'b>) = struct (kvp.Key, kvp.Value)
+let tupleToKvp (struct (x, y)) = KeyValuePair<_, _>(x, y)
 let inline toRefTuple struct (x, y) = (x, y)
 let apply = (|>)
 

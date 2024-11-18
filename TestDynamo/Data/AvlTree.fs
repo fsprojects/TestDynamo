@@ -650,13 +650,17 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
     //             let t = if obj = null then "null" else obj.GetType().ToString()
     //             invalidArg "obj" $"AvlTree is not comparable to ${t}"
                 
-    interface IReadOnlyDictionary<'Key,'Value> with
-        member m.ContainsKey k = m.ContainsKey k
-        member m.TryGetValue(k, [<System.Runtime.InteropServices.Out>] v: byref<'Value>) = m.TryGetValue(k, &v)
-        member m.Item
-            with get (key: 'Key) = AvlTree.find comparer key tree
-        member m.Keys = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map fstT
-        member m.Values = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map sndT
+    // interface IReadOnlyDictionary<'Key,'Value> with
+    //     member m.ContainsKey k = m.ContainsKey k
+    //     member m.TryGetValue(k, [<System.Runtime.InteropServices.Out>] v: byref<'Value>) = m.TryGetValue(k, &v)
+    //     member m.Item
+    //         with get (key: 'Key) = AvlTree.find comparer key tree
+    //     member m.Keys = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map fstT
+    //     member m.Values = m :> IEnumerable<struct ('Key * 'Value)> |> Seq.map sndT
+    //     member m.Count = m.Count
+    //     
+    //     member m.GetEnumerator() =
+    //         ((m :> IEnumerable<struct ('Key * 'Value)>) |> Seq.map tupleToKvp).GetEnumerator()
 
 [<RequireQualifiedAccess>]
 module AvlTree =
