@@ -22,7 +22,7 @@ type AvlTreeTests(output: ITestOutputHelper) =
 
         let inserts = aBunchOfValues rand diff
 
-        let result = Array.fold (fun s struct (k, v) -> AvlTree.addOrReplace k v s |> sndT) AvlTree.empty inserts
+        let result = Array.fold (fun s struct (k, v) -> AvlTree.addOrReplace k v s |> sndT) (AvlTree.empty LanguagePrimitives.FastGenericComparer<int>) inserts
 
         Array.fold (fun _ struct (k, v) ->
             Assert.Equal(v, AvlTree.find k result)

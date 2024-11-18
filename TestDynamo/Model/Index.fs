@@ -104,7 +104,7 @@ type private IndexItems =
     | Ii of IndexItemsData
 
 module private IndexItems =
-    let empty = { partitions = AvlTree.empty; itemCount = 0; version = 0; recentlyDeleted = DeletedItems.empty } |> Ii
+    let empty = { partitions = AvlTree.empty AttributeValue.comparer; itemCount = 0; version = 0; recentlyDeleted = DeletedItems.empty } |> Ii
 
     let indexChangeResult change (Ii x) =
         {changeResult = change; dataVersion =  x.version }

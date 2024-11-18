@@ -1,5 +1,6 @@
 ﻿namespace TestDynamo.Model
 
+open System.Collections.Generic
 open System.Runtime.CompilerServices
 open TestDynamo.Data
 open TestDynamo.Data.BasicStructures
@@ -154,7 +155,7 @@ module Partition =
         match sndT x |> _.data |> Collection.tryHead with
         | ValueSome _ -> WithSortKey x
         | ValueNone -> invalidOp "Empty partition not supported"
-
+    
     let create =
         let name indexName config =
             flip KeyConfig.partitionKey config
@@ -178,7 +179,7 @@ module Partition =
                      name = name
                      projections = projections
                      sortKeysUnique = sortKeysUnique }
-                  data = AvlTree.empty |> AvlTree.add (keySelection items) items }
+                  data = AvlTree.empty AttributeValue.comparer |> AvlTree.add (keySelection items) items }
                 |> tpl t
                 |> withSortKey
             | ValueNone ->

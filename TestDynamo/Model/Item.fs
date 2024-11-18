@@ -578,33 +578,7 @@ and
     interface IComparable with
         member this.CompareTo obj =
             match obj with
-            | :? AttributeValue as y ->
-                match struct (this, y) with
-                | AttVal v1, AttVal v2 when v1 = v2 -> 0
-                | AttVal (:? string as v1), AttVal (:? string as v2) -> compare v1 v2
-                | AttVal (:? decimal as v1), AttVal (:? decimal as v2) -> compare v1 v2
-                | AttVal v1, AttVal v2 when v1 = AttributeValue._true && v2 = AttributeValue._false -> 1
-                | AttVal v1, AttVal v2 when v1 = AttributeValue._false && v2 = AttributeValue._true -> -1
-                | AttVal (:? (byte array) as v1), AttVal (:? (byte array) as v2) -> compare v1 v2 // TODO: how does this work?
-                | AttVal (:? Map<string, AttributeValue> as v1), AttVal (:? Map<string, AttributeValue> as v2) -> compare v1 v2
-                | AttVal (:? AttributeSet as v1), AttVal (:? AttributeSet as v2) -> compare v1 v2
-                | AttVal (:? AttributeListType as v1), AttVal (:? AttributeListType as v2) -> AttributeListType.compare struct (v1, v2)
-                | AttVal x, AttVal y when x = AttributeValue._null && x = y -> 0
-                | AttVal (:? string), _ -> -1
-                | _, AttVal (:? string) -> 1
-                | AttVal (:? decimal), _ -> -1
-                | _, AttVal (:? decimal) -> 1
-                | AttVal x, _ when x = AttributeValue._false || x = AttributeValue._true -> -1
-                | _, AttVal x when x = AttributeValue._false || x = AttributeValue._true -> 1
-                | AttVal (:? (byte array)), _ -> -1
-                | _, AttVal (:? (byte array)) -> 1
-                | AttVal (:? AttributeSet), _ -> -1
-                | _, AttVal (:? AttributeSet) -> 1
-                | AttVal (:? Map<string, AttributeValue>), _ -> -1
-                | _, AttVal (:? Map<string, AttributeValue>) -> 1
-                | AttVal (:? AttributeListType), _ -> -1
-                | _, AttVal (:? AttributeListType) -> 1
-                | AttVal x, AttVal y -> invalidOp $"Invalid attr type {x.GetType()} {y.GetType()}"
+            | :? AttributeValue as y -> AttributeValue.compareTo this y
             | _ -> invalidArg "obj" "cannot compare value of different types"
 
     override this.ToString() =
@@ -742,6 +716,38 @@ and
         | AttVal (:? AttributeSet as x'), AttVal (:? AttributeSet as y') -> compare x' y' |> ValueSome
         | AttVal (:? Map<string, AttributeValue> as x'), AttVal (:? Map<string, AttributeValue> as y') -> compare x' y' |> ValueSome
         | AttVal _, AttVal _ -> ValueNone
+        
+    static member compareTo x y =
+        match struct (x, y) with
+        | AttVal v1, AttVal v2 when v1 = v2 -> 0
+        | AttVal (:? string as v1), AttVal (:? string as v2) -> compare v1 v2
+        | AttVal (:? decimal as v1), AttVal (:? decimal as v2) -> compare v1 v2
+        | AttVal v1, AttVal v2 when v1 = AttributeValue._true && v2 = AttributeValue._false -> 1
+        | AttVal v1, AttVal v2 when v1 = AttributeValue._false && v2 = AttributeValue._true -> -1
+        | AttVal (:? (byte array) as v1), AttVal (:? (byte array) as v2) -> compare v1 v2 // TODO: how does this work?
+        | AttVal (:? Map<string, AttributeValue> as v1), AttVal (:? Map<string, AttributeValue> as v2) -> compare v1 v2
+        | AttVal (:? AttributeSet as v1), AttVal (:? AttributeSet as v2) -> compare v1 v2
+        | AttVal (:? AttributeListType as v1), AttVal (:? AttributeListType as v2) -> AttributeListType.compare struct (v1, v2)
+        | AttVal x, AttVal y when x = AttributeValue._null && x = y -> 0
+        | AttVal (:? string), _ -> -1
+        | _, AttVal (:? string) -> 1
+        | AttVal (:? decimal), _ -> -1
+        | _, AttVal (:? decimal) -> 1
+        | AttVal x, _ when x = AttributeValue._false || x = AttributeValue._true -> -1
+        | _, AttVal x when x = AttributeValue._false || x = AttributeValue._true -> 1
+        | AttVal (:? (byte array)), _ -> -1
+        | _, AttVal (:? (byte array)) -> 1
+        | AttVal (:? AttributeSet), _ -> -1
+        | _, AttVal (:? AttributeSet) -> 1
+        | AttVal (:? Map<string, AttributeValue>), _ -> -1
+        | _, AttVal (:? Map<string, AttributeValue>) -> 1
+        | AttVal (:? AttributeListType), _ -> -1
+        | _, AttVal (:? AttributeListType) -> 1
+        | AttVal x, AttVal y -> invalidOp $"Invalid attr type {x.GetType()} {y.GetType()}"
+        
+    static member comparer =
+        { new IComparer<AttributeValue> with
+            member _.Compare(x: AttributeValue, y: AttributeValue) = AttributeValue.compareTo x y }
 
 /// <summary>
 /// A lookup result on a typed value

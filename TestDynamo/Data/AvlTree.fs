@@ -556,8 +556,8 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
 
     // We use .NET generics per-instantiation static fields to avoid allocating a new object for each empty
     // set (it is just a lookup into a .NET table of type-instantiation-indexed static fields).
-    static let empty =
-        let comparer = LanguagePrimitives.FastGenericComparer<'Key>
+    static let empty comparer =
+        //let comparer = LanguagePrimitives.FastGenericComparer<'Key>
         new AvlTree<'Key, 'Value>(comparer, AvlTree.empty)
 
     // Do not set this to null, since concurrent threads may also be serializing the data
@@ -565,7 +565,7 @@ type AvlTree<[<EqualityConditionalOn>] 'Key, [<EqualityConditionalOn; Comparison
     //member _.OnSerialized(context: System.Runtime.Serialization.StreamingContext) =
     //    serializedData <- null
 
-    static member Empty: AvlTree<'Key, 'Value> = empty
+    static member Empty comparer: AvlTree<'Key, 'Value> = empty comparer
 
     static member Create(ie: IEnumerable<_>) : AvlTree<'Key, 'Value> =
         let comparer = LanguagePrimitives.FastGenericComparer<'Key>
