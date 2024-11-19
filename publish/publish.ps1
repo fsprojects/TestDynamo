@@ -72,7 +72,7 @@ $publishApps |
                 return
             }
 
-            $packResult = (dotnet restore --no-cache)
+            $packResult = (dotnet restore $_ --no-cache)
             if (-not $?) {
                 handle-pack-errors $i $packResult
             } else {
@@ -127,6 +127,7 @@ $publishApps |
 
 $testApps |
     ForEach-Object -Process {
+        Write-Host "Testing $_"
         dotnet restore "$_" --no-cache
         dotnet test "$_"
 
