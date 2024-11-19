@@ -124,7 +124,7 @@ type SubscriberBehaviour =
     with
     static member defaultOptions =
         { delay = TimeSpan.FromMilliseconds(10) |> RunAsynchronously
-          subscriberTimeout = TimeSpan.FromSeconds(30) }
+          subscriberTimeout = TimeSpan.FromSeconds(float 30) }
 
     /// <summary>
     ///  1) Code propagates asynchronously

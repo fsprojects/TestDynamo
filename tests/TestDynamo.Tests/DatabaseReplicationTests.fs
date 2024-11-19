@@ -173,7 +173,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         }
 
     let setUp2RegionsWithCustomDelay delay =
-        {subscriberTimeout = TimeSpan.FromSeconds(1)
+        {subscriberTimeout = TimeSpan.FromSeconds(float 1)
          delay = delay |> RunAsynchronously } |> ValueSome |> setUp2RegionsWithCustomSettings
 
     let setUp2Regions = setUp2RegionsWithCustomDelay (TimeSpan.FromSeconds(0.01))
@@ -446,8 +446,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         task {
             // arrange
             let subscriberSettings =
-                if synchronous then {subscriberTimeout = TimeSpan.FromSeconds(1); delay = RunSynchronously }
-                else {subscriberTimeout = TimeSpan.FromSeconds(1); delay = TimeSpan.FromSeconds(0.01) |> RunAsynchronously }
+                if synchronous then {subscriberTimeout = TimeSpan.FromSeconds(float 1); delay = RunSynchronously }
+                else {subscriberTimeout = TimeSpan.FromSeconds(float 1); delay = TimeSpan.FromSeconds(0.01) |> RunAsynchronously }
 
             use logger = new TestLogger(output) 
             let! struct (table, host, client1, client2, disposer) = setUp2RegionsWithCustomSettings (ValueSome subscriberSettings) logger false
@@ -540,8 +540,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             let subscriberSettings =
-                if synchronous then {subscriberTimeout = TimeSpan.FromSeconds(1); delay = RunSynchronously }
-                else {subscriberTimeout = TimeSpan.FromSeconds(1); delay = TimeSpan.FromSeconds(0.01) |> RunAsynchronously }
+                if synchronous then {subscriberTimeout = TimeSpan.FromSeconds(float 1); delay = RunSynchronously }
+                else {subscriberTimeout = TimeSpan.FromSeconds(float 1); delay = TimeSpan.FromSeconds(0.01) |> RunAsynchronously }
 
             use! host = clonedHost writer
             use client1 = TestDynamoClientBuilder.Create(host, { regionId = "eu-west-1"})
@@ -627,7 +627,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             // arrange
             let subscriberSettings =
-                { subscriberTimeout = TimeSpan.FromSeconds(1)
+                { subscriberTimeout = TimeSpan.FromSeconds(float 1)
                   delay = TimeSpan.FromSeconds(0.1) |> RunAsynchronously }
 
             use writer = new TestLogger(output)
@@ -761,7 +761,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let level = LogLevel.Trace
             use writer = new TestLogger(output, level)
             let subscriberSettings =
-                {subscriberTimeout = TimeSpan.FromSeconds(1); delay = RunSynchronously }
+                {subscriberTimeout = TimeSpan.FromSeconds(float 1); delay = RunSynchronously }
 
             use! host = clonedHost writer
             use client1 = TestDynamoClientBuilder.Create(host, { regionId = "eu-west-1"})
@@ -1083,7 +1083,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let tableName = "Tab1"
 
             let settings = 
-                { subscriberTimeout = TimeSpan.FromSeconds(1)
+                { subscriberTimeout = TimeSpan.FromSeconds(float 1)
                   delay = TimeSpan.FromSeconds(0.1) |> RunAsynchronously } |> ValueSome
 
             // use writer = new TestLogger(output, TimeSpan.FromSeconds(10)) removed log grouping

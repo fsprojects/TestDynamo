@@ -918,7 +918,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             let data2 = { data1 with indexSk = "something new" }
 
-            let settings1 = { SubscriberBehaviour.defaultOptions with delay = TimeSpan.FromSeconds(0.1) |> RunAsynchronously }
+            let settings1 = { SubscriberBehaviour.defaultOptions with delay = TimeSpan.FromSeconds(float 0.1) |> RunAsynchronously }
             let settings2 = { SubscriberBehaviour.defaultOptions with delay = RunSynchronously }
 
             // act

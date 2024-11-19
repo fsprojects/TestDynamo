@@ -26,7 +26,7 @@ type Exploration(output: ITestOutputHelper) =
             use writer = new TestLogger(output)
             let subscriberBehaviour =
                 { delay = GlobalDataPropagationBehaviour.RunAsynchronously (System.TimeSpan.FromSeconds(0.1))
-                  subscriberTimeout = System.TimeSpan.FromSeconds(2) }
+                  subscriberTimeout = System.TimeSpan.FromSeconds(float 2) }
 
             use host = new GlobalDatabase(logger = writer)
             use clientFrom = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) (ValueSome dbFrom) ValueNone (ValueSome host)

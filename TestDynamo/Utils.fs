@@ -270,12 +270,12 @@ module Str =
 
     let split (separator: string) (s: string) =
 #if NETSTANDARD2_0
-        s.Split([|separator|], StringSplitOptions.None)
+        s.Split([|separator|], System.StringSplitOptions.None)
 #else
         s.Split separator
 #endif
 
-    let join (separator: string) (xs: string seq) = String.Join(separator, xs)
+    let join (separator: string) (xs: string seq) = System.String.Join(separator, xs)
 
     let concat (x: string) (y: string) = x + y
 
@@ -1162,7 +1162,7 @@ module Io =
 
     let deNormalizeVt (valueTask: ValueTask<unit>) =
         match trySyncResult valueTask with
-#if NETSTANDARD2_1 || NETSTANDARD2_0
+#if NETSTANDARD2_0
         | ValueSome _ -> ValueTask()
 #else
         | ValueSome _ -> ValueTask.CompletedTask
@@ -1210,7 +1210,7 @@ module Io =
 
     let addCancellationToken (c: CancellationToken) (t: ValueTask<'a>) =
         if t.IsCompleted || c = CancellationToken.None then t
-#if NETSTANDARD2_1 || NETSTANDARD2_0
+#if NETSTANDARD2_0
         else t.AsTask() |> addCancellationTokenNetStandard c |> ValueTask<'a>
 #else
         else t.AsTask().WaitAsync(c) |> ValueTask<'a>

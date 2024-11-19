@@ -107,10 +107,10 @@ type UpdateExpressionVerb =
 
 module UpdateExpressionVerb =
     let tryParse v = 
-        if "SET".Equals(v, StringComparison.OrdinalIgnoreCase) then ValueSome Set
-        elif "ADD".Equals(v, StringComparison.OrdinalIgnoreCase) then ValueSome Add
-        elif "REMOVE".Equals(v, StringComparison.OrdinalIgnoreCase) then ValueSome Remove
-        elif "DELETE".Equals(v, StringComparison.OrdinalIgnoreCase) then ValueSome Delete
+        if "SET".Equals(v, System.StringComparison.OrdinalIgnoreCase) then ValueSome Set
+        elif "ADD".Equals(v, System.StringComparison.OrdinalIgnoreCase) then ValueSome Add
+        elif "REMOVE".Equals(v, System.StringComparison.OrdinalIgnoreCase) then ValueSome Remove
+        elif "DELETE".Equals(v, System.StringComparison.OrdinalIgnoreCase) then ValueSome Delete
         else ValueNone
 
 type SyntheticTokenInfo =
@@ -146,8 +146,7 @@ module Token =
 
 /// <summary>Match against a full regex if it appears at the specified index</summary>
 let private matchAtIndex struct (rx: Regex, struct (text: string, index)) =
-#if NETSTANDARD2_1 || NETSTANDARD2_0
-    // TODO TEST
+#if NETSTANDARD2_0
     // find match indexes over parse matches to avoid heavy (and unnecessary) substringing
     let rxMatch = rx.Match(text, index)
 

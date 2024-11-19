@@ -29,7 +29,7 @@ let mutable DefaultClientResponseDelay = System.TimeSpan.FromMilliseconds(5)
 /// Default: 10 seconds
 /// </para>
 /// </summary>
-let mutable MutableValueLockTimeout = TimeSpan.FromSeconds(10)
+let mutable MutableValueLockTimeout = TimeSpan.FromSeconds(float 10)
 
 /// <summary>
 /// <para>
@@ -41,7 +41,7 @@ let mutable MutableValueLockTimeout = TimeSpan.FromSeconds(10)
 /// Default: 1 minute
 /// </para>
 /// </summary>
-let mutable DatabaseLockWaitTime = TimeSpan.FromMinutes(1)
+let mutable DatabaseLockWaitTime = TimeSpan.FromMinutes(float 1)
 
 /// <summary>
 /// <para>
@@ -67,7 +67,7 @@ let mutable ExpressionOperatorLimit = 300
 /// Default: 10 seconds
 /// </para>
 /// </summary>
-let mutable MaxReplicationTime = TimeSpan.FromSeconds 10
+let mutable MaxReplicationTime = TimeSpan.FromSeconds(float 10)
 
 /// <summary>
 /// <para>
@@ -111,7 +111,7 @@ module TransactWriteSettings =
     /// for this key is 10minutes
     /// Default: 10 seconds 
     /// </summary>
-    let mutable ClientRequestTokenTTL = TimeSpan.FromSeconds(10)
+    let mutable ClientRequestTokenTTL = TimeSpan.FromSeconds(float 10)
 
 module AmazonWebServiceResponse =
 

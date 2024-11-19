@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net8.0;netstandard2.1;netstandard2.0;</TargetFrameworks>
+    <TargetFrameworks>net9.0;net8.0;netstandard2.0;</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -19,6 +19,14 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+    Allow compiler to change compiler directives. This is used to test dotnet standard 
+    https://stackoverflow.com/questions/59249847/passing-define-constants-to-dotnet-build-kills-target-framework-symbols
+    -->
+    <DefineConstants Condition=" '$(AdditionalConstants)' != '' ">$(DefineConstants);$(AdditionalConstants)</DefineConstants>
   </PropertyGroup>
   
   <ItemGroup>
@@ -93,6 +101,11 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+  </ItemGroup>
+  
+  <ItemGroup Label="Vulnerability upgrades">
+    <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
   
 </Project>

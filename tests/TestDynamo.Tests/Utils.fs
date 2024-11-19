@@ -38,7 +38,8 @@ type OutputCollector() =
     let logs = System.Collections.Generic.List<string>()
 
     member this.Emit(output: ITestOutputHelper) =
-        for log in logs do
+        let logsCopy = lock logs (fun _ -> Array.ofSeq logs)
+        for log in logsCopy do
             output.WriteLine(log)
 
     interface ITestOutputHelper with
