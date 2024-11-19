@@ -350,7 +350,8 @@ Dictionary<string, object> Done()
                 Create = new
                 {
                     IndexName = true,
-                    KeySchema = true
+                    KeySchema = true,
+                    Projection = true
                 },
                 Delete = new
                 {
@@ -361,7 +362,11 @@ Dictionary<string, object> Done()
             {
                 Create = new
                 {
-                    RegionName = true
+                    RegionName = true,
+                    GlobalSecondaryIndexes = new
+                    {
+                        IndexName = true
+                    }
                 },
                 Delete = new
                 {
@@ -526,7 +531,11 @@ Dictionary<string, object> Done()
             AttributesToGet = true,
             KeyConditions = true,
             QueryFilter = true,
-            ConditionalOperator = true
+            ConditionalOperator = true,
+            ConsistentRead = new 
+            {
+                __description = "Partial support. All reads are consistent",
+            }
         },
         QueryResponse = new
         {
@@ -590,7 +599,14 @@ Dictionary<string, object> Done()
             ExpressionAttributeValues = true,
             ExclusiveStartKey = true,
             ProjectionExpression = true,
-            Select = true
+            Select = true,
+            AttributesToGet = true,
+            ConditionalOperator = true,
+            ScanFilter = true,
+            ConsistentRead = new 
+            {
+                __description = "Partial support. All reads are consistent",
+            }
         },
         ScanResponse = new
         {

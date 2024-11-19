@@ -473,6 +473,7 @@
 
  * ✅ AttributesToGet
  * ✅ ConditionalOperator
+ * ConsistentRead - Partial support. All reads are consistent
  * ✅ ExclusiveStartKey
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
@@ -486,7 +487,6 @@
  * ✅ ScanIndexForward
  * ✅ Select
  * ✅ TableName
- * ConsistentRead
  * ReturnConsumedCapacity
 
 ### Outputs
@@ -517,6 +517,9 @@
 
 ### Inputs
 
+ * ✅ AttributesToGet
+ * ✅ ConditionalOperator
+ * ConsistentRead - Partial support. All reads are consistent
  * ✅ ExclusiveStartKey
  * ✅ ExpressionAttributeNames
  * ✅ ExpressionAttributeValues
@@ -524,13 +527,10 @@
  * ✅ IndexName
  * ✅ Limit
  * ✅ ProjectionExpression
+ * ✅ ScanFilter
  * ✅ Select
  * ✅ TableName
- * AttributesToGet
- * ConditionalOperator
- * ConsistentRead
  * ReturnConsumedCapacity
- * ScanFilter
  * Segment
  * TotalSegments
 
@@ -662,15 +662,18 @@
      * Create
          * ✅ IndexName
          * ✅ KeySchema
+         * ✅ Projection
          * OnDemandThroughput
-         * Projection
          * ProvisionedThroughput
      * ✅ Delete
      * Update
  * ReplicaUpdates
      * Create
-         * ✅ RegionName
          * GlobalSecondaryIndexes
+             * ✅ IndexName
+             * OnDemandThroughputOverride
+             * ProvisionedThroughputOverride
+         * ✅ RegionName
          * KMSMasterKeyId
          * OnDemandThroughputOverride
          * ProvisionedThroughputOverride
