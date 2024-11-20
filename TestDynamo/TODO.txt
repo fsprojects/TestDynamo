@@ -9,7 +9,6 @@ Features
  * Remove dependency on dynamodb. Replace with compilation
 
 Tests
- * Segregated tests for different framework versions
  * Do a giant fuzz tester of all expressions
 
 Optimisations/refactoring
