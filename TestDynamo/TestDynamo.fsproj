@@ -95,6 +95,8 @@
     <Compile Include="Client\Scan.fs" />
     <Compile Include="Client\MultiClientOperations.fs" />
     <Compile Include="Client\ObjPipelineInterceptor.fs" />
+    <Compile Include="Client\CustomPipelineInterceptor.fs" />
+    <Compile Include="Client\HttpPipelineInterceptor.fs" />
     <Compile Include="TestDynamoClient.fs" />
   </ItemGroup>
 

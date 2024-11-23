@@ -103,6 +103,7 @@ type TestDynamoClient =
             |> Either.reduce
 
         let attachedAlready =
+            // TODO: there are now 2 interceptors to test against
             AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor client
             ?|> (fun db' ->
                 match db with
@@ -119,9 +120,15 @@ type TestDynamoClient =
                 new ObjPipelineInterceptor(
                     db,
                     Settings.DefaultClientResponseDelay,
-                    interceptor,
                     logger ?|> ValueSome ?|? defaultLogger db,
                     disposeDb))
+            
+            match interceptor with
+            | ValueNone -> ()
+            | ValueSome i ->
+                let db =  db |> Either.map2Of2 (fun struct (db, id) -> db.GetDatabase ValueNone id) |> Either.reduce
+                runtimePipeline.AddHandler(
+                    CustomPipelineInterceptor(db, i))
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database
@@ -190,7 +197,7 @@ type TestDynamoClient =
     /// </summary>
     static member CreateGlobalClient<'a when 'a :> AmazonDynamoDBClient>(
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger): 'a =
         TestDynamoClient.CreateGlobalClient<'a>({regionId = Settings.DefaultRegion}, interceptor, logger)
 
     /// <summary>
