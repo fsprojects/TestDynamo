@@ -1,0 +1,1 @@
+This project really could be part of TestDynamo, but having it here reduces compile time on boilerplate DTO code

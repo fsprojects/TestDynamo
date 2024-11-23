@@ -1,10 +1,10 @@
 ﻿namespace TestDynamo.Model
 
-open System.Runtime.CompilerServices
 open TestDynamo.Data
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 type private PartitionInfo =
     { keys: KeyConfig

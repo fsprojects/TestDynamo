@@ -1,8 +1,8 @@
 ﻿namespace TestDynamo.Model
 
-open System.Runtime.CompilerServices
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 /// <summary>
 /// A list of key attribute names which implements equality

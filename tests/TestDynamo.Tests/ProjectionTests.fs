@@ -11,7 +11,6 @@ open Xunit
 open Xunit.Abstractions
 open RequestItemTestUtils
 open TestDynamo.Model
-open TestDynamo.Client.ItemMapper
 open Tests.Loggers
 
 type ProjectionTests(output: ITestOutputHelper) =

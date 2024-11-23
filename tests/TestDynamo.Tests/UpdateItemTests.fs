@@ -16,7 +16,6 @@ open Xunit
 open Amazon.DynamoDBv2
 open Xunit.Abstractions
 open TestDynamo.Utils
-open TestDynamo.Client.ItemMapper
 open TestDynamo.Tests.RequestItemTestUtils
 
 type UpdateSameAttributeFlags () =

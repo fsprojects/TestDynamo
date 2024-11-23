@@ -2,7 +2,6 @@
 namespace TestDynamo.Model.Compiler
 
 open System
-open System.Runtime.CompilerServices
 open System.Text
 open TestDynamo.Data.Monads
 open TestDynamo.Data.Monads.Operators
@@ -11,6 +10,7 @@ open TestDynamo.Model
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 open TestDynamo
+open System.Runtime.CompilerServices
 
 type FilterTools =
     { logger: Logger

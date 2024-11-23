@@ -5,13 +5,13 @@
 module TestDynamo.Model.Compiler.Parser
 
 open System
-open System.Runtime.CompilerServices
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Data.Monads
+open System.Runtime.CompilerServices
 
 type ParserInputs =
     { logger: Logger

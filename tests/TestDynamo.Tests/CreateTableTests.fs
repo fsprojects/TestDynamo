@@ -434,7 +434,7 @@ type CreateTableTests(output: ITestOutputHelper) =
                     |> Io.ignoreTask)
 
             // assert
-            assertError output "Partition key must be the same as table partition key for local secondary index" e
+            assertError output "Partition key (IndexPk) must be the same as table partition key (TablePk) for local secondary index" e
         }
 
     [<Theory>]

@@ -4,10 +4,9 @@
 /// </summary>
 module TestDynamo.Model.Compiler.Lexer
 
-open System
-open System.Runtime.CompilerServices
 open System.Text.RegularExpressions
 open TestDynamo.Utils
+open System.Runtime.CompilerServices
 
 [<Struct; IsReadOnly>]
 type TokenData =

@@ -6,6 +6,7 @@ open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
 open TestDynamo.Data.BasicStructures
+open TestDynamo.GenericMapper
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -19,6 +20,18 @@ open Tests.Loggers
 type ApiDb = TestDynamo.Api.FSharp.Database
 let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f 
 
+// TODO: name not used
+let attributeFromDynamodb name (attr: DynamoAttributeValue) =
+    DtoMappers.mapDto<DynamoAttributeValue, AttributeValue> attr
+    
+let itemFromDynamodb name (x: Dictionary<string,DynamoAttributeValue>) =
+    x |> Seq.map (fun x -> KeyValuePair<_, _>(x.Key, attributeFromDynamodb name x.Value)) |> MapUtils.fromKvp
+    
+let attributeToDynamoDb = DtoMappers.mapDto<AttributeValue, DynamoAttributeValue>
+
+let itemToDynamoDb =
+    CSharp.toDictionary (fun (x: string) -> x) attributeToDynamoDb
+    
 let recordSubscription writer tableName (database: ApiDb) behaviour subscriber =
 
     let record = System.Collections.Generic.List<_>()
@@ -69,6 +82,15 @@ let private oneHotFilter ignore =
 
     ValueOption.map (fun inputFilter xs -> inputFilter xs && spF xs)
     >> ValueOption.defaultValue spF
+
+type TestData<'a>(generator: unit -> 'a seq) =
+
+    interface IEnumerable<obj array> with
+        member this.GetEnumerator(): IEnumerator<obj array> =
+            (generator() |> Seq.map (box >> Array.singleton)).GetEnumerator()
+
+        member this.GetEnumerator(): Collections.IEnumerator =
+            (this :> IEnumerable<obj array>).GetEnumerator()
 
 type Flags (count, filter: (bool list -> bool) voption) =
     new(count) =

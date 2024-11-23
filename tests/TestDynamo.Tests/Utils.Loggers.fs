@@ -2,6 +2,8 @@ module Tests.Loggers
 
 open System
 open System.IO
+open System.Text
+open System.Threading
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Xunit.Abstractions
@@ -93,6 +95,46 @@ type DisablingLogger(logger: ITestLogger) =
             logger.TestLog state ``exception`` formatter
         member this.Log(logLevel, eventId, state, ``exception``, formatter) =
             (this :> ITestLogger).TestLog state ``exception`` formatter |> ignoreTyped<string>
+
+/// <summary>
+/// Hijacks Console.Out and redirects to the specified ITestOutputHelper.
+/// IDisposable. Only one of these classes can exist at once
+/// </summary>
+type ConsoleLogger private (output: ITestOutputHelper, dummy: bool) as this =
+    inherit TextWriter()
+
+    let mutable previousOut = Unchecked.defaultof<TextWriter>
+    let mutable localCount = 1
+    static let mutable globalCount = 0
+
+    do
+        previousOut <- Console.Out
+        Console.SetOut(this);
+
+    new(output: ITestOutputHelper) =
+        let c = Interlocked.Increment &globalCount
+        if c <> 1
+        then
+            Interlocked.Decrement &globalCount |> ignoreTyped<int>
+            invalidOp "Only 1 console logger can exist at once"
+
+        new ConsoleLogger(output, true)
+
+    override _.Encoding = Encoding.UTF8
+
+    override _.WriteLine() =
+        if localCount <> 1 then invalidOp "This writer is disposed"
+        output.WriteLine("")
+    override _.WriteLine(x: string) = 
+        if localCount <> 1 then invalidOp "This writer is disposed"
+        output.WriteLine(x)
+
+    interface IDisposable with
+        member _.Dispose() =
+            let c = Interlocked.Decrement &localCount
+            if c = 0 then
+                Console.SetOut(previousOut)
+                Interlocked.Decrement &globalCount |> ignoreTyped<int>
 
 type TestLogger(output: ITestOutputHelper, level: LogLevel) =
 

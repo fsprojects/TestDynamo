@@ -1,12 +1,12 @@
 ﻿
 namespace TestDynamo.Model.Compiler
 
-open System.Runtime.CompilerServices
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 type ExpressionAttrValues = Map<string, AttributeValue>
 type ExpressionAttrNames = Map<string, string>

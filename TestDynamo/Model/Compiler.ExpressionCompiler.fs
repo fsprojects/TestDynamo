@@ -1,7 +1,6 @@
 ﻿namespace TestDynamo.Model.Compiler
 
 open System
-open System.Runtime.CompilerServices
 open TestDynamo.Data.Monads
 open TestDynamo
 open TestDynamo.Data.BasicStructures
@@ -10,6 +9,7 @@ open TestDynamo.Model.Compiler
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model.Compiler.Lexer
+open System.Runtime.CompilerServices
 
 type private MutableContainer<'a> =
     { mutable value: 'a }

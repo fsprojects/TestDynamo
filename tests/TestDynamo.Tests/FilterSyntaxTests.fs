@@ -4,7 +4,6 @@ open System
 open System.IO
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
@@ -681,7 +680,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setFilterExpression $"NewItem = :ni"
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
-                |> QueryBuilder.setExpressionAttrValues ":ni" (ItemMapper.attributeFromDynamodb "$" newMap)
+                |> QueryBuilder.setExpressionAttrValues ":ni" (attributeFromDynamodb "$" newMap)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
 

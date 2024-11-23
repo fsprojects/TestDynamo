@@ -1,10 +1,10 @@
 namespace TestDynamo
 
 open System
-open System.Runtime.CompilerServices
 open System.Text.RegularExpressions
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
+open System.Runtime.CompilerServices
 
 /// <summary>
 /// A wrapper around ToString for memory efficient logging

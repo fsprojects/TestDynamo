@@ -5,6 +5,7 @@ using Amazon.Runtime;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 public static class FeatureDocs
 {
@@ -79,12 +80,19 @@ public static class FeatureDocs
             return p.GetCustomAttribute<ObsoleteAttribute>() != null;
         }
 
+        // hack, the string should not have quotes, but not really important
+        // for a throwaway app like this
+        string RemoveQuotes(string x)
+        {
+            return Regex.Replace(x, @"(^"")|(""$)", "");
+        }
+
         string PrintSchema(string title, Dictionary<string, object> schema)
         {
             // hack/duplicated logic
             var omitChildren = schema.TryGetValue("__omitChildren", out var omit) && true.Equals(omit);
             var description = schema.TryGetValue("__description", out var desc) && desc is string d
-                ? $"\n\n * {d}\n" 
+                ? $"\n\n * {RemoveQuotes(d)}\n" 
                 : "";
 
             var printed = omitChildren
@@ -122,7 +130,9 @@ public static class FeatureDocs
                 _ => false
             };
 
-            if (description != "") description = $" - {description}";
+            Console.WriteLine(description);
+            Console.WriteLine(RemoveQuotes(description));
+            if (description != "") description = $" - {RemoveQuotes(description)}";
 
             if (schema.Value is bool b && b)
                 return ("1" + schema.Key, $" * ✅ {schema.Key}{description}");

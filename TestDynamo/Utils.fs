@@ -650,13 +650,6 @@ module Collection =
 
             ValueSome max
 
-    let isEmpty (xs: 'a seq) =
-        match xs with
-        | :? List<'a> as l -> tryHeadL l |> ValueOption.isNone
-        | :? IList<'a> as l -> tryHeadIList l |> ValueOption.isNone
-        | :? IReadOnlyList<'a> as l -> tryHeadIReadOnlyList l |> ValueOption.isNone
-        | x -> Seq.isEmpty x
-
     let rec private tryFindL' = function
         | struct (_, []) -> ValueNone
         | predicate, head::_ when predicate head -> ValueSome head
@@ -684,11 +677,33 @@ module Collection =
 
             result
 
-    let inline concat2 (xs: 'a seq) (ys: 'a seq) =
-        match struct (xs, ys) with
-        | xs', ys' when isEmpty xs' -> ys'
-        | xs', ys' when isEmpty ys' -> xs'
-        | xs', ys' -> Seq.concat [xs'; ys']
+    let emptyToNone (xs: _ seq) =
+        match xs with
+        | :? List<'a> as [] -> ValueNone
+        | :? List<'a> -> ValueSome xs
+        | :? IList<'a> as l when l.Count = 0 -> ValueNone
+        | :? IList<'a> -> ValueSome xs
+        | :? IReadOnlyList<'a> as l when l.Count = 0 -> ValueNone
+        | :? IReadOnlyList<'a> -> ValueSome xs
+        | xs ->
+            let enm = xs.GetEnumerator()
+            match enm.MoveNext() with
+            | false ->
+                enm.Dispose()
+                ValueNone
+            | true ->
+                seq {
+                    use _ = enm
+                    yield enm.Current
+                    while enm.MoveNext() do yield enm.Current
+                } |> ValueSome
+
+    let concat2 (xs: 'a seq) (ys: 'a seq) =
+        match struct (emptyToNone xs, emptyToNone ys) with
+        | ValueNone, ValueNone -> Seq.empty
+        | ValueNone, ValueSome ys -> ys
+        | ValueSome xs, ValueNone -> xs
+        | ValueSome xs, ValueSome ys -> Seq.append xs ys
 
     let inline concat2L (xs: 'a list) (ys: 'a list) = 
         match struct (xs, ys) with
@@ -931,6 +946,7 @@ type Either<'a, 'b> =
     | Either1 of a: 'a
     | Either2 of 'b
 
+[<RequireQualifiedAccess>]
 module Either =
     let inline map1Of2 f x =
         match x with
@@ -963,6 +979,9 @@ module Either =
 module Maybe =
     let inline expectSomeErr err errState =
         ValueOption.defaultWith (fun _ -> sprintf err errState |> invalidOp)
+
+    let inline expectSomeClientErr err errState =
+        ValueOption.defaultWith (fun _ -> sprintf err errState |> clientError)
 
     let inline defaultWith defThunk arg voption =
         match voption with
@@ -1024,27 +1043,27 @@ module Maybe =
 module Io =
     let private caf (x: Task<'a>) = x.ConfigureAwait(false)
     let private caf0 (x: Task) = x.ConfigureAwait(false)
-    let private cafV (x: ValueTask<'a>) = x.ConfigureAwait(false)
+    let cafV (x: ValueTask<'a>) = x.ConfigureAwait(false)
     let private cafV0 (x: ValueTask) = x.ConfigureAwait(false)
+
+    /// <summary>Use sparingly. Map/bind/task {} etc... are more performant abstractions</summary>
+    let execute (vt: ValueTask<_>) =
+        if vt.IsCompletedSuccessfully then vt.Result
+        else vt.AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
 
     let retn (x: 'a) = ValueTask<'a>(x)
 
-    /// <summary>
-    /// Use sparingly. Only use if Io.map or task {} is not an option
-    /// </summary>
-    let execute (vt: ValueTask<_>) =
-        if vt.IsCompletedSuccessfully then vt.Result
-        else vt.ConfigureAwait(false).GetAwaiter().GetResult()
-
-    let private trySyncResult (task: ValueTask<'a>) =
+    let trySyncResult (task: ValueTask<'a>) =
         if task.IsCompletedSuccessfully then ValueSome task.Result
         elif task.IsCompleted then ValueSome (task.AsTask().Result)
         else ValueNone
 
     let fromTask (task: Task<'a>) = ValueTask<'a> task
 
+    let toTask (task: ValueTask<'a>) = task.AsTask()
+
     /// <summary>Retains synchronicity if input task is complete</summary>
-    let map (f: 'a -> 'b) (x: ValueTask<'a>): ValueTask<'b> =
+    let inline map (f: 'a -> 'b) (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> ValueTask<'b>(f x)
         | ValueNone ->
@@ -1054,7 +1073,7 @@ module Io =
             } |> ValueTask<'b>
 
     /// <summary>Retains synchronicity if input task is complete</summary>
-    let bind f (x: ValueTask<'a>): ValueTask<'b> =
+    let inline bind f (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> f x
         | ValueNone ->

@@ -1,7 +1,6 @@
 ﻿namespace TestDynamo.Model
 
 open System
-open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
@@ -11,6 +10,7 @@ open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open Microsoft.FSharp.Core
+open System.Runtime.CompilerServices
 
 type Delay = TimeSpan
 

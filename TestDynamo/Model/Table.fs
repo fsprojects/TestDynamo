@@ -1,10 +1,10 @@
 ﻿namespace TestDynamo.Model
 
-open System.Runtime.CompilerServices
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Data.BasicStructures
+open System.Runtime.CompilerServices
 
 type UpdateTableSchema =
     { // it is possible to create and delete an index in the same request

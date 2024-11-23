@@ -6,10 +6,10 @@ open System.Text.RegularExpressions
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client.ItemMapper
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open Tests.Utils
 
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 

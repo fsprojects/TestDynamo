@@ -9,12 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Requests.Tables.fs" />
-    <Compile Include="Requests.Items.fs" />
-    <Compile Include="Requests.Query.fs" />
     <Compile Include="Utils.ClientLoggerContainer.fs" />
     <Compile Include="Utils.Loggers.fs" />
+    <Compile Include="Requests.Tables.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="Requests.Items.fs" />
+    <Compile Include="Requests.Query.fs" />
     <Compile Include="AvlTreeTests.fs" />
     <Compile Include="SmokeTests.fs" />
     <Compile Include="CreateClientTests.fs" />
@@ -37,12 +37,15 @@
     <Compile Include="DatabaseReplicationTests.fs" />
     <Compile Include="SerizlizationTests.fs" />
     <Compile Include="CfnTests.fs" />
+    <Compile Include="MappingTests.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AutoFixture" Version="4.18.1" />
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="FluentAssertions" Version="7.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.utility" Version="2.9.2" />

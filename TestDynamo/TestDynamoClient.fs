@@ -23,10 +23,10 @@ type CsApiDb = TestDynamo.Api.Database
 type GlobalCsApiDb = TestDynamo.Api.GlobalDatabase
 
 type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
-    
+
     static member private builder' withCredentials =
         let cs = ImmutableCredentials("""AAAAA7AAAAAAAAAAAAA""", Convert.ToBase64String (Array.create 30 0uy), null)
-        
+
         let dummyCredentials =
             { new Amazon.Runtime.AWSCredentials() with
                 member _.GetCredentials () = cs } |> Expression.Constant
@@ -47,7 +47,7 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
                     |> Seq.filter (flip Array.contains isRegion >> not)
                     |> Seq.filter (flip Array.contains isCredentials >> not)
                     |> Seq.length
-        
+
                 let credLength = if withCredentials then 1 else 0
                 isRegion.Length = 1 && isCredentials.Length = credLength && mandatory = 0)
             |> Collection.tryHead
@@ -57,7 +57,7 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
                     "To omit the AWSCredentials argument, use the addAwsCredentials flag when creating a client"
                     "Use the TestDynamoClient.Attach method to attach to a custom built client"
                 ] |> Str.join ". " |> notSupported
-        
+
         let regionParam = System.Linq.Expressions.Expression.Parameter(typeof<RegionEndpoint>)
         let args =
             constructor.GetParameters()
@@ -65,13 +65,13 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
                 | x when x.ParameterType = typeof<RegionEndpoint> -> regionParam :> Expression
                 | x when x.ParameterType = typeof<AWSCredentials> -> dummyCredentials
                 | x -> Expression.Constant(x.DefaultValue, x.ParameterType))
-        
+
         Expression.Lambda<Func<RegionEndpoint, 'a>>(
             Expression.New(constructor, args), regionParam).Compile().Invoke
-        
+
     static member private builderWithCredentials = AmazonDynamoDBClientBuilder<'a>.builder' true
     static member private builderWithoutCredentials = AmazonDynamoDBClientBuilder<'a>.builder' false
-        
+
     static member builder withCredentials =
         if withCredentials then AmazonDynamoDBClientBuilder<'a>.builderWithCredentials
         else AmazonDynamoDBClientBuilder<'a>.builderWithoutCredentials

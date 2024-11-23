@@ -9,9 +9,8 @@ open System.Text.Json
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
-open TestDynamo.Client
+open Tests.Utils
 open TestDynamo.Utils
-open TestDynamo.Client.ItemMapper
 
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
@@ -116,7 +115,7 @@ type ItemBuilder =
 
     static member buildItemAttribute name ``type`` =
         ItemBuilder.buildAttribute name ``type``
-        |> TestDynamo.Client.ItemMapper.attributeFromDynamodb name
+        |> attributeFromDynamodb name
 
     static member addAttribute name attr x =
         { x with attrs = Map.add name attr x.attrs }: ItemBuilder
@@ -146,11 +145,11 @@ type ItemBuilder =
         { x with attrs = Map.add name attr x.attrs }: ItemBuilder
 
     static member getAttribute name (x: ItemBuilder) =
-        Map.find name x.attrs |> ItemMapper.attributeFromDynamodb "$"
+        Map.find name x.attrs |> attributeFromDynamodb "$"
 
     static member attributes (x: ItemBuilder) =
         x.attrs
-        |> Map.map (asLazy (ItemMapper.attributeFromDynamodb "$"))
+        |> Map.map (asLazy (attributeFromDynamodb "$"))
 
     static member dynamoDbAttributes (x: ItemBuilder) =
         x.attrs

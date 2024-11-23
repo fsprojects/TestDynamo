@@ -38,6 +38,8 @@ let inline (?>>=) x f = ValueOption.bind f x
 let inline (?>=>) f g x = f x ?>>= g
 /// <summary>ValueOption.defaultValue</summary>
 let inline (?|?) opt x = ValueOption.defaultValue x opt
+/// <summary>ValueOption.defaultValue</summary>
+let inline (??|?) f x opt = ValueOption.defaultValue x (f opt)
 /// <summary>ValueOption.defaultWith</summary>
 let inline (?|>?) opt f = ValueOption.defaultWith f opt
 

@@ -21,6 +21,10 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
   <PropertyGroup>
     <!--
     Allow compiler to change compiler directives. This is used to test dotnet standard 
@@ -30,7 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -78,20 +82,15 @@
     <Compile Include="Api\CSharpHelpers.fs" />
     <Compile Include="Api\Database.fs" />
     <Compile Include="Api\GlobalDatabase.fs" />
-    <Compile Include="Client\ItemMapper.fs" />
+    <Compile Include="GenericMapper\Utils.fs" />
+    <Compile Include="GenericMapper\MappingException.fs" />
+    <Compile Include="GenericMapper\Expressions.fs" />
+    <Compile Include="GenericMapper\DtoMappers.fs" />
     <Compile Include="Client\Shared.fs" />
-    <Compile Include="Client\DescribeTable.fs" />
-    <Compile Include="Client\CreateTable.fs" />
-    <Compile Include="Client\DeleteTable.fs" />
-    <Compile Include="Client\UpdateTable.fs" />
-    <Compile Include="Client\CreateGlobalTable.fs" />
-    <Compile Include="Client\UpdateGlobalTable.fs" />
+    <Compile Include="Client\Table.fs" />
+    <Compile Include="Client\Fetch.fs" />
+    <Compile Include="Client\Item.fs" />
     <Compile Include="Client\Query.fs" />
-    <Compile Include="Client\GetItem.fs" />
-    <Compile Include="Client\PutItem.fs" />
-    <Compile Include="Client\UpdateItem.fs" />
-    <Compile Include="Client\DeleteItem.fs" />
-    <Compile Include="Client\TransactWriteItems.fs" />
     <Compile Include="Client\Scan.fs" />
     <Compile Include="Client\MultiClientOperations.fs" />
     <Compile Include="Client\ObjPipelineInterceptor.fs" />
@@ -109,4 +108,7 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TestDynamo.GeneratedCode\TestDynamo.GeneratedCode.fsproj" />
+  </ItemGroup>
 </Project>

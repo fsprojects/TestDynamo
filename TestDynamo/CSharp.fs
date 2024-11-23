@@ -2,11 +2,13 @@ module TestDynamo.CSharp
 
 open System.Collections.Concurrent
 open System.Collections.Generic
-open System.Runtime.CompilerServices
 open Microsoft.FSharp.Quotations
 open Microsoft.FSharp.Quotations.Patterns
 open System.Linq.Expressions
 open TestDynamo.Utils
+open System.Runtime.CompilerServices
+
+// TODO: most of this module not needed any more
 
 type MList<'a> = System.Collections.Generic.List<'a>
 

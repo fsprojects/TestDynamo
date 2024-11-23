@@ -64,11 +64,11 @@ type CreateClientTests(output: ITestOutputHelper) =
                     Assert.ThrowsAny(fun () -> TestDynamoClient.CreateClient<Fail1>(addAwsCredentials = true) |> ignore)
                     Assert.ThrowsAny(fun () -> TestDynamoClient.CreateClient<Fail2>(addAwsCredentials = false) |> ignore)
                     Assert.ThrowsAny(fun () -> TestDynamoClient.CreateClient<Fail2>(addAwsCredentials = true) |> ignore)
-                    
+
                     Assert.ThrowsAny(fun () -> TestDynamoClient.CreateClient<Ok1NoCreds>(addAwsCredentials = true) |> ignore)
                     Assert.ThrowsAny(fun () -> TestDynamoClient.CreateClient<Ok1WithMandatoryCreds>(addAwsCredentials = false) |> ignore)
                 ]
-                
+
             use client1 = TestDynamoClient.CreateClient<Ok1NoCreds>(addAwsCredentials = false)
             use client2 = TestDynamoClient.CreateClient<Ok1WithMandatoryCreds>(addAwsCredentials = true)
             use client22 = TestDynamoClient.CreateClient<Ok1WithCreds>(addAwsCredentials = true)
@@ -79,6 +79,6 @@ type CreateClientTests(output: ITestOutputHelper) =
             Assert.Equal(7, client1.AnInt)
             Assert.Equal(7, client2.AnInt)
             Assert.Equal(7, client22.AnInt)
-            
+
             List.fold (assertError output $"{nameof TestDynamoClient}.Attach" |> asLazy) () errors
         }

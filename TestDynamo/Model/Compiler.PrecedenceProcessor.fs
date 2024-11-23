@@ -1,11 +1,11 @@
 ﻿namespace TestDynamo.Model.Compiler
 
 open System
-open System.Runtime.CompilerServices
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.OperatorsAndFunctions.html#Expressions.OperatorsAndFunctions.Precedence
 module private NodePrecedence =

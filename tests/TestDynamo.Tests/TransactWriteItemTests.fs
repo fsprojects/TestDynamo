@@ -16,7 +16,6 @@ open Xunit
 open Xunit.Abstractions
 open TestDynamo.Data.Monads.Operators
 open Utils
-open TestDynamo.Client.ItemMapper
 open RequestItemTestUtils
 open TestDynamo.Model
 open TestDynamo.Api.FSharp
@@ -614,7 +613,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             // assert
             let msg = 
                 match ``error type`` with
-                | "KEY_ERR" -> "Invalid key specification for write request"
+                | "KEY_ERR" -> "Delete.Key property is mandatory"
                 | "CONDITION" -> "ConditionalCheckFailedException"
                 | x -> invalidOp x
 

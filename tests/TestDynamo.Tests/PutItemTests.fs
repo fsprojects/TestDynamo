@@ -17,7 +17,6 @@ open Amazon.DynamoDBv2
 open Xunit.Abstractions
 open TestDynamo.Utils
 open RequestItemTestUtils
-open TestDynamo.Client.ItemMapper
 open Tests.Loggers
 
 type DataFailureType =
@@ -479,13 +478,13 @@ type PutItemTests(output: ITestOutputHelper) =
                 | DataFailureType.DuplicateInBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" ["x";"x"], "Duplicate value in Binary set")
                 | DataFailureType.EmptyPropName -> struct (false, ItemBuilder.withAttribute "" "N" "99", "Item has map or property attribute with null or empty name")
                 | DataFailureType.EmptyMapName -> struct (false, ItemBuilder.withMapAttribute "Mp" [("", ("S", "hi"))], "Item has map or property attribute with null or empty name: \"Mp\"")
-                | DataFailureType.NullPartitionKey -> struct (false, ItemBuilder.withAttribute "TablePk" "S" null, "Unknown attribute type for")
+                | DataFailureType.NullPartitionKey -> struct (false, ItemBuilder.withAttribute "TablePk" "S" null, "AttributeValue object has no data")
                 | DataFailureType.EmptyPartitionKey -> struct (false, ItemBuilder.withAttribute "TablePk" "S" "", "Empty string for key TablePk is not permitted")
-                | DataFailureType.NullSortKey -> struct (false, ItemBuilder.withAttribute "TableSk" "S" null, "Unknown attribute type for")
+                | DataFailureType.NullSortKey -> struct (false, ItemBuilder.withAttribute "TableSk" "S" null, "AttributeValue object has no data")
                 | DataFailureType.EmptySortKey -> struct (false, ItemBuilder.withAttribute "TableSk" "S" "", "Empty string for key TableSk is not permitted")
-                | DataFailureType.NullIndexPartitionKey -> struct (false, ItemBuilder.withAttribute "IndexPk" "S" null, "Unknown attribute type for")
+                | DataFailureType.NullIndexPartitionKey -> struct (false, ItemBuilder.withAttribute "IndexPk" "S" null, "AttributeValue object has no data")
                 | DataFailureType.EmptyIndexPartitionKey -> struct (false, ItemBuilder.withAttribute "IndexPk" "S" "", "Empty string for key IndexPk is not permitted")
-                | DataFailureType.NullIndexSortKey -> struct (false, ItemBuilder.withAttribute "IndexSk" "S" null, "Unknown attribute type for")
+                | DataFailureType.NullIndexSortKey -> struct (false, ItemBuilder.withAttribute "IndexSk" "S" null, "AttributeValue object has no data")
                 | DataFailureType.EmptyIndexSortKey -> struct (false, ItemBuilder.withAttribute "IndexSk" "S" "", "Empty string for key IndexSk is not permitted")
                 | DataFailureType.InvalidDataTypeIndexSortKey -> struct (false, ItemBuilder.withAttribute "IndexSk" "N" "8", "Expected attribute \"IndexSk\" to have type: String, got type Number")
                 | DataFailureType.InvalidNumber -> struct (false, ItemBuilder.withAttribute "" "N" "abc", "not in a correct format")
@@ -775,6 +774,7 @@ type PutItemTests(output: ITestOutputHelper) =
 
     [<Theory>]
     [<ClassData(typedefof<ThreeFlags>)>]
+    //[<InlineData(true, false, true)>]
     let ``Put item, with various condition expression scenarios`` ``item exists`` ``condition matches`` ``use legacy inputs`` =
 
         let conditionTargetsSome = ``item exists`` = ``condition matches``
@@ -887,6 +887,15 @@ type PutItemTests(output: ITestOutputHelper) =
                 let k = WriteRequest()
                 k.DeleteRequest <- DeleteRequest()
                 k.DeleteRequest.Key <- Dictionary<_, _>()
+
+                // Key is not important, but does need to have a value to
+                // get through the first gate and into the expected error 
+                k.DeleteRequest.Key.Add(
+                    "z",
+                    let a = AttributeValue()
+                    a.S <- "x"
+                    a)
+
                 r.RequestItems.Add(
                     if ``invalid region``
                         then $"arn:aws:dynamodb:invalid-region:{Settings.DefaultAwsAccountId}:table/{tableName}"

@@ -1,13 +1,13 @@
 ﻿namespace TestDynamo.Model
 
 open System
-open System.Runtime.CompilerServices
 open System.Text.RegularExpressions
 open TestDynamo
 open TestDynamo.Data
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model
+open System.Runtime.CompilerServices
 
 type private DTOffset = System.DateTimeOffset
 

@@ -1,7 +1,6 @@
 ﻿namespace TestDynamo.Api.FSharp
 
 open System
-open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open Microsoft.Extensions.Logging
@@ -11,6 +10,7 @@ open TestDynamo.Data.Monads.Operators
 open TestDynamo.Data
 open TestDynamo.Model
 open Microsoft.FSharp.Core
+open System.Runtime.CompilerServices
 
 type StreamViewType = Amazon.DynamoDBv2.StreamViewType
 

@@ -13,7 +13,6 @@ open Xunit
 open Xunit.Abstractions
 open TestDynamo.Data.Monads.Operators
 open Utils
-open TestDynamo.Client.ItemMapper
 open RequestItemTestUtils
 open TestDynamo.Model
 open TestDynamo.Api.FSharp
@@ -303,5 +302,6 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
             match ``table has sk``, ``include pk``, ``include sk`` with
             | false, true, true -> assertError output "Found non key attributes" e
+            | _, false, false -> assertError output "Key property is mandatory" e
             |_ -> assertError output "Could not find" e
         }

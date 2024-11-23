@@ -1,13 +1,12 @@
 ﻿namespace TestDynamo.Model
 
 open System
-open System.Buffers
 open System.Collections.Generic
-open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Text
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 type AttributeType =
     | String

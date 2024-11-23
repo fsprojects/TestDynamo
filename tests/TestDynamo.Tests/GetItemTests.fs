@@ -16,7 +16,6 @@ open Xunit
 open Xunit.Abstractions
 open Utils
 open TestDynamo.Data.Monads.Operators
-open TestDynamo.Client.ItemMapper
 open RequestItemTestUtils
 open TestDynamo.Model
 open Tests.Loggers
@@ -279,8 +278,9 @@ type GetItemTests(output: ITestOutputHelper) =
             // assert
             let! e = Assert.ThrowsAnyAsync(fun () -> (maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req).AsTask())
 
-            match ``table has sk``, ``include pk``, ``include sk`` with
-            | false, true, true -> assertError output "Found non key attributes" e
+            match ``batch get``, ``table has sk``, ``include pk``, ``include sk`` with
+            | false, _, false, false -> assertError output "Key property is mandatory" e
+            | _, false, true, true -> assertError output "Found non key attributes" e
             |_ -> assertError output "Could not find" e
         }
 

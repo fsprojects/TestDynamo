@@ -2,12 +2,12 @@
 
 open TestDynamo.Model.ExpressionExecutors.Fetch
 open Microsoft.FSharp.Core
-open System.Runtime.CompilerServices
 open Amazon.DynamoDBv2
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 type BasicReturnValues =
     | None

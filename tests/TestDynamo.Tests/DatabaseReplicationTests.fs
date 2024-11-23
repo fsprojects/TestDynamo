@@ -17,7 +17,6 @@ open Tests.Utils
 open Xunit
 open Xunit.Abstractions
 open RequestItemTestUtils
-open TestDynamo.Client.ItemMapper
 open TestDynamo.Model
 open TestDynamo.Api.FSharp
 open Tests.Table

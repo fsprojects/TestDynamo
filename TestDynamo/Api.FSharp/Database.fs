@@ -1,7 +1,6 @@
 ﻿namespace TestDynamo.Api.FSharp
 
 open System
-open System.Runtime.CompilerServices
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
@@ -11,6 +10,7 @@ open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model
 open Microsoft.Extensions.Logging
+open System.Runtime.CompilerServices
 
 type IStreamSubscriberDisposal =
     inherit IDisposable

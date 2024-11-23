@@ -12,12 +12,12 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Model.ExpressionExecutors
 
-open System.Runtime.CompilerServices
 open TestDynamo.Model.Compiler
 open TestDynamo.Model.Compiler.Compilers
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 let private doubleLazyId x = (id |> asLazy |> asLazy) x
 let inline private logOperation x = DatabaseLogger.logOperation "ItemSelector" x

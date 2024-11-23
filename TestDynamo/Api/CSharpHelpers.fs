@@ -1,12 +1,12 @@
 namespace TestDynamo.Api
 
-open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open Microsoft.Extensions.Logging
 open TestDynamo
 open TestDynamo.Model
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Utils
+open System.Runtime.CompilerServices
 
 type TableBuilder =
     { data: CreateTableData

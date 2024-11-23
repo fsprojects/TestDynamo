@@ -2,6 +2,7 @@ namespace TestDynamo.Tests
 
 open System.Text
 open System.Threading.Tasks
+open Microsoft.Extensions.Logging
 open TestDynamo
 open TestDynamo.Utils
 open Tests.Items
@@ -529,11 +530,12 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
         }
 
     [<Theory>]
+    // [<InlineData(true)>]
     [<ClassData(typeof<OneFlag>)>]
     let ``Query, begins_with, binary, returns correct items`` filter =
 
         task {
-            use client = buildClient output
+            use client = buildClientWithlogLevel LogLevel.Trace output 
             let client = client.Client
 
             // arrange
@@ -685,7 +687,6 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
 
         task {
             use client = buildClient output
-            let client = client.Client
 
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -712,6 +713,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             // assert
             Assert.Equal(1, response.Count)
 
+            // TODO: uncomment or remove
             // if isEqual then Assert.Equal(1, response.Items.Count)
             // else Assert.Equal(0, response.Items.Count)
             ()

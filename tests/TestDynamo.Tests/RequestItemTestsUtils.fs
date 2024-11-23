@@ -12,7 +12,6 @@ open Tests.Table
 open Tests.Utils
 open Xunit
 open Xunit.Abstractions
-open TestDynamo.Client.ItemMapper
 open TestDynamo.Model
 
 type TableDescription =

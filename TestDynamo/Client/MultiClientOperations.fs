@@ -1,16 +1,17 @@
 ﻿namespace TestDynamo.Client
 
-open System.Runtime.CompilerServices
-open Amazon.DynamoDBv2.Model
+open TestDynamo.GeneratedCode.Dtos
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
-open TestDynamo.Client.GetItem.Batch
 open TestDynamo.Model
 open Microsoft.Extensions.Logging
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model.ExpressionExecutors.Fetch
 open Utils
+open System.Runtime.CompilerServices
+
+// TODO: scan this file for commented out code
 
 module MultiClientOperations =
 
@@ -27,8 +28,8 @@ module MultiClientOperations =
 
     [<Struct; IsReadOnly>]    
     type private ResponseAggregator<'found, 'notProcessed> =
-        { notProcessed: Map<BatchItemKey, 'found list>
-          found: Map<BatchItemKey, 'notProcessed list> }
+        { notProcessed: Map<Item.Batch.BatchItemKey, 'found list>
+          found: Map<Item.Batch.BatchItemKey, 'notProcessed list> }
 
     module private ResponseAggregator =
 
@@ -55,21 +56,21 @@ module MultiClientOperations =
             operation
             (database: ApiDb)
             struct (state, result: ResponseAggregator<_, _>)
-            (struct (k: GetItem.Batch.BatchItemKey, v) & kv) =
+            (struct (k: Item.Batch.BatchItemKey, v) & kv) =
 
             if database.Id <> k.databaseId then notSupported globalOnly
 
             operation database state kv
             |> mapSnd (addResults k result)
 
-        let private execute operation database acc (struct (batchGetKey, _) & inputs) =
+        let private execute operation database acc (struct (batchGetKey: Item.Batch.BatchItemKey, _) & inputs) =
 
             chooseDatabase batchGetKey.databaseId database
             |> execute' operation
             <| acc
             <| inputs
 
-        let executeBatch operation initialState (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) (batchRequests: struct (BatchItemKey * _) seq) =
+        let executeBatch operation initialState (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) (batchRequests: struct (Item.Batch.BatchItemKey * _) seq) =
             batchRequests
             |> Seq.fold (execute operation database) struct (initialState, { notProcessed = Map.empty; found = Map.empty })
             |> sndT
@@ -80,7 +81,7 @@ module MultiClientOperations =
             logger
             (database: ApiDb)
             remaining
-            struct (k: GetItem.Batch.BatchItemKey, v: GetItem.Batch.BatchGetValue) =
+            struct (k: Item.Batch.BatchItemKey, v: Item.Batch.Get.BatchGetValue) =
 
             match struct (remaining, database) with
             | remaining, _ when remaining <= 0 -> struct (remaining, [Either2 v])
@@ -116,9 +117,9 @@ module MultiClientOperations =
               consistentRead = false
               projectionExpression = ValueNone
               attributesToGetRedux = ValueNone 
-              expressionAttrNames = Map.empty } : BatchGetValue
+              expressionAttrNames = Map.empty } : Item.Batch.Get.BatchGetValue
 
-        let batchGetItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: GetItem.Batch.BatchGetRequest) =
+        let batchGetItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: Item.Batch.Get.BatchGetRequest) =
 
             let requests =
                 req.requests
@@ -146,11 +147,11 @@ module MultiClientOperations =
                       x.found
                       |> Map.map (fun _ xs ->
                           Seq.collect id xs
-                          |> Array.ofSeq) }: BatchGetResponse
+                          |> Array.ofSeq) }: Item.Batch.Get.BatchGetResponse
 
     module BatchWriteItem =
 
-        open PutItem.BatchWrite
+        open Item.Batch.Write
 
         let tryExecute (logger: ILogger voption) f v =
             try
@@ -164,7 +165,7 @@ module MultiClientOperations =
             logger
             (database: ApiDb)
             remaining
-            struct (k: GetItem.Batch.BatchItemKey, v: Write list) =
+            struct (k: Item.Batch.BatchItemKey, v: Write list) =
 
             match struct (remaining, database) with
             | remaining, _ when remaining <= 0 -> struct (remaining, [Either2 v])
@@ -184,14 +185,7 @@ module MultiClientOperations =
                         |> flip Collection.prependL acc
                         |> tpl (remaining - ItemSize.calculate x.item)) struct (remaining, []) v
 
-        let private noBatchGetValue =
-            { keys = Array.empty
-              consistentRead = false
-              projectionExpression = ValueNone
-              attributesToGetRedux = ValueNone
-              expressionAttrNames = Map.empty } : BatchGetValue
-
-        let batchPutItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: PutItem.BatchWrite.BatchWriteRequest) =
+        let batchPutItem (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) logger (req: Item.Batch.Write.BatchWriteRequest) =
 
             let requests =
                 req.requests
@@ -231,16 +225,16 @@ module MultiClientOperations =
             |> ValueOption.defaultValue eagerTableResult
 
         let updateTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateTableRequest) =            
-            UpdateTable.inputs req
+            Table.Local.Update.inputs req
             |> updateTable' databaseOp globalOp
-            |> UpdateTable.output awsAccountId ddb databaseId
+            |> Table.Local.Update.output awsAccountId ddb databaseId
 
         let createGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: CreateGlobalTableRequest) =            
-            CreateGlobalTable.inputs req
+            Table.Global.Create.input req
             |> updateTable' databaseOp globalOp
-            |> CreateGlobalTable.output awsAccountId ddb databaseId
+            |> Table.Global.Create.output awsAccountId ddb databaseId
 
         let updateGlobalTable awsAccountId ddb databaseId databaseOp globalOp (req: UpdateGlobalTableRequest) =            
-            UpdateGlobalTable.inputs req
+            Table.Global.Update.input req
             |> updateTable' databaseOp globalOp
-            |> UpdateGlobalTable.output awsAccountId ddb databaseId
+            |> Table.Global.Update.output awsAccountId ddb databaseId

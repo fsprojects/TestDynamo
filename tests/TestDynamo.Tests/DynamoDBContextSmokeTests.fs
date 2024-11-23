@@ -10,7 +10,6 @@ open Xunit
 open Xunit.Abstractions
 open TestDynamo.Model
 open TestDynamo.Data.Monads.Operators
-open TestDynamo.Client.ItemMapper
 open Tests.Loggers
 
 // warning FS3511: This state machine is not statically compilable.

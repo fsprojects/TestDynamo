@@ -1,13 +1,13 @@
 ﻿
 namespace TestDynamo.Model.Compiler
 
-open System.Runtime.CompilerServices
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Data.Monads
 open TestDynamo.Model
 open TestDynamo.Model.Compiler
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open System.Runtime.CompilerServices
 
 [<Struct; IsReadOnly>]
 type ItemData =

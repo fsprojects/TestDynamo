@@ -4,7 +4,6 @@ open System.Threading
 open System.Threading.Tasks
 open Amazon.Runtime
 open TestDynamo
-open TestDynamo.Client.MultiClientOperations
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Utils
 

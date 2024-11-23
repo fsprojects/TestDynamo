@@ -1,11 +1,11 @@
 ﻿namespace TestDynamo.Model
 
-open System.Runtime.CompilerServices
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model
+open System.Runtime.CompilerServices
 type private Math = System.Math
 
 type PutAndDelete = (struct (Item * Item))

@@ -8,6 +8,7 @@ open TestDynamo.Model
 open TestDynamo.Model.Compiler
 open TestDynamo.Model.Compiler.Parser
 open TestDynamo.Utils
+open System.Runtime.CompilerServices
 
 module private CompileUtils =
 

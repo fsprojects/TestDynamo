@@ -20,8 +20,11 @@ module Queue =
         | _ -> false
 
     let create items = struct (items, []) |> Q
+    
+    type private Cache<'a>() =
+        static member value: Queue<'a> = Q struct ([], [])
 
-    let empty<'a>: Queue<'a> = Q struct ([], [])
+    let empty<'a> = Cache<'a>.value
 
     let private dequeue' = function
         | Q ([], _) & q -> struct (ValueNone, q)

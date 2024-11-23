@@ -3,7 +3,6 @@
 open System.Threading
 open Microsoft.FSharp.Core
 open System
-open System.Runtime.CompilerServices
 open System.Threading.Tasks
 open TestDynamo
 open TestDynamo.Data.BasicStructures
@@ -12,6 +11,7 @@ open TestDynamo.Model.ExpressionExecutors.Fetch
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model
+open System.Runtime.CompilerServices
 
 type CreateTableData =
     { tableConfig: TableConfig

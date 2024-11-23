@@ -6,7 +6,6 @@ open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
-open Amazon.Runtime
 open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
@@ -145,7 +144,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
             // act
             let start = DateTimeOffset.Now
-            do subject.InvokeSync true request CancellationToken.None |> ignoreTyped<AmazonWebServiceResponse>
+            do subject.InvokeSync true request CancellationToken.None |> ignoreTyped<obj>
 
             // assert
             // + 50ms because Task.Delay is not 100% accurate
