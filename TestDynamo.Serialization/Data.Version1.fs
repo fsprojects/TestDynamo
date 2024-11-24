@@ -284,5 +284,5 @@ module FromSerializable =
             |> Seq.fold (fun _ dbData -> Database.addData globalLogger dbData (db.GetDatabase ValueNone dbData.databaseId)) ()
 
             // Sacrificing a thread here to keep the interface simple           
-            (db.AwaitAllSubscribers globalLogger CancellationToken.None).AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
+            (db.AwaitAllSubscribers globalLogger CancellationToken.None) |> Io.normalizeVt |> Io.execute
             db

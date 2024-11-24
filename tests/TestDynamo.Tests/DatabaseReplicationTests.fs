@@ -765,9 +765,17 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
 
             use! host = clonedHost writer
             use client1 = TestDynamoClientBuilder.Create(host, { regionId = "eu-west-1"})
+            TestDynamoClient.setProcessingDelay (TimeSpan.FromMilliseconds(10)) client1
+            
             use client2 = TestDynamoClientBuilder.Create(host, { regionId = "eu-north-1"})
+            TestDynamoClient.setProcessingDelay (TimeSpan.FromMilliseconds(10)) client2
+            
             use client3 = TestDynamoClientBuilder.Create(host, { regionId = "ap-south-2"})
+            TestDynamoClient.setProcessingDelay (TimeSpan.FromMilliseconds(10)) client3
+            
             use client4 = TestDynamoClientBuilder.Create(host, { regionId = "us-east-2"})
+            TestDynamoClient.setProcessingDelay (TimeSpan.FromMilliseconds(10)) client4
+            
             let! tables = sharedTestData ValueNone
             let table = Tables.getByStreamsEnabled true tables
 

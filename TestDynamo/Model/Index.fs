@@ -361,12 +361,12 @@ module Index =
 
     let inline private seqify xs: 'a seq = xs
 
-    let get partitionKey sortKey (Idx {data = data; info = {keyConfig = keyConfig}}) =
+    let get partitionKey sortKey (Idx {data = data; info = {keyConfig = keyConfig; compositeName = name}}) =
         if KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey
-        then clientError "Invalid partition key type"
+        then clientError $"Invalid partition key type {AttributeValue.getType partitionKey} for index {name}. Expected {KeyConfig.partitionType keyConfig}"
 
         if KeyConfig.sortKeyType keyConfig <> ValueOption.map AttributeValue.getType sortKey
-        then clientError "Invalid sort key type"
+        then clientError $"Invalid sort key type {sortKey ?|> AttributeValue.getType} for index {name}. Expected {KeyConfig.sortKeyType keyConfig}"
 
         IndexItems.partitions data
         |> AvlTree.tryFind partitionKey

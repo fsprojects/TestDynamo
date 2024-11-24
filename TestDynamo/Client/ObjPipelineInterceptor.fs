@@ -41,11 +41,9 @@ type ObjPipelineInterceptor(
 
     let loggerOrDevNull = ValueOption.defaultValue Logger.notAnILogger defaultLogger
 
-    static let defaultScanSizeLimits =
+    let mutable scanSizeLimits =
         { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
           maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes } : ExpressionExecutors.Fetch.ScanLimits
-
-    let mutable scanSizeLimits = defaultScanSizeLimits
 
     let mutable awsAccountId = Settings.DefaultAwsAccountId
 
@@ -190,11 +188,8 @@ type ObjPipelineInterceptor(
 
     // exposed to test specific edge case
     member _.InvokeSync useDelay request c =
-        let result = (if useDelay then invoke else invokeWithoutDelay) c request
-
-        if not result.IsCompletedSuccessfully
-        then result.AsTask().ConfigureAwait(false).GetAwaiter().GetResult()
-        else result.Result
+        (if useDelay then invoke else invokeWithoutDelay) c request
+        |> Io.execute
 
     interface IDisposable with
         member _.Dispose() =
@@ -233,58 +228,3 @@ type ObjPipelineInterceptor(
                 executionContext.ResponseContext.Response <- r
                 r
             |> asTask
-
-// type HttpPipelineInterceptor() =
-//     
-//     let mutable logger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
-//     let mutable inner = Unchecked.defaultof<IPipelineHandler>
-//     let mutable outer = Unchecked.defaultof<IPipelineHandler>
-//     interface IPipelineHandler with
-//     
-//         member _.Logger
-//             with get () = logger
-//             and set value = logger <- value
-//         member _.InnerHandler
-//             with get () = inner
-//             and set value = inner <- value
-//         member _.OuterHandler
-//             with get () = outer
-//             and set value = outer <- value
-//             
-//         member _.InvokeSync(executionContext: IExecutionContext) =
-//             
-//             let content = System.Text.Encoding.UTF8.GetBytes """{
-// }"""
-//
-//             let reqId = Guid.NewGuid().ToString()
-//             let eq (x: string) y = x.Equals(y, StringComparison.OrdinalIgnoreCase)
-//
-//             let headers (name: string) =
-//                 if name = null then ValueNone
-//                 elif eq name "Content-Length" then ValueSome (content.Length.ToString())
-//                 elif eq name "Content-Encoding" then ValueSome "UTF-8"
-//                 elif eq name "x-amzn-RequestId" then
-//                     let tt = executionContext.RequestContext
-//                     let oo = executionContext.ResponseContext
-//                     let rrr = Encoding.UTF8.GetString(executionContext.RequestContext.Request.Content)
-//                     ValueSome reqId
-//                 else ValueNone
-//             
-//             executionContext.ResponseContext.HttpResponse <-
-//                 { new IWebResponseData with
-//                     member _.ContentLength = content.Length
-//                     member _.ContentType = "application/json"
-//                     member _.StatusCode = HttpStatusCode.OK
-//                     member _.IsSuccessStatusCode = true
-//                     member _.GetHeaderNames() = invalidOp "GetHeaderNames"
-//                     member _.IsHeaderPresent headerName = headers headerName |> ValueOption.isSome
-//                     member _.GetHeaderValue headerName = headers headerName |> Maybe.expectSomeErr "Cannot find header %s" headerName
-//                     member _.ResponseBody =
-//                         { new IHttpResponseBody with
-//                              member _.Dispose() = ()
-//                              member _.OpenResponse() = new MemoryStream(content)
-//                              member _.OpenResponseAsync() = Task.FromResult<Stream>(new MemoryStream(content))}}
-//                 
-//             ()
-//             
-//         member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) = Unchecked.defaultof<Task<'a>>

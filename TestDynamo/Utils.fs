@@ -1028,6 +1028,13 @@ module Io =
     let private cafV0 (x: ValueTask) = x.ConfigureAwait(false)
 
     let retn (x: 'a) = ValueTask<'a>(x)
+    
+    /// <summary>
+    /// Use sparingly. Only use if Io.map or task {} is not an option
+    /// </summary>
+    let execute (vt: ValueTask<_>) =
+        if vt.IsCompletedSuccessfully then vt.Result
+        else vt.ConfigureAwait(false).GetAwaiter().GetResult()
 
     let private trySyncResult (task: ValueTask<'a>) =
         if task.IsCompletedSuccessfully then ValueSome task.Result

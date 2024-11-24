@@ -9,6 +9,7 @@ open Tests.ClientLoggerContainer
 open Xunit
 open Xunit.Abstractions
 open TestDynamo.Model
+open TestDynamo.Data.Monads.Operators
 open TestDynamo.Client.ItemMapper
 open Tests.Loggers
 
@@ -42,10 +43,12 @@ type SomeKindOfOb() =
         with get () = skCopy
         and set value = skCopy <- value
 
+    [<DynamoDBGlobalSecondaryIndexHashKey("AnIndex")>]
     member _.SomethingElse
         with get () = somethingElse
         and set value = somethingElse <- value
 
+    [<DynamoDBGlobalSecondaryIndexRangeKey("AnIndex")>]
     member _.SomethingElseElse
         with get () = somethingElseElse
         and set value = somethingElseElse <- value
@@ -103,13 +106,23 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
             use logger = new TestLogger(output, level = LogLevel.Trace)
             use client = TestDynamoClientBuilder.Create(logger = logger)
 
+            let idx =
+                { data =
+                    { keys = struct ("SomethingElse", ValueSome "SomethingElseElse")
+                      projectionsAreKeys = false
+                      projectionCols = ValueNone }
+                  isLocal = false }
             let _ =
                 { createStream = false
                   tableConfig =
                       { name = "SomeKindOfOb"
                         primaryIndex = struct ("Pk", ValueSome "Sk") 
-                        indexes = Map.empty 
-                        attributes = [struct ("Pk", AttributeType.String); struct ("Sk", AttributeType.String)]
+                        indexes = Map.add "AnIndex" idx Map.empty 
+                        attributes =
+                            [ struct ("Pk", AttributeType.String)
+                              struct ("Sk", AttributeType.String)
+                              struct ("SomethingElse", AttributeType.Number)
+                              struct ("SomethingElseElse", AttributeType.Number)]
                         addDeletionProtection = false }}
                 |> (TestDynamoClient.getDatabase client).AddTable ValueNone
 
@@ -140,8 +153,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                 |> Seq.map Io.fromTask
                 |> Io.traverse
 
-            let! loading = load()
-            let loading = loading |> Seq.map single
+            let! loading = load() |%|> Seq.map single
 
             for obj1 in loading do
                 Assert.Equal(obj.Pk, obj1.Pk)
@@ -163,4 +175,66 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
 
             for obj1 in loading do
                 Assert.Equal(0, Seq.length obj1)
+        }
+
+    [<Theory>]
+    [<InlineData(true)>]
+    [<InlineData(false)>]
+    let ``Scan and query on index`` ``is scan`` =
+
+        task {
+            // arrange
+            use logger = new TestLogger(output, level = LogLevel.Trace)
+            use client = TestDynamoClientBuilder.Create(logger = logger)
+
+            let idx =
+                { data =
+                    { keys = struct ("SomethingElse", ValueSome "SomethingElseElse")
+                      projectionsAreKeys = false
+                      projectionCols = ValueNone }
+                  isLocal = false }
+            let _ =
+                { createStream = false
+                  tableConfig =
+                      { name = "SomeKindOfOb"
+                        primaryIndex = struct ("Pk", ValueSome "Sk") 
+                        indexes = Map.add "AnIndex" idx Map.empty 
+                        attributes =
+                            [ struct ("Pk", AttributeType.String)
+                              struct ("Sk", AttributeType.String)
+                              struct ("SomethingElse", AttributeType.Number)
+                              struct ("SomethingElseElse", AttributeType.Number)]
+                        addDeletionProtection = false }}
+                |> (TestDynamoClient.getDatabase client).AddTable ValueNone
+
+            use context = new DynamoDBContext(client)
+
+            let obj_on_index = SomeKindOfOb()
+            obj_on_index.Pk <- "ThePk"
+            obj_on_index.Sk <- "TheSk1"
+            obj_on_index.SomethingElse <- System.Nullable<_>(1)
+            obj_on_index.SomethingElseElse <- System.Nullable<_>(2)
+            do! context.SaveAsync obj_on_index
+            
+            let obj_not_on_index = SomeKindOfOb()
+            obj_not_on_index.Pk <- "ThePk"
+            obj_not_on_index.Sk <- "TheSk2"
+            do! context.SaveAsync obj_not_on_index
+
+            // act
+            let! search =
+                if ``is scan``
+                then
+                    let req = DynamoDBOperationConfig()
+                    req.IndexName <- "AnIndex"
+                    context.ScanAsync<SomeKindOfOb>(Seq.empty, req)
+                else
+                    let req = DynamoDBOperationConfig()
+                    req.IndexName <- "AnIndex"
+                    context.QueryAsync(System.Nullable<_>(1), req)
+                |> _.GetRemainingAsync()
+            
+            // assert
+            let single = Assert.Single search
+            Assert.Equal("TheSk1", single.Sk)
         }

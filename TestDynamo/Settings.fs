@@ -15,10 +15,12 @@ let internal QueryCacheSize = ValueSome struct (500, 1000)
 let mutable DefaultAwsAccountId = "123456789012"
 
 /// <summary>
-/// An artificial delay to add to dynamodb requests. This helps to simulate IO
-/// Default 5ms
+/// An artificial delay to add to dynamodb requests.
+/// If included, this can help to simulate IO by deferring execution to another thread
+/// 
+/// Default: no delay
 /// </summary>
-let mutable DefaultClientResponseDelay = System.TimeSpan.FromMilliseconds(5)
+let mutable DefaultClientResponseDelay = System.TimeSpan.Zero
 
 /// <summary>
 /// <para>
