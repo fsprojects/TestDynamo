@@ -393,7 +393,7 @@ var json = DatabaseSerializer.GlobalDatabase.ToString(globalDb, @"TestData.json"
 ```
 
 Serialization is designed to share data between test runs, but ultimately, it scales with the number of items in the database. This means
-that it may take more time than is ideal for executing fast unit tests. [Database cloning](#database-cloning) is a better solution for large databases which are shared between multiple tests, as it is instant for any sized database or global database
+that it may take more time than is ideal for executing fast unit tests. [Database cloning](#database-cloning) is a better solution for large databases which are shared between multiple tests, as it executes instantly for any sized database or global database
 
 ### Cloud Formation Templates
 
@@ -525,7 +525,7 @@ using var database = new Api.Database(new DatabaseId("us-west-1"));
 var interceptor = new CreateBackupInterceptor(backups);
 using var client = database.CreateClient<AmazonDynamoDBClient>(interceptor);
 
-// execute some requests which are not intercepted. These will execute normally
+// execute some requests which are not intercepted. These will not be intercepted
 await client.PutItemAsync(...);
 await client.PutItemAsync(...);
 
@@ -535,7 +535,7 @@ var backupResponse = await client.CreateBackupAsync(new CreateBackupRequest
    TableName = "Beatles"
 });
 
-// restore from backup. This will not be intercepted
+// restore from backup. This will be intercepted
 await client.RestoreTableFromBackupAsync(new RestoreTableFromBackupRequest
 {
    BackupArn = backupResponse.BackupDetails.BackupArn
