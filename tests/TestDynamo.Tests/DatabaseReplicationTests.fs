@@ -246,6 +246,30 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             do! executePutSmokeTest direction newItem newItemKeys args
         }
 
+    [<Fact>]
+    let ``Clear table smoke tests. Kinda about replication, kinda not`` () =
+
+        task {
+            // arrange
+            use logger = new TestLogger(output) 
+            let! struct (table, host, _, _, disposer) = setUp2Regions logger true
+            let db1 = host.GetDatabase (ValueSome logger) { regionId = "eu-west-1" }
+            let db2 = host.GetDatabase (ValueSome logger) { regionId = "eu-north-1" }
+            use _ = disposer
+
+            let tableEmpty (db: Database) = db.GetTable ValueNone table.name |> _.GetValues() |> Seq.isEmpty
+            Assert.False(tableEmpty db1)
+            Assert.False(tableEmpty db2)
+            
+            // act
+            db1.ClearTable ValueNone table.name
+            do! host.AwaitAllSubscribers ValueNone CancellationToken.None
+            
+            // assert
+            Assert.True(tableEmpty db1)
+            Assert.True(tableEmpty db2)
+        }
+
     [<Theory>]
     [<InlineData("parent => child")>]
     [<InlineData("child => parent")>]

@@ -254,6 +254,12 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
         lockedAndLogged "DELETE" (iLoggerOrLoggerInput logger) (Database.delete args)
 
     /// <summary>
+    /// CLEAR table
+    /// </summary>
+    member _.ClearTable logger tableName =
+        lockedAndLogged "CLEAR TABLE" (iLoggerOrLoggerInput logger) (Database.clearTable tableName)
+
+    /// <summary>
     /// UPDATE an Item  
     /// </summary>
     member _.Update logger (args: UpdateItemArgs) =

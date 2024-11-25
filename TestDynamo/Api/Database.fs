@@ -161,6 +161,11 @@ type Database (db: FsDb, [<Optional; DefaultParameterValue(false)>] disposeUnder
     member _.Delete(args: DeleteItemArgs<_>, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Delete (CSharp.toOption logger) args
 
     /// <summary>
+    /// CLEAR table
+    /// </summary>
+    member _.ClearTable(tableName, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.ClearTable (CSharp.toOption logger) tableName
+
+    /// <summary>
     /// UPDATE an Item  
     /// </summary>
     member _.Update(args: UpdateItemArgs, [<Optional; DefaultParameterValue(null: ILogger)>] logger) = db.Update (CSharp.toOption logger) args

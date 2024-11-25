@@ -512,3 +512,26 @@ module Table =
     let delete logger allowNonKeys = tpl ValueNone >> delete' logger allowNonKeys
 
     let deleteReplicated logger = mapFst ValueSome >> delete' logger true
+    
+    let private unwrapPartitions = Partition.scan ValueNone true
+    let private combineCdcPackets =
+        List.fold (fun s x ->
+            match s with
+            | ValueNone -> ValueSome x
+            | ValueSome x1 -> CdcPacket.concat x1 x |> ValueSome) ValueNone
+
+    /// <summary>Returns null if the table was empty to begin with</summary>
+    let clear (logger: Logger) = function
+        | Tbl {data = {primaryIndex = primary}} & t ->
+            Index.scan ValueNone true true primary
+            |> Seq.collect unwrapPartitions
+            |> Seq.collect PartitionBlock.toSeq
+            |> Seq.map Item.attributes
+            |> Seq.fold (fun struct (cdc, s) x ->
+                delete logger true x s
+                |> mapFst (flip Collection.prependL cdc)) struct ([], t)
+            |> mapFst combineCdcPackets
+            |> function
+                | struct (ValueNone, _) -> ValueNone
+                | struct (ValueSome x, y) -> ValueSome struct (x, y)
+    

@@ -504,11 +504,34 @@ module Database =
         |> tpl req
         |> removeUnWanted
 
-    // Logger -> TableStreams -> SubscriberMessageData -> TableStreams
     let inline private publishChange logger streams data = TableStreams.onChange data logger streams
+    
+    let private buildSubscriberMessage logger db tableName synchronizationPath packet =
+        let table = DatabaseTables.getTable tableName db.tables
+        let listBuilder =
+            ValueOption.map (flip NonEmptyList.prepend) synchronizationPath
+            |> ValueOption.defaultValue NonEmptyList.singleton
+
+        { data =
+            { packet = packet
+              tableArn = table |> Table.arnBuilder }
+          correlationId = Logger.id logger
+          tableName = tableName
+          synchronizationPacketPath = listBuilder db.info.databaseId }
+        |> ChangeDataCapture
+        |> OnChange
+        
+    let private publishCdcPacket (logger: Logger) (db: DatabaseState) (eBrake: EmergencyBrake) tableName synchronizationPath =
+        mapFst (fun x ->
+            ({ request = buildSubscriberMessage logger db tableName synchronizationPath x
+               emergencyBrake = eBrake }: EmergencyBrakeRequest<_>)
+            |> publishChange logger db.streams)
+        >> fun struct (s, t) -> { db with streams = s; tables = t }
 
     let private put' apiRequestName execute logger struct (synchronizationPath, updateExpression, args: EmergencyBrakeRequest<PutItemArgs<_>>) db =
 
+        let tableName = args |> EmergencyBrakeRequest.map _.tableName
+        
         execute args.request logger db.tables
         |> tplDouble
         |> mapFst (
@@ -522,24 +545,7 @@ module Database =
                     >> Collection.tryHead)
                 >> conditionAndProjectPostProcessor apiRequestName struct (args.request.conditionExpression, updateExpression) logger
                 >> Collection.tryHead)
-            >> mapSnd (
-                mapFst (fun x ->
-                    EmergencyBrakeRequest.map (fun (args: PutItemArgs<_>) ->
-                        let table = DatabaseTables.getTable args.tableName db.tables
-                        let listBuilder =
-                            ValueOption.map (flip NonEmptyList.prepend) synchronizationPath
-                            |> ValueOption.defaultValue NonEmptyList.singleton
-
-                        { data =
-                            { packet = x
-                              tableArn = table |> Table.arnBuilder }
-                          correlationId = Logger.id logger
-                          tableName = args.tableName
-                          synchronizationPacketPath = listBuilder db.info.databaseId }
-                        |> ChangeDataCapture
-                        |> OnChange) args
-                    |> publishChange logger db.streams)
-                >> fun struct (s, t) -> { db with streams = s; tables = t }))
+            >> mapSnd (publishCdcPacket logger db args.emergencyBrake args.request.tableName synchronizationPath))
         |> mapSnd fstT
 
     let private clientPut =
@@ -672,28 +678,18 @@ module Database =
             conditionAndProjectPostProcessor "DeleteItem" struct (args.request.conditionExpression, ValueNone) logger struct (postProcessed, table)
             |> Collection.tryHead
             |> tpl cdcPacket)
-        |> mapSnd (
-            mapFst (fun x ->
-                flip EmergencyBrakeRequest.map args (fun args ->
-                    let table = DatabaseTables.getTable args.tableName db.tables
-                    let listBuilder =
-                        ValueOption.map (flip NonEmptyList.prepend) synchronizationPath
-                        |> ValueOption.defaultValue NonEmptyList.singleton
-
-                    { data =
-                        { packet = x
-                          tableArn = table |> Table.arnBuilder }
-                      correlationId = Logger.id logger
-                      tableName = args.tableName
-                      synchronizationPacketPath = listBuilder db.info.databaseId }
-                    |> ChangeDataCapture
-                    |> OnChange)
-                |> publishChange logger db.streams)
-            >> fun struct (s, t) -> { db with streams = s; tables = t })
+        |> mapSnd (publishCdcPacket logger db args.emergencyBrake args.request.tableName synchronizationPath)
 
     let delete =
         let inline addNoSyncPath x = struct (x, ValueNone)
         EmergencyBrakeRequest.noBrake >> addNoSyncPath >> (delete' DatabaseTables.delete |> Execute.command "DELETE") >>>> mapFst sndT
+        
+    let clearTable =
+        Execute.command "CLEAR TABLE" (fun logger tableName db ->
+            DatabaseTables.clear tableName logger db.tables
+            ?|> publishCdcPacket logger db EmergencyBrakeRequest.noBrakeValue tableName ValueNone
+            ?|? db
+            |> tpl ())
 
     let private getPostProcessor struct (getReq: GetItemArgs, logger) struct (getResponse: Item seq, table) =
 

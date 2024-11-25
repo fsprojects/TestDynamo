@@ -173,6 +173,17 @@ module DatabaseTables =
     let delete = delete' (flip Table.delete false)
     let deleteReplicated = delete' Table.deleteReplicated
 
+    let clear tableName =
+        fun logger -> function
+        | H tables ->
+            match MapUtils.tryFind tableName tables with
+            | ValueNone -> clientError $"Table \"{tableName}\" not found"
+            | ValueSome table ->
+                Table.clear logger table
+                ?|> mapSnd (
+                    flip (Map.add tableName) tables >> H)
+        |> logOperation "CLEAR TABLE"
+
     type TableName = string
     type Keys = Map<string, AttributeValue>
     let get (struct (tableName: TableName, keys: Keys)) =

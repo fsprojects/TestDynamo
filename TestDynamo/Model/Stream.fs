@@ -28,8 +28,8 @@ type EmergencyBrakeRequest<'request> =
       emergencyBrake: EmergencyBrake }
 
 module EmergencyBrakeRequest =
-    let private noBrake' = ValueTask<_>(true).Preserve()
-    let noBrake x = { request = x; emergencyBrake = noBrake' }
+    let noBrakeValue = ValueTask<_>(true).Preserve()
+    let noBrake x = { request = x; emergencyBrake = noBrakeValue }
     let inline create emergencyBrake x = { request = x; emergencyBrake = emergencyBrake }
     let inline map f x = { request = f x.request; emergencyBrake = x.emergencyBrake }
 
