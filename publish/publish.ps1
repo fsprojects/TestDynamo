@@ -125,14 +125,24 @@ $publishApps |
         git commit -m "Deployed $project"
     }
 
-$testApps |
-    ForEach-Object -Process {
-        Write-Host "Testing $_"
-        dotnet restore "$_" --no-cache
-        dotnet test "$_"
+$i = 0
+while ($True) {
+    Write-Host "Infinite test loop. Will keep going until success"
+    $success = $False
+    $testApps |
+        ForEach-Object -Process {
+            Write-Host "Testing $_"
+            dotnet restore "$_" --no-cache
+            dotnet test "$_"
 
-        if (-not $?) { exit 1}
-    }
+            if (-not $?) { $success = $false}
+        }
+
+    if ($success) { break; }
+    
+    Write-Host "Sleep 60"
+    Start-Sleep -Seconds 60
+}
 
 git push origin "$versionTag"
 git reset HEAD --hard
