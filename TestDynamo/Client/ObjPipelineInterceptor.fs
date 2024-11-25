@@ -16,179 +16,189 @@ open TestDynamo.Api.FSharp
 
 type Stream = System.IO.Stream
 
-module private ObjPipelineInterceptorUtils = 
-    let cast<'a when 'a :> AmazonWebServiceResponse> (x: 'a) = x :> AmazonWebServiceResponse
+module private ObjPipelineInterceptorUtils =
 
-type ObjPipelineInterceptor(
-    database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
-    artificialDelay: TimeSpan,
-    defaultLogger: ILogger voption,
-    disposeDatabase) =
+    type ObjPipelineInterceptorState =
+        { db: ApiDb
+          parent: struct (GlobalDatabase * DatabaseId) voption
+          artificialDelay: TimeSpan
+          loggerOrDevNull: ILogger
+          defaultLogger: ILogger voption
+          scanSizeLimits: ExpressionExecutors.Fetch.ScanLimits
+          awsAccountId: AwsAccountId }
+    
+    
+    let private cast<'a when 'a :> AmazonWebServiceResponse> (x: 'a) = x :> AmazonWebServiceResponse
 
-    let db =
-        match database with
-        | Either1 x -> x
-        | Either2 struct (x: GlobalDatabase, id) -> x.GetDatabase defaultLogger id
+    let asTask (x: ValueTask<'a>) = x.AsTask()
 
-    let parent =
-        match database with
-        | Either1 _ -> ValueNone
-        | Either2 struct (x, id) -> ValueSome struct (x, id)
-
-    let parentDdb = ValueOption.map fstT parent
-
-    let mutable artificialDelay = artificialDelay
-
-    let loggerOrDevNull = ValueOption.defaultValue Logger.notAnILogger defaultLogger
-
-    let mutable scanSizeLimits =
-        { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
-          maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes } : ExpressionExecutors.Fetch.ScanLimits
-
-    let mutable awsAccountId = Settings.DefaultAwsAccountId
-
-    static let asTask (x: ValueTask<'a>) = x.AsTask()
-
-    static let delay' (delay: TimeSpan) (c: CancellationToken) =
+    let private delay' (delay: TimeSpan) (c: CancellationToken) =
         task {
             do! Task.Delay(delay, c).ConfigureAwait(false)
         }
 
-    static let taskify delay (c: CancellationToken) x =
+    let private taskify delay (c: CancellationToken) x =
         match delay with
         | d when d < TimeSpan.Zero -> notSupported "Delay time must be greater than or equal to 0"
         | d when d = TimeSpan.Zero -> ValueTask<'a>(result = x)
         | d -> delay' d c |> ValueTask |> Io.normalizeVt |%|> (asLazy x)
 
-    let execute overrideDelay mapIn f mapOut c: _ -> ValueTask<AmazonWebServiceResponse> =
-        taskify (overrideDelay ?|? artificialDelay) c >> Io.map (mapIn >> f defaultLogger >> mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
+    let private execute state overrideDelay mapIn f mapOut c: _ -> ValueTask<AmazonWebServiceResponse> =
+        taskify (overrideDelay ?|? state.artificialDelay) c >> Io.map (mapIn >> f state.defaultLogger >> mapOut state.db.Id >> cast)
 
-    let executeAsync overrideDelay mapIn f mapOut c =
-        taskify (overrideDelay ?|? artificialDelay) c >> Io.bind (mapIn >> f defaultLogger) >> Io.addCancellationToken c >> Io.map (mapOut db.Id >> ObjPipelineInterceptorUtils.cast)
+    let private executeAsync state overrideDelay mapIn f mapOut c =
+        taskify (overrideDelay ?|? state.artificialDelay) c >> Io.bind (mapIn >> f state.defaultLogger) >> Io.addCancellationToken c >> Io.map (mapOut state.db.Id >> cast)
 
-    static let notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
+    let private notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
 
-    static let describeRequiredTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) =
+    let private describeRequiredTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) =
         db.TryDescribeTable logger name |> ValueOption.defaultWith (fun _ -> clientError $"Table {name} not found on database {db.Id}")
 
-    static let maybeUpdateTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) (req: UpdateSingleTableData voption) =
+    let private maybeUpdateTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) (req: UpdateSingleTableData voption) =
         match req with
         | ValueNone -> describeRequiredTable db logger name
         | ValueSome req -> db.UpdateTable logger name req
+        
+    let private parentDdb state = state.parent ?|> fstT
+    
+    let private eitherDatabase state = state.parent ?|> Either2 ?|? Either1 state.db
 
-    let mutable awsLogger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
-    let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
-    let mutable outerHandler = Unchecked.defaultof<IPipelineHandler>
-
-    let invoke' overrideDelay (c: CancellationToken): AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> =
+    let private invoke' state overrideDelay (c: CancellationToken): AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> =
         c.ThrowIfCancellationRequested()
         function
         | :? BatchGetItemRequest as request ->
-            let update = MultiClientOperations.BatchGetItem.batchGetItem database
+            let update = MultiClientOperations.BatchGetItem.batchGetItem (eitherDatabase state)
             request
-            |> execute overrideDelay (GetItem.Batch.inputs awsAccountId db.Id) update GetItem.Batch.output c
+            |> execute state overrideDelay (GetItem.Batch.inputs state.awsAccountId state.db.Id) update GetItem.Batch.output c
         | :? BatchWriteItemRequest as request ->
-            let update = MultiClientOperations.BatchWriteItem.batchPutItem database
+            let update = MultiClientOperations.BatchWriteItem.batchPutItem (eitherDatabase state)
             request
-            |> execute overrideDelay (PutItem.BatchWrite.inputs awsAccountId db.Id) update PutItem.BatchWrite.output c
+            |> execute state overrideDelay (PutItem.BatchWrite.inputs state.awsAccountId state.db.Id) update PutItem.BatchWrite.output c
         | :? CreateGlobalTableRequest as request ->
             let update logger =
-                let t = maybeUpdateTable db logger
-                let dt = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
-                MultiClientOperations.UpdateTable.createGlobalTable awsAccountId parentDdb db.Id t dt
+                let t = maybeUpdateTable state.db logger
+                let dt = state.parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
+                MultiClientOperations.UpdateTable.createGlobalTable state.awsAccountId (parentDdb state) state.db.Id t dt
 
-            flip (execute overrideDelay id update (asLazy id)) request c
+            flip (execute state overrideDelay id update (asLazy id)) request c
         | :? CreateTableRequest as request ->
             request
-            |> execute overrideDelay CreateTable.inputs db.AddTable (CreateTable.output awsAccountId) c
+            |> execute state overrideDelay CreateTable.inputs state.db.AddTable (CreateTable.output state.awsAccountId) c
         | :? DeleteItemRequest as request ->
             request
-            |> execute overrideDelay DeleteItem.inputs db.Delete DeleteItem.output c
+            |> execute state overrideDelay DeleteItem.inputs state.db.Delete DeleteItem.output c
         | :? DeleteTableRequest as request ->
             request.TableName
-            |> executeAsync overrideDelay id db.DeleteTable (DeleteTable.output awsAccountId) c
+            |> executeAsync state overrideDelay id state.db.DeleteTable (DeleteTable.output state.awsAccountId) c
         | :? DescribeGlobalTableRequest as request ->
             let cluster =
-                parent
+                state.parent
                 |> ValueOption.map fstT
                 |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a global database")
 
-            if cluster.IsGlobalTable defaultLogger db.Id request.GlobalTableName |> not
-            then clientError $"{request.GlobalTableName} in {db.Id} is not a global table"
+            if cluster.IsGlobalTable state.defaultLogger state.db.Id request.GlobalTableName |> not
+            then clientError $"{request.GlobalTableName} in {state.db.Id} is not a global table"
 
             request.GlobalTableName
-            |> execute overrideDelay id db.DescribeTable (DescribeTable.Global.output awsAccountId (ValueSome cluster) GlobalTableStatus.ACTIVE) c
+            |> execute state overrideDelay id state.db.DescribeTable (DescribeTable.Global.output state.awsAccountId (ValueSome cluster) GlobalTableStatus.ACTIVE) c
         | :? DescribeTableRequest as request ->
             request.TableName
-            |> execute overrideDelay id db.DescribeTable (DescribeTable.Local.output awsAccountId) c
+            |> execute state overrideDelay id state.db.DescribeTable (DescribeTable.Local.output state.awsAccountId) c
         | :? GetItemRequest as request ->
-            execute overrideDelay GetItem.inputs db.Get GetItem.output c request
+            execute state overrideDelay GetItem.inputs state.db.Get GetItem.output c request
         | :? ListGlobalTablesRequest as request ->
             let cluster =
-                parent
+                state.parent
                 |> ValueOption.map fstT
                 |> ValueOption.defaultWith (fun _ -> notSupported "This operation is only supported on clients which have a global database")
 
-            execute overrideDelay DescribeTable.Global.List.inputs cluster.ListGlobalTables (DescribeTable.Global.List.output request.Limit) c request
+            execute state overrideDelay DescribeTable.Global.List.inputs cluster.ListGlobalTables (DescribeTable.Global.List.output request.Limit) c request
         | :? ListTablesRequest as request ->
             let limit = DescribeTable.List.getLimit request
-            execute overrideDelay DescribeTable.List.inputs db.ListTables (DescribeTable.List.output limit) c request
+            execute state overrideDelay DescribeTable.List.inputs state.db.ListTables (DescribeTable.List.output limit) c request
         | :? PutItemRequest as request ->
-            execute overrideDelay PutItem.inputs db.Put PutItem.output c request
+            execute state overrideDelay PutItem.inputs state.db.Put PutItem.output c request
         | :? QueryRequest as request ->
-            execute overrideDelay (Query.inputs scanSizeLimits) db.Query Query.output c request
+            execute state overrideDelay (Query.inputs state.scanSizeLimits) state.db.Query Query.output c request
         | :? ScanRequest as request ->
-            execute overrideDelay (Scan.inputs scanSizeLimits) db.Query Scan.output c request
+            execute state overrideDelay (Scan.inputs state.scanSizeLimits) state.db.Query Scan.output c request
         | :? TransactGetItemsRequest as request ->
             request
-            |> execute overrideDelay GetItem.Transaction.inputs db.Gets GetItem.Transaction.output c
+            |> execute state overrideDelay GetItem.Transaction.inputs state.db.Gets GetItem.Transaction.output c
         | :? TransactWriteItemsRequest as request ->
             request
-            |> execute overrideDelay TransactWriteItems.inputs db.TransactWrite TransactWriteItems.output c
+            |> execute state overrideDelay TransactWriteItems.inputs state.db.TransactWrite TransactWriteItems.output c
         | :? UpdateGlobalTableRequest as request ->
             let update logger =
-                let local = maybeUpdateTable db logger
-                let ``global`` = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
-                MultiClientOperations.UpdateTable.updateGlobalTable awsAccountId parentDdb db.Id local ``global``
+                let local = maybeUpdateTable state.db logger
+                let ``global`` = state.parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
+                MultiClientOperations.UpdateTable.updateGlobalTable state.awsAccountId (parentDdb state) state.db.Id local ``global``
 
-            flip (execute overrideDelay id update (asLazy id)) request c
+            flip (execute state overrideDelay id update (asLazy id)) request c
         | :? UpdateItemRequest as request ->
             request
-            |> execute overrideDelay (UpdateItem.inputs loggerOrDevNull) db.Update UpdateItem.output c
+            |> execute state overrideDelay (UpdateItem.inputs state.loggerOrDevNull) state.db.Update UpdateItem.output c
         | :? UpdateTableRequest as request ->
             let update logger =
-                let local = maybeUpdateTable db logger
-                let dt = parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
-                MultiClientOperations.UpdateTable.updateTable awsAccountId parentDdb db.Id local dt
+                let local = maybeUpdateTable state.db logger
+                let dt = state.parent ?|> (fun struct (p, id) -> p.UpdateTable id logger)
+                MultiClientOperations.UpdateTable.updateTable state.awsAccountId (parentDdb state) state.db.Id local dt
 
-            flip (execute overrideDelay id update (asLazy id)) request c
+            flip (execute state overrideDelay id update (asLazy id)) request c
         | x -> x.GetType().Name |> sprintf "%s operation is not supported" |> NotSupportedException |> raise
 
-    static let castToAmazonWebServiceResponse (x: obj) =
+    let private castToAmazonWebServiceResponse (x: obj) =
         try
             x :?> AmazonWebServiceResponse
         with
         | :? InvalidCastException as e ->
             InvalidOperationException($"Intercepted responses must inherit from {nameof AmazonWebServiceResponse}", e) |> raise
 
-    let invoke = invoke' ValueNone
+    let invoke = flip invoke' ValueNone
 
-    let invokeWithoutDelay = invoke' (ValueSome TimeSpan.Zero)
+    let invokeWithoutDelay = flip invoke' (ValueSome TimeSpan.Zero)
+    
+type ObjPipelineInterceptor(
+    database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
+    artificialDelay: TimeSpan,
+    defaultLogger: ILogger voption,
+    disposeDatabase) =
+
+    let mutable state =
+        { db =
+            match database with
+            | Either1 x -> x
+            | Either2 struct (x: GlobalDatabase, id) -> x.GetDatabase defaultLogger id
+          parent =
+            match database with
+            | Either1 _ -> ValueNone
+            | Either2 struct (x, id) -> ValueSome struct (x, id)
+          artificialDelay = artificialDelay
+          defaultLogger = defaultLogger 
+          loggerOrDevNull = ValueOption.defaultValue Logger.notAnILogger defaultLogger
+          scanSizeLimits =
+            { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
+              maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
+          awsAccountId = Settings.DefaultAwsAccountId }: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
+
+    let mutable awsLogger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
+    let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
+    let mutable outerHandler = Unchecked.defaultof<IPipelineHandler>
 
     member _.ProcessingDelay
-        with get () = artificialDelay
-        and set value = artificialDelay <- value
+        with get () = state.artificialDelay
+        and set value = state <- { state with artificialDelay = value }
 
-    member _.Database = db
-    member _.GlobalDatabase = parent ?|> fstT
-    member _.SetScanLimits limits = scanSizeLimits <- limits
+    member _.Database = state.db
+    member _.GlobalDatabase = state.parent ?|> fstT
+    member _.SetScanLimits limits = state <- { state with scanSizeLimits = limits }
     member _.AwsAccountId
-        with get () = awsAccountId
-        and set value = awsAccountId <- value
+        with get () = state.awsAccountId
+        and set value = state <- { state with awsAccountId = value }
 
     // exposed to test specific edge case
     member _.InvokeSync useDelay request c =
-        (if useDelay then invoke else invokeWithoutDelay) c request
+        (if useDelay then ObjPipelineInterceptorUtils.invoke else ObjPipelineInterceptorUtils.invokeWithoutDelay) state c request
         |> Io.execute
 
     interface IDisposable with
@@ -220,11 +230,12 @@ type ObjPipelineInterceptor(
                     executionContext.RequestContext.CancellationToken
 
         member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
-            invoke
+            ObjPipelineInterceptorUtils.invoke
+                state
                 executionContext.RequestContext.CancellationToken
                 executionContext.RequestContext.OriginalRequest
             |%|> fun r ->
-                let r = r  |> box :?> 'a
+                let r = r :?> 'a
                 executionContext.ResponseContext.Response <- r
                 r
-            |> asTask
+            |> ObjPipelineInterceptorUtils.asTask
