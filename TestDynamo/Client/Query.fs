@@ -190,7 +190,7 @@ let inputs =
         struct (attr.Key, attributeFromDynamodb "$" attr.Value)
 
     fun limits (req: QueryRequest) ->
-        
+
         let struct (selectTypes, addNames1) = buildSelectTypes' req
         let struct (queryExpression, struct (addNames2, addValues2)) =
             buildQueryExpression (CSharp.emptyStringToNull req.KeyConditionExpression |> CSharp.toOption) req.KeyConditions

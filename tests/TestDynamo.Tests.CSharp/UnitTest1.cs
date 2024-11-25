@@ -26,7 +26,7 @@ public class UnitTest1
             .TableBuilder("Beatles", ("FirstName", "S"))
             .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
             .AddTable();
-        
+
         database
             .ItemBuilder("Beatles")
             .Attribute("FirstName", "Ringo")
@@ -39,12 +39,12 @@ public class UnitTest1
             .Attribute("Attr7", new MapBuilder().Attribute("Attr", "x"))
             .Attribute("Attr7", new ListBuilder().Append("x"))
             .AddItem();
-        
+
         var x = database
             .GetTable("Beatles")
             .GetValues()
             .Single(v => v["FirstName"].S == "Ringo");
-        
+
         Assert.Equal("Starr", x["SecondName"].S);
     }
 }

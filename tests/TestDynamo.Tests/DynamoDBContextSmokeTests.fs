@@ -215,7 +215,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
             obj_on_index.SomethingElse <- System.Nullable<_>(1)
             obj_on_index.SomethingElseElse <- System.Nullable<_>(2)
             do! context.SaveAsync obj_on_index
-            
+
             let obj_not_on_index = SomeKindOfOb()
             obj_not_on_index.Pk <- "ThePk"
             obj_not_on_index.Sk <- "TheSk2"
@@ -233,7 +233,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                     req.IndexName <- "AnIndex"
                     context.QueryAsync(System.Nullable<_>(1), req)
                 |> _.GetRemainingAsync()
-            
+
             // assert
             let single = Assert.Single search
             Assert.Equal("TheSk1", single.Sk)

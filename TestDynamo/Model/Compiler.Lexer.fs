@@ -158,7 +158,7 @@ let private matchAtIndex struct (rx: Regex, struct (text: string, index)) =
 #else
     // find match indexes over parse matches to avoid heavy (and unnecessary) substringing
     let mutable enm = rx.EnumerateMatches(text, index)
-    
+
     if enm.MoveNext() |> not
     then ValueNone
     elif enm.Current.Index <> index then ValueNone

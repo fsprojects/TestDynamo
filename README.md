@@ -84,7 +84,6 @@ is both fast and lightweight, built from simple data structures.
 
 Databases can be injected into an `AmazonDynamoDBClient` to then be passed into a test
 
-
 ```C#
 using TestDynamo;
 
@@ -202,11 +201,11 @@ var subscription = database.AddSubscription(
       var added = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.NewImage?["FirstName"]?.S;
       if (added != null)
          Console.WriteLine($"{added} has joined the Beatles");
-      
+
       var removed = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.OldImage?["FirstName"]?.S;
       if (removed != null)
          Console.WriteLine($"{removed} has left the Beatles");
-      
+
       return default;
    });
 
@@ -234,7 +233,7 @@ var subscription = database
          .Where(x => x.IsSome)
          .Select(x => x.Value["FirstName"].S)
          .FirstOrDefault();
-         
+
       if (removed != null)
          Console.WriteLine($"{removed} has left the Beatles");
 
@@ -458,12 +457,12 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         // return null to allow the client to process other request types as normal
         return null;
     }
-    
+
     private CreateBackupResponse CreateBackup(Api.FSharp.Database database, string tableName)
     {
         // wrap the database in something that is more C# friendly
         using var csDatabase = new Api.Database(database);
-        
+
         // clone the required database and remove all other tables
         var cloneData = csDatabase.BuildCloneData();
         cloneData = new DatabaseCloneData(
@@ -473,7 +472,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         // create a fake arn and store a cloned DB as a backup
         var arn = $"{database.Id.regionId}/{tableName}";
         backupStore.Add(arn, cloneData);
-        
+
         return new CreateBackupResponse
         {
             BackupDetails = new BackupDetails
@@ -483,7 +482,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
             }
         };
     }
-    
+
     private async ValueTask<RestoreTableFromBackupResponse> RestoreBackup(Api.FSharp.Database database, string arn)
     {
         // parse fake ARN created in the CreateBackup method
@@ -494,14 +493,14 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         var tableName = arnParts[1];
         if (!backupStore.TryGetValue(arn, out var backup))
             throw new AmazonDynamoDBException("Invalid backup arn");
-        
+
         // wrap the database in something that is more C# friendly
         using var csDatabase = new Api.Database(database);
 
         // delete any existing data to make room for restore data
         if (csDatabase.TryDescribeTable(tableName).IsSome)
             await csDatabase.DeleteTable(tableName);
-        
+
         csDatabase.Import(backup.data);
         return new RestoreTableFromBackupResponse
         {
@@ -511,7 +510,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
             }
         };
     }
-    
+
     // no need to intercept responses
     public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c) => default;
 }
@@ -554,7 +553,7 @@ public class BillingModeInterceptor : IRequestInterceptor
 {
     // request interception is not requred
     public ValueTask<object?> InterceptRequest(Api.FSharp.Database database, object request, CancellationToken c) => default;
-    
+
     public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c)
     {
         if (request is not CreateTableRequest req || response is not CreateTableResponse resp)

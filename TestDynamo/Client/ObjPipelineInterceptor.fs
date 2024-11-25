@@ -26,8 +26,7 @@ module private ObjPipelineInterceptorUtils =
           defaultLogger: ILogger voption
           scanSizeLimits: ExpressionExecutors.Fetch.ScanLimits
           awsAccountId: AwsAccountId }
-    
-    
+
     let private cast<'a when 'a :> AmazonWebServiceResponse> (x: 'a) = x :> AmazonWebServiceResponse
 
     let asTask (x: ValueTask<'a>) = x.AsTask()
@@ -58,9 +57,9 @@ module private ObjPipelineInterceptorUtils =
         match req with
         | ValueNone -> describeRequiredTable db logger name
         | ValueSome req -> db.UpdateTable logger name req
-        
+
     let private parentDdb state = state.parent ?|> fstT
-    
+
     let private eitherDatabase state = state.parent ?|> Either2 ?|? Either1 state.db
 
     let private invoke' state overrideDelay (c: CancellationToken): AmazonWebServiceRequest -> ValueTask<AmazonWebServiceResponse> =
@@ -157,7 +156,7 @@ module private ObjPipelineInterceptorUtils =
     let invoke = flip invoke' ValueNone
 
     let invokeWithoutDelay = flip invoke' (ValueSome TimeSpan.Zero)
-    
+
 type ObjPipelineInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
     artificialDelay: TimeSpan,

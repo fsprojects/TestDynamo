@@ -28,9 +28,9 @@ type internal HashCode() =
         // unchecked operators (TODO: are they unchecked???)
         let (+) = Operators.(+)
         let (*) = Operators.(*)
-        
+
         h1 * 31 + h2.GetHashCode()
-    
+
 let kvpToDictionary (xs: KeyValuePair<_, _> seq) =
     let d = Dictionary<_, _>()
     for x in xs do
@@ -327,7 +327,7 @@ module SetUtils =
 [<RequireQualifiedAccess>]
 module Collection =
     type MList<'a> = System.Collections.Generic.List<'a>
-    
+
     [<Struct; IsReadOnly>]
     type MapCombination<'k> =
         { intersection: 'k list
@@ -1028,7 +1028,7 @@ module Io =
     let private cafV0 (x: ValueTask) = x.ConfigureAwait(false)
 
     let retn (x: 'a) = ValueTask<'a>(x)
-    
+
     /// <summary>
     /// Use sparingly. Only use if Io.map or task {} is not an option
     /// </summary>

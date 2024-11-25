@@ -93,7 +93,7 @@ type AttributeSet =
 
     static member asSet (As x) = sndT x
     static member getSetType (As x) = fstT x
-    
+
     static member asBinarySeq = function
         | As struct (t, x) when t <> AttributeType.Binary ->
             clientError $"Set has type {t}, not {AttributeType.Binary}"
@@ -702,7 +702,7 @@ type ItemSize =
     | Isz of uint16
 
 module ItemSize =
-                
+
     let rec private fractionalSize acc (x: decimal): int =
         if Math.Truncate x = x then acc
         else fractionalSize (acc + 1) (x * 10M)

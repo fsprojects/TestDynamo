@@ -21,23 +21,23 @@ open Xunit.Abstractions
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
 type SmokeTests(output: ITestOutputHelper) =
-    
+
     let random = randomBuilder output
-    
+
     [<Fact>]
     let ``countDigits smoke tests`` () =
         // Numbers are variable length, with up to 38 significant digits.
         // Leading and trailing zeroes are trimmed. The size of a number is
         // approximately (number of UTF-8-encoded bytes of attribute name) + (1 byte per two significant digits) + (1 byte).
-        
+
         Assert.Equal(1, ItemSize.countDigits 0M)
         Assert.Equal(1, ItemSize.countDigits 1M)
         Assert.Equal(2, ItemSize.countDigits -1M)
         Assert.Equal(2, ItemSize.countDigits 10M)
-        
+
         Assert.Equal(6, ItemSize.countDigits 123.45M)
         Assert.Equal(7, ItemSize.countDigits -123.45M)
-        
+
         Assert.Equal(4, ItemSize.countDigits 0.45M)
         Assert.Equal(5, ItemSize.countDigits -0.45M)
 
@@ -158,34 +158,34 @@ type SmokeTests(output: ITestOutputHelper) =
 
     [<Fact>]
     let ``ObjPipelineInterceptor is disposed correctly`` () =
-    
+
         // arrange
         use db1 = new Api.Database()
         use db2 = new Api.GlobalDatabase()
-    
+
         let client1 = db1.CreateClient<AmazonDynamoDBClient>()
         let client2 = db2.CreateClient<AmazonDynamoDBClient>()
         let client3 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>()
         let client4 = TestDynamoClient.CreateGlobalClient<AmazonDynamoDBClient>()
-    
+
         use db3 = TestDynamoClient.GetDatabase client3
         use db4 = TestDynamoClient.GetGlobalDatabase client4
-    
+
         // act
         client1.Dispose()
         client2.Dispose()
         client3.Dispose()
         client4.Dispose()
-    
+
         // assert - these dbs were not disposed
         db1.TableBuilder("table1", ("pp", "S")).AddTable()
         (db2.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable()
-    
+
         // assert - these dbs were disposed
         let e = Assert.ThrowsAny(fun _ ->
             db3.TableBuilder("table1", ("pp", "S")).AddTable())
         assertError output "has been disposed" e
-    
+
         let e = Assert.ThrowsAny(fun _ ->
             (db4.GetDatabase({ regionId = "db-bd" })).TableBuilder("table1", ("pp", "S")).AddTable())
         assertError output "has been disposed" e
@@ -385,7 +385,7 @@ type SmokeTests(output: ITestOutputHelper) =
                         elif random.Next() % 2 = 0
                         then Unchecked.defaultof<_>
                         else box null |> Io.retn
-                        
+
                         }
 
             use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)

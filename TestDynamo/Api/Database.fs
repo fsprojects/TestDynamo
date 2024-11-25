@@ -42,7 +42,7 @@ type Database (db: FsDb, [<Optional; DefaultParameterValue(false)>] disposeUnder
         | _ -> false
 
     static member (==) (x: Database, y: Database) = x.Equals(y)
-    
+
     interface IDisposable with member this.Dispose() = this.Dispose()
 
     member _.Dispose() = if disposeUnderlyingDatabase then db.Dispose()

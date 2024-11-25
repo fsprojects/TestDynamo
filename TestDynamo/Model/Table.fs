@@ -512,7 +512,7 @@ module Table =
     let delete logger allowNonKeys = tpl ValueNone >> delete' logger allowNonKeys
 
     let deleteReplicated logger = mapFst ValueSome >> delete' logger true
-    
+
     let private unwrapPartitions = Partition.scan ValueNone true
     let private combineCdcPackets =
         List.fold (fun s x ->
@@ -534,4 +534,3 @@ module Table =
             |> function
                 | struct (ValueNone, _) -> ValueNone
                 | struct (ValueSome x, y) -> ValueSome struct (x, y)
-    

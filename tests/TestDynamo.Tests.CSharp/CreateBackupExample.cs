@@ -21,12 +21,12 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         // return null to allow the client to process the request as normal
         return null;
     }
-    
+
     private CreateBackupResponse CreateBackup(Api.FSharp.Database database, string tableName)
     {
         // wrap the database in something that is more C# friendly
         using var csDatabase = new Api.Database(database);
-        
+
         // clone the required database and remove all other tables
         var cloneData = csDatabase.BuildCloneData();
         cloneData = new DatabaseCloneData(
@@ -36,7 +36,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         // create a fake arn and store a cloned DB as a backup
         var arn = $"{database.Id.regionId}/{tableName}";
         backupStore.Add(arn, cloneData);
-        
+
         return new CreateBackupResponse
         {
             BackupDetails = new BackupDetails
@@ -46,7 +46,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
             }
         };
     }
-    
+
     private async ValueTask<RestoreTableFromBackupResponse> RestoreBackup(Api.FSharp.Database database, string arn)
     {
         var arnParts = arn.Split("/");
@@ -56,14 +56,14 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
         var tableName = arnParts[1];
         if (!backupStore.TryGetValue(arn, out var backup))
             throw new AmazonDynamoDBException("Invalid backup arn");
-        
+
         // wrap the database in something that is more C# friendly
         using var csDatabase = new Api.Database(database);
 
         // delete any existing data to make room for restore data
         if (csDatabase.TryDescribeTable(tableName).IsSome)
             await csDatabase.DeleteTable(tableName);
-        
+
         csDatabase.Import(backup.data);
         return new RestoreTableFromBackupResponse
         {
@@ -73,7 +73,7 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
             }
         };
     }
-    
+
     // no need to intercept responses
     public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c) => default;
 }
@@ -84,10 +84,10 @@ public class CreateBackupInterceptor(Dictionary<string, DatabaseCloneData> backu
 public class BillingModeInterceptor : IRequestInterceptor
 {
     public static readonly DateTime ConstantLastUpdateToPayPerRequestDateTime = DateTime.UtcNow.AddMinutes(-1);
-    
+
     // request interception is not requred
     public ValueTask<object?> InterceptRequest(Api.FSharp.Database database, object request, CancellationToken c) => default;
-    
+
     public ValueTask<object?> InterceptResponse(Api.FSharp.Database database, object request, object response, CancellationToken c)
     {
         if (request is not CreateTableRequest req || response is not CreateTableResponse resp)
@@ -127,7 +127,7 @@ public class CreateBackupExample
             .TableBuilder("Beatles", ("FirstName", "S"))
             .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
             .AddTable();
-        
+
         database
             .ItemBuilder("Beatles")
             .Attribute("FirstName", "Ringo")
@@ -138,23 +138,23 @@ public class CreateBackupExample
         {
             TableName = "Beatles"
         });
-        
+
         database
             .ItemBuilder("Beatles")
             .Attribute("FirstName", "George")
             .Attribute("SecondName", "Harrison")
             .AddItem();
-        
+
         Assert.Equal(2, database.DebugTables.Single().Values.Count());
 
         await client.RestoreTableFromBackupAsync(new RestoreTableFromBackupRequest
         {
             BackupArn = backupResponse.BackupDetails.BackupArn
         });
-        
+
         Assert.Single(database.DebugTables.Single().Values);
     }
-    
+
     [Fact]
     public async Task BillingModeExample()
     {
@@ -174,7 +174,7 @@ public class CreateBackupExample
                 new AttributeDefinition("KN", ScalarAttributeType.B)
             }
         });
-        
+
         Assert.Equal(
             BillingModeInterceptor.ConstantLastUpdateToPayPerRequestDateTime, 
             response.TableDescription.BillingModeSummary.LastUpdateToPayPerRequestDateTime);

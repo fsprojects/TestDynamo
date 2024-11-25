@@ -79,11 +79,11 @@ type DatabaseClone =
     static member empty =
         { initialState = DatabaseTables.empty
           streamsEnabled = [] }
-        
+
     /// <summary>Create a new DatabaseCloneData with only the required tables in it</summary>
     member this.ExtractTables(tableNames: string seq) =
         let tn = Array.ofSeq tableNames
-        
+
         { initialState =
                DatabaseTables.empty
                |> flip (Array.fold (flip (fun name ->
@@ -505,7 +505,7 @@ module Database =
         |> removeUnWanted
 
     let inline private publishChange logger streams data = TableStreams.onChange data logger streams
-    
+
     let private buildSubscriberMessage logger db tableName synchronizationPath packet =
         let table = DatabaseTables.getTable tableName db.tables
         let listBuilder =
@@ -520,7 +520,7 @@ module Database =
           synchronizationPacketPath = listBuilder db.info.databaseId }
         |> ChangeDataCapture
         |> OnChange
-        
+
     let private publishCdcPacket (logger: Logger) (db: DatabaseState) (eBrake: EmergencyBrake) tableName synchronizationPath =
         mapFst (fun x ->
             ({ request = buildSubscriberMessage logger db tableName synchronizationPath x
@@ -531,7 +531,7 @@ module Database =
     let private put' apiRequestName execute logger struct (synchronizationPath, updateExpression, args: EmergencyBrakeRequest<PutItemArgs<_>>) db =
 
         let tableName = args |> EmergencyBrakeRequest.map _.tableName
-        
+
         execute args.request logger db.tables
         |> tplDouble
         |> mapFst (
@@ -683,7 +683,7 @@ module Database =
     let delete =
         let inline addNoSyncPath x = struct (x, ValueNone)
         EmergencyBrakeRequest.noBrake >> addNoSyncPath >> (delete' DatabaseTables.delete |> Execute.command "DELETE") >>>> mapFst sndT
-        
+
     let clearTable =
         Execute.command "CLEAR TABLE" (fun logger tableName db ->
             DatabaseTables.clear tableName logger db.tables
@@ -859,12 +859,12 @@ module Database =
                     >> mapSnd (flip DatabaseTables.getTable args.initialState))
                 |> Seq.fold (fun s struct(name, data) ->
                     DatabaseTables.addClonedTable name data logger s) db.tables
-                
+
             let streams =
                 args.streamsEnabled
                 |> List.fold (fun s x ->
                     TableStreams.addStream x true logger s) db.streams
-                
+
             { db with tables = tables; streams = streams } |> tpl ())
 
     let buildCloneData =

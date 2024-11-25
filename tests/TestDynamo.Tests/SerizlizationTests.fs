@@ -106,7 +106,7 @@ type SerializationTests(output: ITestOutputHelper) =
             let ser1 = DatabaseSerializer.Database.ToString(db1, schemaOnly = ``omit data``)
             use db2 = DatabaseSerializer.Database.FromString(ser1)
             let ser2 = DatabaseSerializer.Database.ToString(db2, schemaOnly = ``omit data``)
-            
+
             // assert
             Assert.True(ser1.Length > if ``omit data`` then 200 else 10_000)
             Assert.Equal(ser1, ser2)

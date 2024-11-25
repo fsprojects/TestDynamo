@@ -122,7 +122,7 @@ type TestDynamoClient =
                     Settings.DefaultClientResponseDelay,
                     logger ?|> ValueSome ?|? defaultLogger db,
                     disposeDb))
-            
+
             match interceptor with
             | ValueNone -> ()
             | ValueSome i ->

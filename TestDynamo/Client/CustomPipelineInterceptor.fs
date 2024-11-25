@@ -19,7 +19,7 @@ type IRequestInterceptor =
     /// as normal
     /// </summary>
     abstract member InterceptRequest: database: ApiDb -> request: obj -> CancellationToken -> ValueTask<obj>
-    
+
     /// <summary>
     /// Intercept a response. If this method returns a non-null object, the object will
     /// be used as the response of the request. If null is returned, then the response will continue as normal.
@@ -31,17 +31,17 @@ type IRequestInterceptor =
 type CustomPipelineInterceptor(
     db: ApiDb,
     interceptor: IRequestInterceptor) =
-    
+
     let mutable awsLogger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
     let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
     let mutable outerHandler = Unchecked.defaultof<IPipelineHandler>
     static let noInterceptorResult = ValueTask<obj>(result = null).Preserve()
-         
+
     static let vtIsDefault vt =
         if vt = Unchecked.defaultof<ValueTask<_>>
         then Io.retn ValueNone
         else vt |%|> CSharp.toOption
-        
+
     static let cast x: AmazonWebServiceResponse = x
 
     member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
@@ -79,4 +79,3 @@ type CustomPipelineInterceptor(
 
         member this.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
             (this.InvokeAsync<'a> executionContext).AsTask()
-                 

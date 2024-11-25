@@ -189,13 +189,13 @@ module DatabaseSerializer =
     module FSharp =
         let Database = Serializer<Api.FSharp.Database, Version1.SerializableDatabase>(Version1.ToSerializable.Database.toSerializable [||], Version1.FromSerializable.Database.fromSerializable)
         let GlobalDatabase = Serializer<Api.FSharp.GlobalDatabase, Version1.SerializableGlobalDatabase>(Version1.ToSerializable.GlobalDatabase.toSerializable, Version1.FromSerializable.GlobalDatabase.fromSerializable)
-        
+
     let private dbToSerializable schemaOnly (db: Api.Database) = Version1.ToSerializable.Database.toSerializable [||] schemaOnly db.CoreDb
     let private dbFromSerializable logger (db: Version1.SerializableDatabase) =
         let fs = Version1.FromSerializable.Database.fromSerializable logger db
         new Api.Database(fs, disposeUnderlyingDatabase = true)
     let Database = Serializer<Api.Database, Version1.SerializableDatabase>(dbToSerializable, dbFromSerializable)
-    
+
     let private globalDbToSerializable schemaOnly (db: Api.GlobalDatabase) = Version1.ToSerializable.GlobalDatabase.toSerializable schemaOnly db.CoreDb
     let private globalDbFromSerializable logger (db: Version1.SerializableGlobalDatabase) =
         let fs = Version1.FromSerializable.GlobalDatabase.fromSerializable logger db
