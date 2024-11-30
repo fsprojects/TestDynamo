@@ -253,7 +253,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             use host = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
 
             // arrange
             let! tableName1 = addGlobalTable client
@@ -312,7 +312,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
 
             let! tableName = addTable client true
             let req = CreateGlobalTableRequest()
@@ -342,7 +342,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
             let! tableName = addTable client true
 
             let r =
@@ -388,7 +388,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
                         }
 
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
 
             let r =
                 let rr = DescribeTableRequest()

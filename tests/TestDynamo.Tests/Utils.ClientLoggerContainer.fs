@@ -10,11 +10,11 @@ open Microsoft.Extensions.Logging
 type Database = TestDynamo.Api.FSharp.Database
 
 type TestDynamoClientBuilder() =
-    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) (ValueSome id) ValueNone (ValueSome db)
-    static member Create(db, id) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueNone) (ValueSome id) ValueNone (ValueSome db)
-    static member Create(db, logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) ValueNone (ValueSome db)
-    static member Create(db) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueNone) ValueNone (ValueSome db)
-    static member Create(logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) ValueNone (ValueNone)
+    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) true (ValueSome id) ValueNone (ValueSome db)
+    static member Create(db, id) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueNone) true (ValueSome id) ValueNone (ValueSome db)
+    static member Create(db, logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueSome db)
+    static member Create(db) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueNone) true ValueNone (ValueSome db)
+    static member Create(logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueNone)
 
 /// <summary>A wrapper around a database, client and logger which will dispose of items correctly</summary>
 type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logger: ILogger, disposeLogger: bool, disposeHost: bool) =

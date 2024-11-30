@@ -15,13 +15,21 @@ open TestDynamo.Client
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Utils
 
+#nowarn "3390"
+
 type ApiDb = TestDynamo.Api.FSharp.Database
 type GlobalApiDb = TestDynamo.Api.FSharp.GlobalDatabase
 type CsApiDb = TestDynamo.Api.Database
 type GlobalCsApiDb = TestDynamo.Api.GlobalDatabase
 
 type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
-    static member builder =
+    
+    static member private builder' withCredentials =
+        let cs = ImmutableCredentials("""AAAAA7AAAAAAAAAAAAA""", Convert.ToBase64String (Array.create 30 0uy), null)
+        
+        let dummyCredentials =
+            { new Amazon.Runtime.AWSCredentials() with
+                member _.GetCredentials () = cs } |> Expression.Constant
 
         let constructor =
             [
@@ -32,21 +40,41 @@ type private AmazonDynamoDBClientBuilder<'a when 'a :> AmazonDynamoDBClient>() =
             |> Seq.filter (fun c ->
                 let param = c.GetParameters()
                 let isRegion = param |> Array.filter (_.ParameterType >> ((=)typeof<RegionEndpoint>))
-                let mandatory = param |> Array.filter (_.IsOptional >> not)
-
-                isRegion.Length = 1 && (mandatory.Length = 0 || mandatory.Length = 1 && mandatory[0] = isRegion[0]))
+                let isCredentials = param |> Array.filter (_.ParameterType >> ((=)typeof<AWSCredentials>))
+                let mandatory =
+                    param
+                    |> Seq.filter (_.IsOptional >> not)
+                    |> Seq.filter (flip Array.contains isRegion >> not)
+                    |> Seq.filter (flip Array.contains isCredentials >> not)
+                    |> Seq.length
+        
+                let credLength = if withCredentials then 1 else 0
+                isRegion.Length = 1 && isCredentials.Length = credLength && mandatory = 0)
             |> Collection.tryHead
-            ?|>? fun _ -> notSupported $"Type {typeof<'a>} must have a constructor which accepts a single RegionEndpoint argument. Use the TestDynamoClient.Attach method to attach to a custom built client"
-
-        let param = System.Linq.Expressions.Expression.Parameter(typeof<RegionEndpoint>)
+            ?|>? fun _ ->
+                [
+                    $"Type {typeof<'a>} must have a constructor which accepts only an AWSCredentials argument and a RegionEndpoint argument"
+                    "To omit the AWSCredentials argument, use the addAwsCredentials flag when creating a client"
+                    "Use the TestDynamoClient.Attach method to attach to a custom built client"
+                ] |> Str.join ". " |> notSupported
+        
+        let regionParam = System.Linq.Expressions.Expression.Parameter(typeof<RegionEndpoint>)
         let args =
             constructor.GetParameters()
             |> Seq.map (function
-                | x when x.ParameterType = typeof<RegionEndpoint> -> param :> Expression
-                | x -> Expression.Constant(x.DefaultValue))
-
+                | x when x.ParameterType = typeof<RegionEndpoint> -> regionParam :> Expression
+                | x when x.ParameterType = typeof<AWSCredentials> -> dummyCredentials
+                | x -> Expression.Constant(x.DefaultValue, x.ParameterType))
+        
         Expression.Lambda<Func<RegionEndpoint, 'a>>(
-            Expression.New(constructor, args), param).Compile().Invoke
+            Expression.New(constructor, args), regionParam).Compile().Invoke
+        
+    static member private builderWithCredentials = AmazonDynamoDBClientBuilder<'a>.builder' true
+    static member private builderWithoutCredentials = AmazonDynamoDBClientBuilder<'a>.builder' false
+        
+    static member builder withCredentials =
+        if withCredentials then AmazonDynamoDBClientBuilder<'a>.builderWithCredentials
+        else AmazonDynamoDBClientBuilder<'a>.builderWithoutCredentials
 
     static member getRuntimePipeline: 'a -> Amazon.Runtime.Internal.RuntimePipeline =
         let param = System.Linq.Expressions.Expression.Parameter(typeof<'a>)
@@ -133,49 +161,93 @@ type TestDynamoClient =
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database
     /// </summary>
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
     [<Extension>]
     static member CreateClient<'a when 'a :> AmazonDynamoDBClient>(
         database: CsApiDb,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
-        let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(database.Id.regionId))
+        let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
         TestDynamoClient.Attach(database, client, interceptor, logger)
         client
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase
     /// </summary>
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
     [<Extension>]
     static member CreateClient<'a when 'a :> AmazonDynamoDBClient>(
         database: GlobalCsApiDb,
         databaseId: TestDynamo.Model.DatabaseId,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
-        let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(databaseId.regionId))
+        let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(databaseId.regionId))
         TestDynamoClient.Attach(database, client, interceptor, logger)
         client
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase
     /// </summary>
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
     [<Extension>]
     static member CreateClient<'a when 'a :> AmazonDynamoDBClient>(
         database: GlobalCsApiDb,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        TestDynamoClient.CreateClient<'a>(database, {regionId = Settings.DefaultRegion}, interceptor, logger)
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
+        TestDynamoClient.CreateClient<'a>(database, {regionId = Settings.DefaultRegion}, interceptor, logger, addAwsCredentials)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new Database
     /// </summary>
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
     static member CreateClient<'a when 'a :> AmazonDynamoDBClient>(
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let database = new ApiDb()
-        let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(database.Id.regionId))
+        let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
         TestDynamoClient.attach' (CSharp.toOption logger) struct (Either1 database, true) (interceptor |> CSharp.toOption) client
         client
 
@@ -185,51 +257,83 @@ type TestDynamoClient =
     static member CreateGlobalClient<'a when 'a :> AmazonDynamoDBClient>(
         databaseId: TestDynamo.Model.DatabaseId,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let database = new GlobalApiDb()
-        let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(databaseId.regionId))
+        let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(databaseId.regionId))
         TestDynamoClient.attachGlobal' (logger |> CSharp.toOption) struct (database, true) (interceptor |> CSharp.toOption) client
         client
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new GlobalDatabase
     /// </summary>
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
     static member CreateGlobalClient<'a when 'a :> AmazonDynamoDBClient>(
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
-        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger): 'a =
-        TestDynamoClient.CreateGlobalClient<'a>({regionId = Settings.DefaultRegion}, interceptor, logger)
+        [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
+        [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool): 'a =
+        TestDynamoClient.CreateGlobalClient<'a>({regionId = Settings.DefaultRegion}, interceptor, logger, addAwsCredentials)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database or a new Database
     /// </summary>
-    static member createClient<'a when 'a :> AmazonDynamoDBClient> logger (interceptor: IRequestInterceptor voption) (database: ApiDb voption) =
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
+    static member createClient<'a when 'a :> AmazonDynamoDBClient> logger addAwsCredentials (interceptor: IRequestInterceptor voption) (database: ApiDb voption) =
 
         match database with
         | ValueSome database ->
-            let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(database.Id.regionId))
+            let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
             TestDynamoClient.attach logger database interceptor client
             client
         | ValueNone ->
             let database = new ApiDb()
-            let client = AmazonDynamoDBClientBuilder<'a>.builder (RegionEndpoint.GetBySystemName(database.Id.regionId))
+            let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
             TestDynamoClient.attach' logger (Either1 database, true) interceptor client
             client
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase or a new GlobalDatabase
     /// </summary>
-    static member createGlobalClient<'a when 'a :> AmazonDynamoDBClient> logger (dbId: TestDynamo.Model.DatabaseId voption) (interceptor: IRequestInterceptor voption) (database: GlobalApiDb voption) =
+    /// <param name="addAwsCredentials">
+    /// <para>
+    /// If true, will inject some dummy AWS credentials into the client. This will prevent the underlying
+    /// AmazonServiceClient from automatically reading credentials configured in the user profile on the
+    /// local machine, and attempting to assume a role
+    /// </para>
+    /// <para>
+    /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
+    /// </para>
+    /// </param>
+    static member createGlobalClient<'a when 'a :> AmazonDynamoDBClient> logger addAwsCredentials (dbId: TestDynamo.Model.DatabaseId voption) (interceptor: IRequestInterceptor voption) (database: GlobalApiDb voption) =
 
         let regionId = dbId ?|> _.regionId ?|? Settings.DefaultRegion |> RegionEndpoint.GetBySystemName
         match database with
         | ValueSome database ->
-            let client = AmazonDynamoDBClientBuilder<'a>.builder regionId
+            let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials regionId
             TestDynamoClient.attachGlobal logger database interceptor client
             client
         | ValueNone ->
             let database = new GlobalApiDb()
-            let client = AmazonDynamoDBClientBuilder<'a>.builder regionId
+            let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials regionId
             TestDynamoClient.attachGlobal' logger struct (database, true) interceptor client
             client
 

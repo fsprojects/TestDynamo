@@ -140,7 +140,7 @@ type CloudFormationParser() =
         |> Seq.map (fun struct (deletionProtection, region) ->
             task {
                 logger.LogInformation("Adding deletion protection = {0} to region {1}", deletionProtection, region.regionId)
-                use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) (ValueSome region) ValueNone (ValueSome db)
+                use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) true (ValueSome region) ValueNone (ValueSome db)
                 let req = UpdateTableRequest()
                 req.TableName <- tableName
                 req.DeletionProtectionEnabled <- deletionProtection
@@ -229,7 +229,7 @@ type CloudFormationParser() =
             |> List.ofSeq
 
         let database = CloudFormationParser.createDatabase settings logger constructs
-        let inline createClient db = TestDynamoClient.createClient<AmazonDynamoDBClient> logger (ValueSome db) ValueNone
+        let inline createClient db = TestDynamoClient.createClient<AmazonDynamoDBClient> logger true (ValueSome db) ValueNone
 
         let applyToClient constructs (client: AmazonDynamoDBClient) =
             List.fold (fun (s: ValueTask<unit>) x ->
@@ -242,12 +242,12 @@ type CloudFormationParser() =
             | Either1 (db': Database) when db'.Id <> dbId -> invalidOp "Unexpected error occurred"
             | Either1 db' ->
                 task {
-                    use client = TestDynamoClient.createClient<AmazonDynamoDBClient> logger ValueNone (ValueSome db')
+                    use client = TestDynamoClient.createClient<AmazonDynamoDBClient> logger true ValueNone (ValueSome db')
                     return! applyToClient constructs client
                 } |> Io.fromTask |%|> asLazy db
             | Either2 (db': GlobalDatabase) ->
                 task {
-                    use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> logger (ValueSome dbId) ValueNone (ValueSome db')
+                    use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> logger true (ValueSome dbId) ValueNone (ValueSome db')
                     return! applyToClient constructs client
                 } |> Io.fromTask |%|> asLazy db
 
