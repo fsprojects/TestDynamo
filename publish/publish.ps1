@@ -128,7 +128,7 @@ $publishApps |
 $i = 0
 while ($True) {
     Write-Host "Infinite test loop. Will keep going until success"
-    $success = $False
+    $success = $true
     $testApps |
         ForEach-Object -Process {
             Write-Host "Testing $_"
