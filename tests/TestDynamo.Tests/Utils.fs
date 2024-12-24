@@ -29,8 +29,11 @@ let itemFromDynamodb name (x: Dictionary<string,DynamoAttributeValue>) =
     
 let attributeToDynamoDb = DtoMappers.mapDto<AttributeValue, DynamoAttributeValue>
 
-let itemToDynamoDb =
-    CSharp.toDictionary (fun (x: string) -> x) attributeToDynamoDb
+let itemToDynamoDb: KeyValuePair<string, AttributeValue> seq -> Dictionary<string, DynamoAttributeValue> =
+    Seq.map kvpToTuple
+    >> Collection.mapSnd attributeToDynamoDb
+    >> Seq.map tplToKvp
+    >> kvpToDictionary
     
 let recordSubscription writer tableName (database: ApiDb) behaviour subscriber =
 
@@ -210,7 +213,7 @@ let buildTempClient() = new ClientContainer(commonHost, Logger.notAnILogger, fal
 let buildClientWithlogLevel logLevel logger = new ClientContainer(commonHost, new TestLogger(logger, level = logLevel), true)
 
 let buildClientFromLogger logger =
-    TestDynamoClient.createClient (ValueSome logger) true ValueNone (ValueSome commonHost)
+    TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueSome commonHost)
 let printFullList xs =
     Seq.mapi (fun i -> if i = 0 then id else sprintf "  %s;") xs
     |> Str.join "\n"

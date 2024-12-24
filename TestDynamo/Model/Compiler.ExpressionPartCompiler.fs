@@ -108,7 +108,7 @@ module ExpressionPartCompiler =
 
     let oneArg name f = function
         | [x] -> f x
-        | xs -> clientError $"Expected 1 arg for {name}, got {List.length xs}"
+        | xs -> ClientError.clientError $"Expected 1 arg for {name}, got {List.length xs}"
 
     let private oneArgOpFromExpressionFn = Writer.map
 
@@ -124,7 +124,7 @@ module ExpressionPartCompiler =
 
     let twoArgs name f = function
         | [x1; x2] -> f struct (x1, x2)
-        | xs -> clientError $"Expected 2 args for {name}, got {List.length xs}"
+        | xs -> ClientError.clientError $"Expected 2 args for {name}, got {List.length xs}"
 
     let private twoArgOpFromExpressionFn op =
         Writer.traverseTpl >> Writer.map op
@@ -147,7 +147,7 @@ module ExpressionPartCompiler =
 
     let threeArgs name f = function
         | [x1; x2; x3] -> f struct (x1, x2, x3)
-        | xs -> clientError $"Expected 3 args for {name}, got {List.length xs}"
+        | xs -> ClientError.clientError $"Expected 3 args for {name}, got {List.length xs}"
 
     let inline private traverseTrpl struct (x, y, z) =
         Writer.retn tpl3 |> Writer.apply x |> Writer.apply y |> Writer.apply z

@@ -1,8 +1,8 @@
 ﻿namespace TestDynamo.Model
 
+open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.Model.ExpressionExecutors.Fetch
 open Microsoft.FSharp.Core
-open Amazon.DynamoDBv2
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo
@@ -138,7 +138,7 @@ module DatabaseTables =
             | "" -> "Database has no tables created"
             | x -> $"Available tables\n{x}"
 
-        clientError $"No table defined for {name}. {tableNames}"
+        ClientError.clientError $"No table defined for {name}. {tableNames}"
 
     let private put' executePut (req: PutItemArgs<'item>) =
         fun logger -> function
@@ -161,7 +161,7 @@ module DatabaseTables =
         fun logger -> function
         | H tables ->
             match MapUtils.tryFind req.tableName tables with
-            | ValueNone -> clientError $"Table \"{req.tableName}\" not found"
+            | ValueNone -> ClientError.clientError $"Table \"{req.tableName}\" not found"
             | ValueSome table ->
                 let tables' = Map.remove req.tableName tables
                 executeDelete logger req.key table
@@ -177,7 +177,7 @@ module DatabaseTables =
         fun logger -> function
         | H tables ->
             match MapUtils.tryFind tableName tables with
-            | ValueNone -> clientError $"Table \"{tableName}\" not found"
+            | ValueNone -> ClientError.clientError $"Table \"{tableName}\" not found"
             | ValueSome table ->
                 Table.clear logger table
                 ?|> mapSnd (
@@ -190,7 +190,7 @@ module DatabaseTables =
         fun logger -> function
         | H tables ->
             match MapUtils.tryFind tableName tables with
-            | ValueNone -> clientError $"Table \"{tableName}\" not found"
+            | ValueNone -> ClientError.clientError $"Table \"{tableName}\" not found"
             | ValueSome table -> Table.get keys table
         |> logOperation "GET ITEM"
 
@@ -205,7 +205,7 @@ module DatabaseTables =
                 MapUtils.tryFind name tables
                 ?|> (
                     Table.hasDeletionProtection
-                        |?? (fun _ -> clientError $"Cannot delete table {name} with deletion protection enabled")
+                        |?? (fun _ -> ClientError.clientError $"Cannot delete table {name} with deletion protection enabled")
                         |.. asLazy tables
                     >> Map.remove name
                     >> H
@@ -219,7 +219,7 @@ module DatabaseTables =
         fun logger -> function
         | H tables ->
             match Map.containsKey name tables with
-            | true -> clientError $"""Table "{name}" has already been added"""
+            | true -> ClientError.clientError $"""Table "{name}" has already been added"""
             | false ->
                 table
                 |> Table.reId
@@ -242,7 +242,7 @@ module DatabaseTables =
         tryGetTable name tables
         |> ValueOption.defaultWith (fun _ ->
             if System.String.IsNullOrEmpty name
-            then clientError $"Table name not specified"
+            then ClientError.clientError $"Table name not specified"
             else tableNotFound name tables)
 
     /// <returns>None if the table was not found</returns>
@@ -262,4 +262,4 @@ module DatabaseTables =
         tryUpdateTable name
         >>>> function
             | ValueSome x -> x
-            | ValueNone -> clientError $"Cannot find table {name}"
+            | ValueNone -> ClientError.clientError $"Cannot find table {name}"

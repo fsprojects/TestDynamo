@@ -114,7 +114,7 @@ module Partition =
     let private getRequiredSortKey =
         let get1 keyConfig attributes =
             KeyConfig.sortKey attributes keyConfig
-            |> ValueOption.defaultWith (fun _ -> clientError "Sort key is required")
+            |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Sort key is required")
 
         let get2 (partitionData: PartitionResource<_>) =
             get1 partitionData.info.keys
@@ -193,8 +193,8 @@ module Partition =
 
     let get =
         function
-        | struct (ValueNone, WithSortKey _) -> clientError "Sort key required"
-        | ValueSome _, WithoutSortKey _ -> clientError "Sort key not required"
+        | struct (ValueNone, WithSortKey _) -> ClientError.clientError "Sort key required"
+        | ValueSome _, WithoutSortKey _ -> ClientError.clientError "Sort key not required"
         | struct (ValueSome (sortKey: AttributeValue), WithSortKey struct (_, partition)) ->
             AvlTree.tryFind sortKey partition.data ?|> PartitionBlock.toSeq |> ValueOption.defaultValue Seq.empty
         | struct (ValueNone, WithoutSortKey partition) ->
@@ -310,7 +310,7 @@ module Partition =
         | WithSortKey (t, _), (ValueSome v, _)
         | WithSortKey (t, _), (_, ValueSome v)
         | WithSortKey (t, _), (_, ValueSome v) when AttributeValue.getType v <> t ->
-            clientError  $"Attempting to use {AttributeValue.getType v} data to query partition \"{partition}\"; expected {t}"
+            ClientError.clientError  $"Attempting to use {AttributeValue.getType v} data to query partition \"{partition}\"; expected {t}"
 
         | WithSortKey (_, {data = data; info = {keys = keys}}), (from, ``to``) ->
 
@@ -319,7 +319,7 @@ module Partition =
 
         | WithoutSortKey {data = data; info = {keys = keys}}, (ValueNone, ValueNone) ->
             Seq.singleton data
-        | WithoutSortKey _, _ -> clientError "Partition has no sort key"
+        | WithoutSortKey _, _ -> ClientError.clientError "Partition has no sort key"
 
     let scan lastEvaluatedSortKey forwards =
         subset lastEvaluatedSortKey ValueNone false forwards

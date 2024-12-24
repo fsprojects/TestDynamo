@@ -6,6 +6,7 @@ module TestDynamo.Model.Compiler.Parser
 
 open System
 open TestDynamo.Data.BasicStructures
+open TestDynamo.Model
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 open TestDynamo
@@ -145,7 +146,7 @@ and private processNonConformingUpdateExpression state p verb collection =
              List.rev
              >> AstNode.toCsv
              >> ValueOption.defaultWith (fun _ ->
-                 clientError $"{verb} expression must have at least 1 clause")))
+                 ClientError.clientError $"{verb} expression must have at least 1 clause")))
      &|> (fun struct (clauses, endP) ->
 
          let processed =
@@ -400,7 +401,7 @@ let rec private validateUpdateClauses logger astNode =
     AstNode.depthFirstSearch (fun _ acc ->
         function
         | AstNode.Update (verb, _) when List.contains verb acc ->
-            clientError $"Invalid update expression, multiple {verb} expressions found"
+            ClientError.clientError $"Invalid update expression, multiple {verb} expressions found"
         | AstNode.Update (verb, _) -> verb::acc
         | _ -> acc) [] astNode
     |> ignoreTyped<UpdateExpressionVerb list>
@@ -409,7 +410,7 @@ let rec private validateUpdateClauses logger astNode =
 
 let private addUpdateVerb = function
     | AstNode.Update (v, _) & x  -> struct (v, x)
-    | x -> clientError $"{x} is not a valid upate expression"
+    | x -> ClientError.clientError $"{x} is not a valid upate expression"
 
 let private combine: ProcessedTokenPointer<AstNode> seq -> ProcessedTokenPointer<AstNode> voption =
     Collection.foldBack (fun struct (struct (start, ``end``), acc) x ->
@@ -429,7 +430,7 @@ let private postProcessUpdateClauses logger expression =
         >> addUpdateVerb)
     >> Seq.fold (fun s (struct (v, _) & x) ->
         if Collection.tryFind (fstT >> ((=)v)) s |> ValueOption.isSome
-        then clientError $"Duplicate {v} in update expression"
+        then ClientError.clientError $"Duplicate {v} in update expression"
         else x::s) []
     >> List.rev
     >> List.map sndT
@@ -452,12 +453,12 @@ let private handleError =
     combineErrors
     >> function
         | Ok x -> x
-        | Error (Either2 _) -> clientError "Query cannot be compiled"
+        | Error (Either2 _) -> ClientError.clientError "Query cannot be compiled"
         | Error (Either1 client) ->
             client
             |> Seq.mapi (fun i -> Str.indentSpace (i * 2))
             |> Str.join "\n"
-            |> clientError
+            |> ClientError.clientError
 
 let singleOrServerError = function
     | [x] -> x
@@ -468,7 +469,7 @@ let generateAstFromExpression inputs (expression: string) =
     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ServiceQuotas.html
     let size = System.Text.Encoding.UTF8.GetByteCount(expression)
     if size > 4_000
-    then clientError $"Max expression size is 4KB; received ({size}B)"
+    then ClientError.clientError $"Max expression size is 4KB; received ({size}B)"
 
     let state = { inputs = inputs; depth = 0; cycle = 0 }
     let struct (preProcessor, postProcessor, validator) =

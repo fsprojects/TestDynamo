@@ -1,11 +1,12 @@
 ﻿module TestDynamo.Client.Shared
 
 open System.Net
-open Amazon.DynamoDBv2.Model
+open TestDynamo
+open TestDynamo.Model
 open TestDynamo.Utils
 
 let (!!<) = ValueSome
-let (<!!>) x propName = Maybe.expectSomeClientErr "%s property is mandatory" propName x
+let (<!!>) x propName = ClientError.expectSomeClientErr "%s property is mandatory" propName x
 
 // TODO: include in mapping?
 let noneifyStrings = function
@@ -18,8 +19,8 @@ module ResponseHeaders =
     let contentLength = TestDynamo.Settings.AmazonWebServiceResponse.ResponseContentLength
     let httpStatusCode = HttpStatusCode.OK
     let responseMetadata =
-        { ChecksumAlgorithm = !!<TestDynamo.GeneratedCode.Dtos.CoreChecksumAlgorithm.NONE
-          ChecksumValidationStatus = !!<TestDynamo.GeneratedCode.Dtos.ChecksumValidationStatus.NOT_VALIDATED
+        { ChecksumAlgorithm = !!<Settings.AmazonWebServiceResponse.ChecksumAlgorithm
+          ChecksumValidationStatus = !!<Settings.AmazonWebServiceResponse.ChecksumValidationStatus
           RequestId = !!<TestDynamo.Settings.AmazonWebServiceResponse.RequestId.Invoke()
           Metadata = !!<Map.empty }: TestDynamo.GeneratedCode.Dtos.ResponseMetadata
 
@@ -56,7 +57,7 @@ module GetUtils =
 
         match struct (projectionExpression, attributesToGet) with
         | ValueSome _, ValueSome (_::_) ->
-            clientError $"Cannot use {nameof Unchecked.defaultof<GetItemRequest>.ProjectionExpression} and {nameof Unchecked.defaultof<GetItemRequest>.AttributesToGet} in the same request"
+            ClientError.clientError $"Cannot use ProjectionExpression and AttributesToGet in the same request"
         | ValueNone, ValueNone
         | ValueNone, ValueSome [] -> ValueNone
         | ValueSome prj, ValueNone

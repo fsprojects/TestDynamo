@@ -152,7 +152,7 @@ module MappingTestGenerator =
         let getType (t: string) =
             allAssemblies
             |> Seq.map (fun a -> a.GetType t)
-            |> CSharp.sanitizeSeq
+            |> Seq.filter ((<>) null)
             |> Collection.tryHead
             |> Maybe.expectSomeErr "Can't find %s" t
 

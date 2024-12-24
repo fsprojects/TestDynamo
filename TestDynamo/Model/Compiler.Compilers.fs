@@ -45,7 +45,7 @@ module private CompileUtils =
                 |> mapFst (debug logger)
                 |> sndT
             with
-            | e -> clientErrorWithInnerException $"Error compiling expression: \"{expr}\"" e
+            | e -> ClientError.clientErrorWithInnerException $"Error compiling expression: \"{expr}\"" e
 
         memoedWithLogging
 
@@ -214,4 +214,4 @@ module OpenIndex =
             try
                 compiler struct (logger, exp, key) logger
             with
-            | e -> clientErrorWithInnerException $"Error compiling query: \"{exp}\"" e
+            | e -> ClientError.clientErrorWithInnerException $"Error compiling query: \"{exp}\"" e

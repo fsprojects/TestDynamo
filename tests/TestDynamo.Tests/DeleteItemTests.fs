@@ -221,7 +221,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 req.ConditionExpression <- expression
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
-                    |> CSharp.toDictionary id id
+                    |> kvpToDictionary
                 req.ExpressionAttributeValues <-
                     Map.add ":v" (Model.AttributeValue.String "XX") Map.empty
                     |> itemToDynamoDb

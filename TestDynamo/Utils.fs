@@ -92,6 +92,7 @@ let inline flip1To4 f w x y z = f z w x y
 let inline flipTpl struct (x, y) = struct (y, x)
 let kvpToRefTuple (kvp: KeyValuePair<'a, 'b>) = (kvp.Key, kvp.Value)
 let kvpToTuple (kvp: KeyValuePair<'a, 'b>) = struct (kvp.Key, kvp.Value)
+let tplToKvp struct (k, v) = KeyValuePair<_, _>(k, v)
 let inline toRefTuple struct (x, y) = (x, y)
 let apply = (|>)
 
@@ -120,20 +121,9 @@ let inline debug x = x
 let inline debug2 _ x = x
 #endif
 
-type TestDynamoException(msg, ?inner, ?data) =
-    inherit Amazon.DynamoDBv2.AmazonDynamoDBException(msg, inner |> Option.defaultValue null)
-
-    do
-        Option.map (Seq.fold (fun (s: System.Collections.IDictionary) struct (k, v) ->
-            s.Add(k, v)
-            s) base.Data) data
-        |> ignoreTyped<System.Collections.IDictionary option>
 
 let notSupported msg = msg |> NotSupportedException |> raise
 let serverError msg = msg |> Exception |> raise
-let clientError msg = msg |> TestDynamoException |> raise
-let clientErrorWithInnerException msg inner = TestDynamoException(msg, inner) |> raise
-let clientErrorWithData data msg = TestDynamoException(msg, data = data) |> raise
 
 module AwsUtils =
     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html
@@ -245,6 +235,11 @@ module Lazy =
 
 [<RequireQualifiedAccess>]
 module Str =
+
+    let emptyStringToNull = function
+        | null -> null
+        | (x: string) when System.String.IsNullOrWhiteSpace x -> null
+        | x -> x
 
     type StringBuilderRental() =
 
@@ -877,6 +872,7 @@ module Collection =
 
 [<RequireQualifiedAccess>]
 module MapUtils =
+        
     let fromKvp xs =
         xs
         |> Seq.map kvpToRefTuple
@@ -977,11 +973,23 @@ module Either =
 
 [<RequireQualifiedAccess>]
 module Maybe =
+    
+    [<RequireQualifiedAccess>]
+    module Null =
+        let toOption = function
+            | null -> ValueNone
+            | x -> ValueSome x
+
+        let valToOption (x: System.Nullable<_>) =
+            if x.HasValue then ValueSome x.Value
+            else ValueNone
+            
+        let fromOption = function
+            | ValueNone -> null
+            | ValueSome x -> x
+    
     let inline expectSomeErr err errState =
         ValueOption.defaultWith (fun _ -> sprintf err errState |> invalidOp)
-
-    let inline expectSomeClientErr err errState =
-        ValueOption.defaultWith (fun _ -> sprintf err errState |> clientError)
 
     let inline defaultWith defThunk arg voption =
         match voption with
@@ -1363,3 +1371,7 @@ module Disposable =
         |> function
             | [] -> ()
             | es -> es |> AggregateException |> raise
+
+module CSharp =
+    
+    type private MList<'a> = System.Collections.Generic.List<'a>

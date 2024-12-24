@@ -41,7 +41,6 @@
     <Compile Include="Settings.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Logger.fs" />
-    <Compile Include="CSharp.fs" />
     <Compile Include="Data\BasicStructures.fs" />
     <Compile Include="Data\AvlTree.fs" />
     <Compile Include="Data\Monads.fs" />
@@ -49,6 +48,10 @@
     <Compile Include="Data\Monads.Operators.fs" />
     <Compile Include="Data\Queue.fs" />
     <Compile Include="Data\MutableValue.fs" />
+    <Compile Include="GenericMapper\Utils.fs" />
+    <Compile Include="GenericMapper\MappingException.fs" />
+    <Compile Include="GenericMapper\Expressions.fs" />
+    <Compile Include="Model\ClientError.fs" />
     <Compile Include="Model\DatabaseLogger.fs" />
     <Compile Include="Model\Item.fs" />
     <Compile Include="Model\KeyConfig.fs" />
@@ -82,10 +85,7 @@
     <Compile Include="Api\CSharpHelpers.fs" />
     <Compile Include="Api\Database.fs" />
     <Compile Include="Api\GlobalDatabase.fs" />
-    <Compile Include="GenericMapper\Utils.fs" />
-    <Compile Include="GenericMapper\MappingException.fs" />
-    <Compile Include="GenericMapper\Expressions.fs" />
-    <Compile Include="GenericMapper\DtoMappers.fs" />
+    <Compile Include="Client\DtoMappers.fs" />
     <Compile Include="Client\Shared.fs" />
     <Compile Include="Client\Table.fs" />
     <Compile Include="Client\Fetch.fs" />
@@ -99,10 +99,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="AWSSDK.Core" Version="3.7.5" />
   </ItemGroup>
 
+  <!--TODO: netstandard only-->
   <ItemGroup Label="Vulnerability upgrades">
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />

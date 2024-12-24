@@ -285,14 +285,14 @@ module Validator =
     let create2 settings validator1 validator2 groupValidator =
         let gValidator = function
             | [a1; a2] -> groupValidator struct (a1, a2)
-            | xs -> clientError "Unexpected argument count"
+            | xs -> ClientError.clientError "Unexpected argument count"
 
         create settings [validator1; validator2] gValidator
 
     let create3 settings validator1 validator2 validator3 groupValidator =
         let gValidator = function
             | [a1; a2; a3] -> groupValidator struct (a1, a2, a3)
-            | xs -> clientError "Unexpected argument count"
+            | xs -> ClientError.clientError "Unexpected argument count"
 
         create settings [validator1; validator2; validator3] gValidator
 

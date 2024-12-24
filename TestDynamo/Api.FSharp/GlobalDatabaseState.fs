@@ -12,7 +12,7 @@ open TestDynamo.Model
 open Microsoft.FSharp.Core
 open System.Runtime.CompilerServices
 
-type StreamViewType = Amazon.DynamoDBv2.StreamViewType
+type StreamViewType = GeneratedCode.Dtos.StreamViewType
 
 [<Struct; IsReadOnly>]
 type DbReplicationKey =
@@ -308,7 +308,7 @@ module private CreateReplication =
             | "" -> table
             | err ->
                 let idx = Table.indexes table |> Map.keys |> List.ofSeq
-                clientError $"Invalid index(es) {err}. Available index(es) are {idx}")
+                ClientError.clientError $"Invalid index(es) {err}. Available index(es) are {idx}")
         ?|? table
 
     let createRightSubscription (args: CreateReplicationArgs) logReplication logger disposer (left: ApiDb) (right: ApiDb)  =
@@ -321,7 +321,7 @@ module private CreateReplication =
         let logger' = logger |> Either2 |> ValueSome
         let leftTable =
             left.DescribeTable_Internal logger' tableName
-            |> ValueOption.defaultWith (fun _ -> clientError $"Invalid table {tableName} in database {fromDb}")
+            |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Invalid table {tableName} in database {fromDb}")
 
         if args.linkExistingTables_internal then
             let subscriber = right.SubscribeToStream_Internal (Either2 logger |> ValueSome) tableName replicationSubscriberConfig true rightSubscriber
@@ -358,15 +358,15 @@ module private CreateReplication =
 
         let { tableName = tableName; fromDb = leftId; toDb = rightId } = args.dbReplicationKey
 
-        if leftId = rightId then clientError $"Cannot add replication from {leftId} => {rightId}"
+        if leftId = rightId then ClientError.clientError $"Cannot add replication from {leftId} => {rightId}"
         left.TryDescribeTable args.newDbDefaultLogger tableName
         ?|> ignoreTyped<TableDetails>
-        |> ValueOption.defaultWith (fun _ -> clientError $"Cannot find table {leftId}/{tableName}")
+        |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Cannot find table {leftId}/{tableName}")
 
         match struct (args.createStreamIfMissing, left.StreamsEnabled tableName) with
         | struct (_, true) -> ()
         | false, false ->
-            clientError $"Replications must be added to tables with streams enabled"
+            ClientError.clientError $"Replications must be added to tables with streams enabled"
         | true, false ->
             { updateTableData = UpdateTableData.empty
               streamConfig = CreateStream |> ValueSome }
@@ -407,7 +407,7 @@ module private CreateReplication =
         try
             let leftTable =
                 left.DescribeTable_Internal logger' tableName
-                |> ValueOption.defaultWith (fun _ -> clientError $"Invalid table {tableName} in database {leftId}")
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Invalid table {tableName} in database {leftId}")
 
             let rightSubscription = createRightSubscription args logReplication logger disposer left right
             try
@@ -433,7 +433,7 @@ module private CreateReplication =
                 match MapUtils.tryFind args.dbReplicationKey dbs.replications, MapUtils.tryFind subscriptionIdReversed dbs.replications with
                 | ValueSome _, _
                 | _, ValueSome _ ->
-                    clientError $"Concurrency error. Attempting to add multiple replications between databases: {args.dbReplicationKey}"
+                    ClientError.clientError $"Concurrency error. Attempting to add multiple replications between databases: {args.dbReplicationKey}"
                 | ValueNone, ValueNone ->
                     recordReplication args.dbReplicationKey leftSubscription subscriptionIdReversed rightSubscription dbs
                     |> mapFst (fun dispose createDispose ->
@@ -467,7 +467,7 @@ module private CreateReplication =
             serverError $"Replication {subscriptionId} not found"
             Dbs dbs
         | ValueSome { secondaryReplication = ValueNone } ->
-            clientError $"Replication {subscriptionId} is from a secondary table to a primary table. You must delete a replication on the same table that the replication was created on." logger
+            ClientError.clientError $"Replication {subscriptionId} is from a secondary table to a primary table. You must delete a replication on the same table that the replication was created on." logger
         | ValueSome ({ secondaryReplication = ValueSome secondary } & d) ->
             let secondaryD =
                 match MapUtils.tryFind secondary dbs.replications with

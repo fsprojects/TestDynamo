@@ -3,7 +3,6 @@
 open System
 open System.Threading
 open System.Threading.Tasks
-open Amazon.DynamoDBv2
 open TestDynamo
 open TestDynamo.Data
 open TestDynamo.Utils
@@ -287,7 +286,7 @@ type Database private(logger: ILogger voption, cloneData: DatabaseCloneData) =
     /// Get table details
     /// </summary>
     member this.DescribeTable logger name =
-        this.TryDescribeTable logger name |> Maybe.defaultWith (fun name -> clientError $"Table {name} not found") name
+        this.TryDescribeTable logger name |> Maybe.defaultWith (fun name -> ClientError.clientError $"Table {name} not found") name
 
     /// <summary>
     /// Get a table with all of its data

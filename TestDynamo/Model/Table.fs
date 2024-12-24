@@ -109,7 +109,7 @@ module Table =
             |> Str.join "\n"
 
         if errs.Length > 0
-        then sprintf "Invalid table column configuration. Found unused definitions for cols\n%s" errs |> clientError
+        then sprintf "Invalid table column configuration. Found unused definitions for cols\n%s" errs |> ClientError.clientError
 
         table
 
@@ -144,7 +144,7 @@ module Table =
     let deleteIndex logger name = function
         | Tbl t ->
             match MapUtils.tryFind name t.data.indexes with
-            | ValueNone -> clientError $"Cannot find index {name}"
+            | ValueNone -> ClientError.clientError $"Cannot find index {name}"
             | ValueSome idx ->
                 Logger.log1 "Removing index %O" idx logger
                 let gsi = Map.remove name t.data.indexes
@@ -218,7 +218,7 @@ module Table =
 
     let private addIndex args =
         match MapUtils.tryFind args.indexName args.table.data.indexes with
-        | ValueSome idx -> clientError $"Index {idx} already exists"
+        | ValueSome idx -> ClientError.clientError $"Index {idx} already exists"
         | ValueNone ->
 
             let indexItems =
@@ -248,7 +248,7 @@ module Table =
     let empty logger (data: TableConfig) =
         let name =
             AwsUtils.parseTableName data.name
-            |> ValueOption.defaultWith (fun _ -> clientError $"Invalid table name {data.name}")
+            |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Invalid table name {data.name}")
 
         let indexData =
             { keys = data.primaryIndex
@@ -334,8 +334,8 @@ module Table =
     let private itemNotValidOnIndex = "TestDynamo:ItemNotValidOnIndex"
     let private itemNotValidOnIndexData: struct (obj * obj) seq = [struct (itemNotValidOnIndex, ())]
 
-    let isItemNotValidOnIndexError (e: TestDynamoException) =
-        e.Data.Contains itemNotValidOnIndex
+    let isItemNotValidOnIndexError (e: exn) =
+        e.Data <> null && e.Data.Contains itemNotValidOnIndex
 
     let private validateNewItem =
 
@@ -343,7 +343,7 @@ module Table =
             | ValueNone -> ()
             | ValueSome x ->
                 sprintf "Item not valid for table \"%s\"\n%s" name x
-                |> clientErrorWithData itemNotValidOnIndexData
+                |> ClientError.clientErrorWithData itemNotValidOnIndexData
 
         fun logger (Tbl data & table) ->
             attributes' data
@@ -370,8 +370,8 @@ module Table =
 
             match struct (invalid1, invalid2) with
             | "", _ -> ()
-            | err, 0 -> sprintf "Error adding new index\n%s" err |> clientErrorWithData itemNotValidOnIndexData
-            | err, x -> sprintf "Error adding new index\n%s\n  + %i more items" err x |> clientErrorWithData itemNotValidOnIndexData
+            | err, 0 -> sprintf "Error adding new index\n%s" err |> ClientError.clientErrorWithData itemNotValidOnIndexData
+            | err, x -> sprintf "Error adding new index\n%s\n  + %i more items" err x |> ClientError.clientErrorWithData itemNotValidOnIndexData
 
     let internal updateTable (req: UpdateTableData) logger (Tbl data & t) =
         Logger.log1 "Updating table %O" t logger
@@ -456,7 +456,7 @@ module Table =
             let struct (item', pk) =
                 MapUtils.tryPop pkName item
                 |> mapSnd (function
-                    | ValueNone -> clientError $"Could not find partition key attribute {pkName}"
+                    | ValueNone -> ClientError.clientError $"Could not find partition key attribute {pkName}"
                     | ValueSome x -> x)
 
             let struct (item', sk) =
@@ -464,14 +464,14 @@ module Table =
                 ?|> (
                     flip MapUtils.tryPop item'
                     >> mapSnd (function
-                        | ValueNone -> clientError $"Could not find sort key attribute {skName}"
+                        | ValueNone -> ClientError.clientError $"Could not find sort key attribute {skName}"
                         | x -> x))
                 |> ValueOption.defaultValue struct (item', ValueNone)
 
             let keyErrors =
                 match Map.keys item' |> Str.join ", " with
                 | "" -> ()
-                | err -> clientError $"Found non key attributes in input {err}"
+                | err -> ClientError.clientError $"Found non key attributes in input {err}"
 
             Index.get pk sk primary |> Collection.tryHead
 
@@ -483,7 +483,7 @@ module Table =
             let struct (item', pk) =
                 MapUtils.tryPop pkName item
                 |> mapSnd (function
-                    | ValueNone -> clientError "Could not find partition key attribute"
+                    | ValueNone -> ClientError.clientError "Could not find partition key attribute"
                     | ValueSome x -> x)
 
             let struct (item', sk) =
@@ -491,7 +491,7 @@ module Table =
                 ?|> (
                     flip MapUtils.tryPop item'
                     >> mapSnd (function
-                        | ValueNone -> clientError "Could not find sort key attribute"
+                        | ValueNone -> ClientError.clientError "Could not find sort key attribute"
                         | x -> x))
                 |> ValueOption.defaultValue struct (item', ValueNone)
 
@@ -499,7 +499,7 @@ module Table =
                 match struct (allowNonKeys, Map.keys item' |> Str.join ", ") with
                 | true, _
                 | false, "" -> ()
-                | _, err -> clientError $"Found non key attributes in input {err}"
+                | _, err -> ClientError.clientError $"Found non key attributes in input {err}"
 
             let struct (result, primary') =
                 Index.delete logger struct (deleteId, struct (pk, sk)) primary

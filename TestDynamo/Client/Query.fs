@@ -27,7 +27,7 @@ let input limits (req: QueryRequest<_>) =
     let struct (selectTypes, addNames1) = buildSelectTypes' req
     let struct (queryExpression, struct (addNames2, addValues2)) =
         buildQueryExpression (noneifyStrings req.KeyConditionExpression) req.KeyConditions
-        |> Maybe.expectSomeClientErr "KeyConditionExpression not found%s" "" 
+        |> ClientError.expectSomeClientErr "KeyConditionExpression not found%s" "" 
     let struct (filterExpression, struct (addNames3, addValues3)) =
         buildFilterExpression (req.ConditionalOperator ?|? ConditionalOperator.AND) (noneifyStrings req.FilterExpression) req.QueryFilter
         ?|> mapFst ValueSome

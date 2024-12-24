@@ -50,7 +50,7 @@ module TableKeyAttributeList =
                 |> Seq.map (sprintf " * %A")
                 |> Str.join "\n"
                 |> sprintf "Invalid table column configuration. Found multiple definitions for cols\n%s"
-                |> clientError
+                |> ClientError.clientError
 
         Seq.distinct
         >> Collection.groupBy fstT

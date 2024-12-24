@@ -118,14 +118,14 @@ module Accessor =
             |> AttributeListType.remove i
             |> AttributeList
             |> ValueSome
-        | _, (_, ValueSome x) -> clientError $"Cannot set list item [{i}] on type {AttributeValue.getType x}"
+        | _, (_, ValueSome x) -> ClientError.clientError $"Cannot set list item [{i}] on type {AttributeValue.getType x}"
 
     let rec private attributeSetter attrName = function
         | struct (_, struct (ValueNone, ValueNone)) -> ValueNone
         | t, (value, ValueNone) -> attributeSetter attrName (t, (value, ValueSome emptyMap))
         | _, (ValueSome value, ValueSome (HashMap state)) -> Map.add attrName value state |> HashMap |> ValueSome
         | _, (ValueNone, ValueSome (HashMap state)) -> Map.remove attrName state |> HashMap |> ValueSome
-        | _, (_, ValueSome x) -> clientError $"Cannot set attribute \"{attrName}\" on type {AttributeValue.getType x}"
+        | _, (_, ValueSome x) -> ClientError.clientError $"Cannot set attribute \"{attrName}\" on type {AttributeValue.getType x}"
 
     let private expressionAttributeNameSetter attrName (struct (t: ProjectionTools, _) & input) =
         t.filterParams.expressionAttributeNameLookup attrName
@@ -176,7 +176,7 @@ module Accessor =
         | HashMap x -> x
         | _ -> serverError "Expected hash map"
 
-    let private throw = Result.throw "Error compiling expression\n%s"
+    let private throw = Result.throw ClientError.clientError "Error compiling expression\n%s"
 
     let mutation settings acc =
         let getter' = getValueFromPath acc

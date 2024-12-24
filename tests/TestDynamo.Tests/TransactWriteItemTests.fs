@@ -142,10 +142,10 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 req.TransactItems
                 |> Seq.collect (fun x ->
                     [
-                        x.Update |> CSharp.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
-                        x.Put |> CSharp.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Item |> pkOnly))
-                        x.Delete |> CSharp.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
-                        x.ConditionCheck |> CSharp.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
+                        x.Update |> Maybe.Null.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
+                        x.Put |> Maybe.Null.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Item |> pkOnly))
+                        x.Delete |> Maybe.Null.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
+                        x.ConditionCheck |> Maybe.Null.toOption |> ValueOption.map (fun x -> struct (x.TableName, x.Key))
                     ])
                 |> Maybe.traverse
                 |> Seq.map (fun struct (table, key) ->
@@ -568,7 +568,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             addStreamsReq.TableName <- table.name
             addStreamsReq.StreamSpecification <- StreamSpecification()
             addStreamsReq.StreamSpecification.StreamEnabled <- true
-            addStreamsReq.StreamSpecification.StreamViewType <- StreamViewType.NEW_AND_OLD_IMAGES
+            addStreamsReq.StreamSpecification.StreamViewType <- Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES
             do! client1.UpdateTableAsync(addStreamsReq) |> Io.ignoreTask
 
             let createTableReq = CreateGlobalTableRequest()

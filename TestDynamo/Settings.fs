@@ -145,7 +145,7 @@ module AmazonWebServiceResponse =
     /// Default: NONE
     /// </para> 
     /// </summary>
-    let mutable ChecksumAlgorithm = CoreChecksumAlgorithm.NONE
+    let mutable ChecksumAlgorithm = TestDynamo.GeneratedCode.Dtos.CoreChecksumAlgorithm.NONE
 
     /// <summary>
     /// <para>
@@ -155,7 +155,7 @@ module AmazonWebServiceResponse =
     /// Default: NOT_VALIDATED
     /// </para> 
     /// </summary>
-    let mutable ChecksumValidationStatus = ChecksumValidationStatus.NOT_VALIDATED
+    let mutable ChecksumValidationStatus = TestDynamo.GeneratedCode.Dtos.ChecksumValidationStatus.NOT_VALIDATED
 
     /// <summary>
     /// <para>

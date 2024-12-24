@@ -100,7 +100,7 @@ type ItemBuilder =
                 |> Seq.map (fun x -> struct (x[0], struct (x[1], x[2])))
                 |> MapUtils.fromTuple
                 |> Map.map (fun _ -> uncurry ItemBuilder.buildAttribute)
-                |> CSharp.toDictionary id id
+                |> kvpToDictionary
             attrV.IsMSet <- true
             attrV
         | x -> invalidOp $"unknown {x}"
@@ -154,14 +154,14 @@ type ItemBuilder =
     static member dynamoDbAttributes (x: ItemBuilder) =
         x.attrs
         |> MapUtils.toSeq
-        |> Seq.map (fun struct (k, v) -> KeyValuePair.Create(k, v))
+        |> Seq.map tplToKvp
         |> Enumerable.ToDictionary
 
     static member asPutReq (x: ItemBuilder) =
         let request = PutItemRequest()
         request.TableName <- ItemBuilder.tableName x
         request.Item <- ItemBuilder.dynamoDbAttributes x
-        request.ConditionExpression <- x.condition |> CSharp.fromOption
+        request.ConditionExpression <- x.condition |> Maybe.Null.fromOption
         request.ReturnValues <-
             match x.returnValues with
             | ValueNone -> null
@@ -175,7 +175,7 @@ type ItemBuilder =
         let request = DeleteItemRequest()
         request.TableName <- ItemBuilder.tableName x
         request.Key <- ItemBuilder.dynamoDbAttributes x
-        request.ConditionExpression <- x.condition |> CSharp.fromOption
+        request.ConditionExpression <- x.condition |> Maybe.Null.fromOption
         request.ReturnValues <-
             match x.returnValues with
             | ValueNone -> null

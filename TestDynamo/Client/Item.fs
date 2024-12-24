@@ -18,7 +18,7 @@ let mapReturnValues (returnValues: ReturnValue): BasicReturnValues =
     match returnValues with
     | x when x.Value = ReturnValue.NONE.Value -> None
     | x when x.Value = ReturnValue.ALL_OLD.Value -> AllOld
-    | x -> clientError "Only NONE and ALL_OLD are supported as ReturnValues"
+    | x -> ClientError.clientError "Only NONE and ALL_OLD are supported as ReturnValues"
 
 let mapReturnValues2 (returnValues: ReturnValue): UpdateReturnValues =
     match returnValues with
@@ -27,7 +27,7 @@ let mapReturnValues2 (returnValues: ReturnValue): UpdateReturnValues =
     | x when x.Value = ReturnValue.ALL_NEW.Value -> AllNew
     | x when x.Value = ReturnValue.UPDATED_OLD.Value -> UpdatedOld
     | x when x.Value = ReturnValue.UPDATED_NEW.Value -> UpdatedNew
-    | x -> clientError $"Invalid ReturnValues {x}"
+    | x -> ClientError.clientError $"Invalid ReturnValues {x}"
 
 let private either2Snd _ x = Either2 x
 
@@ -147,7 +147,7 @@ module Update =
             | x ->
                 // TODO: nested match
                 match noneifyStrings reqUpdateExpression with
-                | ValueSome _ -> clientError "Legacy AttributeUpdates parameter cannot be used with an UpdateExpression"
+                | ValueSome _ -> ClientError.clientError "Legacy AttributeUpdates parameter cannot be used with an UpdateExpression"
                 | ValueNone -> 
                     x.clauses
                     |> Seq.fold (fun struct (names, values) x ->
@@ -187,7 +187,7 @@ module Update =
             | "PUT", x -> Seq.map Choice1Of3 x
             | "ADD", x -> Seq.map Choice2Of3 x
             | "DELETE", x -> Seq.map Choice3Of3 x
-            | x, _ -> clientError $"Unknown attribute update value \"{x}\"")
+            | x, _ -> ClientError.clientError $"Unknown attribute update value \"{x}\"")
         >> Collection.zip (NameValueEnumerator.infiniteNames "p")
         >> Seq.map (fun struct (nameValue, x) ->
             match x with
@@ -266,7 +266,7 @@ module Transact =
         let input (req: TransactGetItemsRequest<AttributeValue>) =
             match req.TransactItems with
             | ValueSome x when x.Length > Settings.TransactReadSettings.MaxItemsPerRequest ->
-                clientError $"The limit on TransactGetItems is {Settings.TransactReadSettings.MaxItemsPerRequest} records. You can change this value by modifying {nameof Settings}.{nameof Settings.TransactReadSettings}.{nameof Settings.TransactReadSettings.MaxItemsPerRequest}"
+                ClientError.clientError $"The limit on TransactGetItems is {Settings.TransactReadSettings.MaxItemsPerRequest} records. You can change this value by modifying {nameof Settings}.{nameof Settings.TransactReadSettings}.{nameof Settings.TransactReadSettings.MaxItemsPerRequest}"
             | ValueSome x -> x |> Seq.map _.Get |> Maybe.traverse |> Seq.map inputs'
             | ValueNone -> Seq.empty
 
@@ -291,7 +291,7 @@ module Transact =
                 |> mapSnd Seq.sum
 
             if size > 4_000_000
-            then clientError "The limit on data size from TransactGetItems is 4MB"
+            then ClientError.clientError "The limit on data size from TransactGetItems is 4MB"
 
             { Responses = !!<responses
               ConsumedCapacity = ValueNone
@@ -358,7 +358,7 @@ module Transact =
             |> List.sum
             |> function
                 | 1 -> ()
-                | x -> clientError $"Exactly 1 of [Put; Delete; Update; ConditionCheck] must be set"
+                | x -> ClientError.clientError $"Exactly 1 of [Put; Delete; Update; ConditionCheck] must be set"
 
             args
 
@@ -428,7 +428,7 @@ module Batch =
         |> ValueOption.defaultWith (fun _ ->
             AwsUtils.parseTableName key
             ?|> (fun x -> struct (awsAccountId, { databaseId = defaultDatabaseId; tableName = x; userProvidedKey = key})))
-        |> ValueOption.defaultWith (fun _ -> $"Cannot parse table name or ARN {key}" |> clientError)
+        |> ValueOption.defaultWith (fun _ -> $"Cannot parse table name or ARN {key}" |> ClientError.clientError)
 
     let private reKey awsAccountId defaultDatabaseId (req: struct (string * _) seq) =
 
@@ -444,14 +444,14 @@ module Batch =
                 $"Invalid aws account id {acc} in ARN. The expected aws account "
                 $"id is {awsAccountId}. You can fix this issue by calling "
                 suppressMessage
-            ] |> Str.join "" |> clientError
+            ] |> Str.join "" |> ClientError.clientError
         | [_] -> reKeyed
         | xs ->
             [
                 $"Multiple account ids found {xs}. The expected aws account "
                 $"id is {awsAccountId}. You can fix this issue by calling "
                 suppressMessage
-            ] |> Str.join "" |> clientError
+            ] |> Str.join "" |> ClientError.clientError
 
     module Get =
 
@@ -503,12 +503,12 @@ module Batch =
                 ?|? 0
 
             if totalCount > 100
-            then clientError "Max allowed items is 100 for the BatchGetItem call."
+            then ClientError.clientError "Max allowed items is 100 for the BatchGetItem call."
 
             let requests =
                 req.RequestItems
                 ?|? Map.empty 
-                |> Seq.map CSharp.kvpToTpl
+                |> Seq.map kvpToTuple
                 |> reKey awsAccountId defaultDatabaseId
                 |> Seq.map (
                     mapFst sndT
@@ -583,7 +583,7 @@ module Batch =
             | ValueNone, ValueNone -> ValueNone
             | ValueNone, ValueSome p -> put tableName p |> ValueSome
             | ValueSome d, ValueNone -> delete tableName d |> ValueSome
-            | _ -> clientError "Cannot specify PutRequest and DeleteRequest on a single WriteRequest"
+            | _ -> ClientError.clientError "Cannot specify PutRequest and DeleteRequest on a single WriteRequest"
 
         let private fromBatchWriteValue (req: Write): WriteRequest<AttributeValue> =
             match req with
@@ -608,12 +608,12 @@ module Batch =
                 [
                     $"Max allowed items is {Settings.BatchItems.MaxBatchWriteItems} for the BatchWriteItem call. "
                     $"You can change this value by modifying {nameof Settings}.{nameof Settings.BatchItems}.{nameof Settings.BatchItems.MaxBatchWriteItems}."
-                ] |> Str.join "" |> clientError
+                ] |> Str.join "" |> ClientError.clientError
 
             let requests =
                 req.RequestItems
                 ?|? Map.empty
-                |> Seq.map CSharp.kvpToTpl
+                |> Seq.map kvpToTuple
                 |> reKey awsAccountId defaultDatabaseId
                 |> Seq.map (fun struct (struct (_, k), v) -> struct (k, struct (k.tableName, v |> Collection.ofSeq)))
                 |> Collection.mapSnd (maps)

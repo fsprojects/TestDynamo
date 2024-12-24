@@ -21,6 +21,18 @@ open TestDynamo.Utils
 // TODO: code gen???
 
 module LambdaSubscriberUtils =
+    
+    /// <summary>
+    /// Converts a null seq to empty and removes any null values
+    /// </summary>
+    let private orEmpty = function
+        | null -> Seq.empty
+        | xs -> xs
+        
+    /// <summary>
+    /// Converts a null seq to empty and removes any null values
+    /// </summary>
+    let private sanitizeSeq xs = orEmpty xs |> Seq.filter ((<>)null)
 
     let rec private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
         match struct (
@@ -42,29 +54,29 @@ module LambdaSubscriberUtils =
             bin.ToArray() |> AttributeValue.Binary
         | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
         | false, null, null, null, false, true, false, false, false, false ->
-            if attr.M = null then TestDynamo.Utils.clientError "Map data not set"
+            if attr.M = null then ClientError.clientError "Map data not set"
             itemFromDynamodb' name attr.M |> AttributeValue.HashMap
         | false, null, null, null, false, false, true, false, false, false ->
-            CSharp.sanitizeSeq attr.L 
+            sanitizeSeq attr.L 
             |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
         | false, null, null, null, false, false, false, true, false, false ->
-            CSharp.sanitizeSeq attr.SS
+            sanitizeSeq attr.SS
             |> Seq.map String
             |> AttributeSet.create
             |> HashSet
         | false, null, null, null, false, false, false, false, true, false ->
 
-            CSharp.sanitizeSeq attr.NS
+            sanitizeSeq attr.NS
             |> Seq.map (Decimal.Parse >> Number)
             |> AttributeSet.create
             |> HashSet
         | false, null, null, null, false, false, false, false, false, true ->
 
-            CSharp.sanitizeSeq attr.BS
+            sanitizeSeq attr.BS
             |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
             |> AttributeSet.create
             |> HashSet
-        | pp -> clientError $"Unknown attribute type for \"{name}\""
+        | pp -> ClientError.clientError $"Unknown attribute type for \"{name}\""
 
     and attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
 
@@ -119,7 +131,7 @@ module LambdaSubscriberUtils =
                     |> Seq.map _.ToString()
                     |> Enumerable.ToList
 
-            | x -> clientError $"Unknown set type {x}"
+            | x -> ClientError.clientError $"Unknown set type {x}"
 
             attr
         | AttributeValue.AttributeList xs ->
@@ -128,7 +140,10 @@ module LambdaSubscriberUtils =
             attr
 
     and itemToDynamoDbEvent =
-        CSharp.toDictionary (fun (x: string) -> x) attributeToDynamoDbEvent
+        Seq.map kvpToTuple
+        >> Collection.mapSnd attributeToDynamoDbEvent
+        >> Seq.map tplToKvp
+        >> kvpToDictionary
 
     let private getEventNameAndKeyConfig keyConfig (x: ChangeResult) =
         match struct (x.Put, x.Deleted) with
@@ -143,7 +158,7 @@ module LambdaSubscriberUtils =
         | ValueNone -> 0
 
     let private mapItem =
-        ValueOption.map (Item.attributes >> itemToDynamoDbEvent) >> CSharp.fromOption
+        ValueOption.map (Item.attributes >> itemToDynamoDbEvent) >> Maybe.Null.fromOption
 
     let private mapChange awsAccountId regionId (streamViewType: StreamViewType) (ch: DatabaseSynchronizationPacket<TableCdcPacket>) (result: ChangeResult) =
 
@@ -235,7 +250,7 @@ type Subscriptions() =
 
         let streamViewType =
             streamViewType
-            |> CSharp.toOption
+            |> Maybe.Null.toOption
             ?|? StreamViewType.NEW_AND_OLD_IMAGES
 
         let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
@@ -304,7 +319,7 @@ type Subscriptions() =
 
         let streamViewType =
             streamViewType
-            |> CSharp.toOption
+            |> Maybe.Null.toOption
             ?|? StreamViewType.NEW_AND_OLD_IMAGES
 
         let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType

@@ -5,6 +5,7 @@
 module TestDynamo.Model.Compiler.Lexer
 
 open System.Text.RegularExpressions
+open TestDynamo.Model
 open TestDynamo.Utils
 open System.Runtime.CompilerServices
 
@@ -233,7 +234,7 @@ let tokenize: string -> Token list =
         | x when x <= index -> acc
         | _ ->
             match getNextToken strIndex with
-            | ValueNone -> clientError $"Cannot parse token at position {sndT strIndex}. \"{fstT strIndex}\""
+            | ValueNone -> ClientError.clientError $"Cannot parse token at position {sndT strIndex}. \"{fstT strIndex}\""
             | ValueSome struct (token, next) -> parser' struct (str, next) (token::acc)
 
     flip tpl 0

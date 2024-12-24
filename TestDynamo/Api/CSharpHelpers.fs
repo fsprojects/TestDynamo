@@ -15,17 +15,17 @@ type TableBuilder =
     with
 
     member this.AddTable([<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
-        this.database.AddTable (CSharp.toOption logger) this.data |> ignoreTyped<TableDetails>
+        this.database.AddTable (Maybe.Null.toOption logger) this.data |> ignoreTyped<TableDetails>
 
     member private this.WithIndex isLocal name (partitionKey: struct (string * string)) (sortKey: System.Nullable<struct (string * string)>) projectionAttributes projectKeysOnly =
 
-        let sortKey = CSharp.valToOption sortKey
+        let sortKey = Maybe.Null.valToOption sortKey
 
         let projectionAttributes =
             let partitionKey = fstT partitionKey
             let sortKey = ValueOption.map fstT sortKey
 
-            match struct (projectKeysOnly, projectionAttributes |> CSharp.toOption ?|> List.ofSeq, sortKey) with
+            match struct (projectKeysOnly, projectionAttributes |> Maybe.Null.toOption ?|> List.ofSeq, sortKey) with
             | false, xs, _ -> xs 
             | true, ValueNone, ValueNone -> ValueSome [partitionKey] 
             | true, ValueNone, ValueSome sk -> ValueSome [partitionKey; sk] 
@@ -80,7 +80,7 @@ type TableBuilder =
         partitionKey: struct (string * string),
         sortKey: System.Nullable<struct (string * string)>) =
 
-        let sortKey = CSharp.valToOption sortKey        
+        let sortKey = Maybe.Null.valToOption sortKey        
         let attrs =
             [
                 ValueSome partitionKey
@@ -202,5 +202,5 @@ type ItemBuilder =
     member this.AddItem([<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
         { item = this.item.AsRawMap()
           conditionExpression = ConditionAndProject<_>.empty this.tableName None }
-        |> this.database.Put (CSharp.toOption logger)
+        |> this.database.Put (Maybe.Null.toOption logger)
         |> ignoreTyped<Map<string, AttributeValue> voption>

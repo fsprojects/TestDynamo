@@ -39,7 +39,7 @@ type CustomPipelineInterceptor(
     static let vtIsDefault vt =
         if vt = Unchecked.defaultof<ValueTask<_>>
         then Io.retn ValueNone
-        else vt |%|> CSharp.toOption
+        else vt |%|> Maybe.Null.toOption
 
     static let cast x: AmazonWebServiceResponse = x
 

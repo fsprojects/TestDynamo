@@ -130,6 +130,14 @@ module Reflection =
             | [x1; x2; x3; x4; x5; y] -> typedefof<_ -> _ -> _ -> _ -> _ -> _>.MakeGenericType(Array.ofList ts)
             | _ -> notSupported "Only supports up to 5 args"
 
+module Tuple =
+    let values (t: Type) =
+        if not t.IsConstructedGenericType
+            || t.GetGenericTypeDefinition() <> typedefof<System.ValueTuple<_, _>>
+        then invalidOp $"Type {t} is not a ValueTuple`2"
+        
+        struct (t.GetField("Item1"), t.GetField("Item2"))
+
 module Converters =
     open Reflection
     open Reflection.Elevated
@@ -154,8 +162,7 @@ module Converters =
            returnType = t.GetGenericArguments() |> List.ofArray |> funcType
            methodGenerics = t.GetGenericArguments() |> List.ofArray
            classGenerics = []
-           caseInsensitiveName = false } |> method)
-            .Invoke(null, [|f|])
+           caseInsensitiveName = false } |> method).Invoke(null, [|f|])
 
     let toFunc (f: obj) =
         let t = f.GetType()
@@ -169,8 +176,7 @@ module Converters =
            returnType = typedefof<Func<_, _>>.MakeGenericType(t.GetGenericArguments())
            methodGenerics = t.GetGenericArguments() |> List.ofArray
            classGenerics = []
-           caseInsensitiveName = false } |> method)
-            .Invoke(null, [|f|])
+           caseInsensitiveName = false } |> method).Invoke(null, [|f|])
 
     let valueNone t =
         { isStatic = true

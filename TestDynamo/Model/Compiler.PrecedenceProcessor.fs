@@ -1,6 +1,7 @@
 ﻿namespace TestDynamo.Model.Compiler
 
 open System
+open TestDynamo.Model
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 open TestDynamo
@@ -195,11 +196,11 @@ module PrecedenceProcessor =
     /// </summary>
     let complete logger expression = function
         | Pp { processed = [result] } -> result.node
-        | Pp { processed = [] } -> clientError $"Error processing expression \"{expression}\"."
+        | Pp { processed = [] } -> ClientError.clientError $"Error processing expression \"{expression}\"."
         | Pp x ->
 
             Logger.debug1 "Error processing expression: unmerged AST\n%O" (ForErrorsCache<_>.forErrors x) logger
-            clientError $"Error processing expression \"{expression}\"."
+            ClientError.clientError $"Error processing expression \"{expression}\"."
 
     let rec private isProcessed' from ``to`` = function
         | [] -> ValueNone
@@ -225,7 +226,7 @@ module PrecedenceProcessor =
                 // overlaps exactly
                 | head when head.fromToken = pointer.fromToken && head.toToken = pointer.toToken ->
                     Logger.debug1 "Exactly overlapping elements %A" struct (head, pointer) logger
-                    clientError  $"Cannot parse expression"
+                    ClientError.clientError  $"Cannot parse expression"
 
                 // subsumes
                 | head when head.fromToken >= pointer.fromToken && head.toToken <= pointer.toToken -> false
@@ -233,7 +234,7 @@ module PrecedenceProcessor =
                 // everything else
                 | head  ->
                     Logger.debug1 "Overlapping elements %A" struct (head, pointer) logger
-                    clientError $"Cannot parse expression")
+                    ClientError.clientError $"Cannot parse expression")
 
         let outOfRange tkn pointer =
             pointer.fromToken < 0us || pointer.fromToken > pointer.toToken || int pointer.toToken >= Array.length tkn
@@ -242,7 +243,7 @@ module PrecedenceProcessor =
             function
             | Pp { tokens = tkn } when outOfRange tkn pointer ->
                 Logger.debug1 "Ast node out of range %A" pointer logger
-                clientError $"Cannot parse expression"
+                ClientError.clientError $"Cannot parse expression"
             | Pp ({ processed = ast; tokens = tkn; version = version } & data) ->
                 let result = removeSubsumed struct (logger, pointer) ast
                 Pp { data with processed = pointer::result; version = version + 1us }
@@ -321,7 +322,7 @@ module PrecedenceProcessor =
     let get logger i = 
         tryGet i >> ValueOption.defaultWith (fun _ ->
             Logger.debug1 "Ast node out of range %i" i logger
-            clientError $"Cannot parse expression")
+            ClientError.clientError $"Cannot parse expression")
 
     /// <summary>
     /// Process a sub collecton of tokens
@@ -343,7 +344,7 @@ module PrecedenceProcessor =
                     Seq.filter (function
                         | x when x.fromToken >= from && x.toToken <= ``to`` -> true
                         | x when x.fromToken > ``to`` || x.toToken < from -> false
-                        | x -> clientError $"Overlapping element {from}-{``to``}, {x}.") pointers
+                        | x -> ClientError.clientError $"Overlapping element {from}-{``to``}, {x}.") pointers
                     |> Seq.map (fun x -> {x with fromToken = x.fromToken - from; toToken =  x.toToken - from })
                     |> List.ofSeq
 

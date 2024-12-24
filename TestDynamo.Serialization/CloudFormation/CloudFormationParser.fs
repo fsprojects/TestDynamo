@@ -91,7 +91,7 @@ type CloudFormationParser() =
             | true, null ->
                 c.StreamSpecification <- StreamSpecification()
                 c.StreamSpecification.StreamEnabled <- true
-                c.StreamSpecification.StreamViewType <- StreamViewType.NEW_AND_OLD_IMAGES
+                c.StreamSpecification.StreamViewType <- Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES
             | true, x ->
                 x.StreamEnabled <- true
 
@@ -273,7 +273,7 @@ type CloudFormationParser() =
 
         let settings = {settings = settings; alwaysCreateGlobal = false }
         task {
-            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnJsonStacks with
+            match! CloudFormationParser.buildDatabase settings (Maybe.Null.toOption logger) cfnJsonStacks with
             | Either1 db -> return new TestDynamo.Api.Database(db)
             | Either2 db ->
                 db.Dispose()
@@ -288,7 +288,7 @@ type CloudFormationParser() =
 
         let settings = {settings = settings; alwaysCreateGlobal = true }
         task {
-            match! CloudFormationParser.buildDatabase settings (CSharp.toOption logger) cfnJsonStacks with
+            match! CloudFormationParser.buildDatabase settings (Maybe.Null.toOption logger) cfnJsonStacks with
             | Either2 db -> return new TestDynamo.Api.GlobalDatabase(db)
             | Either1 db ->
                 db.Dispose()

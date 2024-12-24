@@ -182,7 +182,7 @@ module BinaryOps =
         let arithmetic args itemData =
             match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
             | struct (ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _)) -> op args itemData
-            | _ -> clientError err
+            | _ -> ClientError.clientError err
 
         ExpressionPartCompiler.build2
             name
@@ -427,7 +427,7 @@ module Call =
             | ValueSome (AttributeList _), ValueNone
             | ValueNone, ValueSome (AttributeList _)
             | ValueSome (AttributeList _), ValueSome (AttributeList _) -> GetOps.Functions.list_append lr itemData
-            | _ -> clientError "Arguments to list_append function must be lists"
+            | _ -> ClientError.clientError "Arguments to list_append function must be lists"
 
         ExpressionPartCompiler.build2
             name
@@ -650,13 +650,13 @@ module Updates =
             // special case for add a numer to nothing
             | ValueNone, ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add struct (return0, arg1) itemData
             | ValueNone, _
-            | _, ValueNone -> clientError "Invalid ADD update expression. Attribute has no value"
+            | _, ValueNone -> ClientError.clientError "Invalid ADD update expression. Attribute has no value"
             | ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add args itemData
             | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
                 GetOps.HashSets.union args itemData
                 ?|> ValueSome
-                |> ValueOption.defaultWith (fun _ -> clientError "Invalid ADD update expression. Sets contain two different types")
-            | _ -> clientError "Invalid ADD update expression. ADD is for sets and numbers only"
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Invalid ADD update expression. Sets contain two different types")
+            | _ -> ClientError.clientError "Invalid ADD update expression. ADD is for sets and numbers only"
 
         let private execute args: ExpressionReaderWriter =
 
@@ -721,12 +721,12 @@ module Updates =
         let private mutate args itemData =
             match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
             | ValueNone, _
-            | _, ValueNone -> clientError "Invalid DELETE update expression. Attribute has no value"
+            | _, ValueNone -> ClientError.clientError "Invalid DELETE update expression. Attribute has no value"
             | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
                 GetOps.HashSets.xOr args itemData
-                |> ValueOption.defaultWith (fun _ -> clientError "Invalid DELETE update expression. Sets contain two different types")
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Invalid DELETE update expression. Sets contain two different types")
             | s1, s2 ->
-                clientError $"Invalid DELETE update expression. DELETE is for sets only {s1} {s2}"
+                ClientError.clientError $"Invalid DELETE update expression. DELETE is for sets only {s1} {s2}"
 
         let private execute args: ExpressionReaderWriter =
 

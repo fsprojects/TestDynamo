@@ -66,7 +66,7 @@ module KeyConfig =
             match struct (partitionKey, sortKey) with
             | _, ValueNone -> ()
             | struct (x, _), ValueSome struct (y, _) when x = y ->
-                clientError $"Cannot use the a single attribute for partition and sort keys \"{x}\""
+                ClientError.clientError $"Cannot use the a single attribute for partition and sort keys \"{x}\""
             | _ -> ()
 
             Kc struct (createKey "partition key" partitionKey, ValueOption.map (createKey "sort key") sortKey)
@@ -85,7 +85,7 @@ module KeyConfig =
         | Kc struct (_, sk) -> sk ?|> _.attributeName
 
     let private noEmptyStrings name = function
-        | String x when x = "" -> clientError $"Empty string for key {name} is not permitted"
+        | String x when x = "" -> ClientError.clientError $"Empty string for key {name} is not permitted"
         | x -> x
 
     let partitionKey item (Kc (pk, _)) =

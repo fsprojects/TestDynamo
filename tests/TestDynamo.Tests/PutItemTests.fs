@@ -556,7 +556,7 @@ type PutItemTests(output: ITestOutputHelper) =
             | ValueNone, false -> ()
             | ValueSome x, true ->
 
-                assertDynamoDbItems struct ([ putItem.attrs |> CSharp.toDictionary id id ], [x], true)
+                assertDynamoDbItems struct ([ putItem.attrs |> kvpToDictionary ], [x], true)
         }
 
     [<Theory>]
@@ -786,7 +786,7 @@ type PutItemTests(output: ITestOutputHelper) =
             // arrange
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use host = cloneHost writer
-            let client = TestDynamoClient.createClient ValueNone true ValueNone (ValueSome host)
+            let client = TestDynamoClient.createClient<AmazonDynamoDBClient> ValueNone true ValueNone (ValueSome host)
             let table = Tables.get true true tables
             let struct (pk, struct (sk, item)) = randomItem table.hasSk random
 
@@ -835,7 +835,7 @@ type PutItemTests(output: ITestOutputHelper) =
                     else "attribute_not_exists(#attr) AND TablePk <> :v"
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
-                    |> CSharp.toDictionary id id
+                    |> kvpToDictionary
 
                 req.ExpressionAttributeValues <-
                     Map.add ":v" (Model.AttributeValue.String "XX") Map.empty

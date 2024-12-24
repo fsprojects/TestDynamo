@@ -157,13 +157,13 @@ module State =
 
 module Result =
     type private Cache<'a, 'b>() =
-        static member throw title: Result<'a, NonEmptyList<string>> -> 'a =
+        static member throw fErr title: Result<'a, NonEmptyList<string>> -> 'a =
             Result.mapError (
                 NonEmptyList.unwrap
                 >> Seq.map (sprintf " * %s")
                 >> Str.join "\n"
                 >> sprintf title)
-            >> function | Ok x -> x | Error x -> clientError x
+            >> function | Ok x -> x | Error x -> fErr x
 
         static member traverse: Result<'a, NonEmptyList<'b>> seq -> Result<'a list, NonEmptyList<'b>> =
             Collection.foldBack (fun struct (ok, success, failure) -> function
@@ -178,7 +178,7 @@ module Result =
     // not strictly monadic
     let traverse xs = Cache<_, _>.traverse xs
 
-    let throw title = Cache<_, _>.throw title
+    let throw fErr title = Cache<_, _>.throw fErr title
 
     let unwrapTpl1 = function
         | struct (Ok x, y) -> struct (x, y) |> Ok

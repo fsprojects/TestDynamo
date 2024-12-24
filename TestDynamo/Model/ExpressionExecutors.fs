@@ -140,18 +140,18 @@ module Fetch =
             let pk = 
                 pkName
                 |> flip MapUtils.tryFind key
-                |> ValueOption.defaultWith (fun _ -> clientError $"Partition key {pkName} not specified in ExclusiveStartKey")
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Partition key {pkName} not specified in ExclusiveStartKey")
 
             let sk =
                 KeyConfig.sortKeyName k
                 ?|> (fun skName ->
                     MapUtils.tryFind skName key
-                    |> ValueOption.defaultWith (fun _ -> clientError $"Sort key {skName} not specified in ExclusiveStartKey"))
+                    |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Sort key {skName} not specified in ExclusiveStartKey"))
 
             match struct (Map.count key, sk) with
             | 2, ValueSome _ 
             | 1, ValueNone -> struct (pk, sk)
-            | _ -> clientError $"Invalid ExclusiveStartKey. Expected {KeyConfig.keyNames k}"
+            | _ -> ClientError.clientError $"Invalid ExclusiveStartKey. Expected {KeyConfig.keyNames k}"
 
         let toOutputToken index item =
             let sk =
@@ -196,7 +196,7 @@ module Fetch =
                 Seq.concat [namesNotFound; valuesNotFound]
                 |> Str.join ", "
 
-            if err.Length > 0 then clientError $"Expression attribute names or values were not used: {err}"
+            if err.Length > 0 then ClientError.clientError $"Expression attribute names or values were not used: {err}"
 
     module private OpenIndex =
 
@@ -217,12 +217,12 @@ module Fetch =
          let applyFilters logger struct (filter, mapResults, input: ExpressionParams, index, maxReturnItems, limits) (blocks: PartitionBlock seq) =
 
              let mutable maxScanItems =
-                 if limits.maxScanItems < 1 then nameof limits.maxScanItems |> sprintf "%s must be greater than 0" |> clientError
+                 if limits.maxScanItems < 1 then nameof limits.maxScanItems |> sprintf "%s must be greater than 0" |> ClientError.clientError
                  else limits.maxScanItems
              // note: this includes items scanned but filtered out, so is different to max page size
              let mutable scannedItemSize = 0
              let mutable maxPageSizeBytes =
-                 if limits.maxPageSizeBytes < 1 then nameof limits.maxPageSizeBytes |> sprintf "%s must be greater than 0" |> clientError
+                 if limits.maxPageSizeBytes < 1 then nameof limits.maxPageSizeBytes |> sprintf "%s must be greater than 0" |> ClientError.clientError
                  else limits.maxPageSizeBytes
              let mutable lastEvaluatedItem = ValueNone
              let mutable maxReturnItems = maxReturnItems

@@ -266,7 +266,7 @@ module Index =
 
     let private validateName name =
         AwsUtils.parseIndexName name
-        |> ValueOption.defaultWith (fun _ -> clientError $"Invalid index name {name}")
+        |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Invalid index name {name}")
 
     let buildProjectionCols (keys: KeyConfig seq) projections =
         projections
@@ -294,7 +294,7 @@ module Index =
                 |> Seq.map (sprintf "Invalid secondary index key attribute name or projection %A")
                 |> Str.join "; "
 
-            if invalid <> "" then clientError invalid
+            if invalid <> "" then ClientError.clientError invalid
 
         let indexType =
             match struct (config.indexName ?|> validateName, config.local) with
@@ -363,10 +363,10 @@ module Index =
 
     let get partitionKey sortKey (Idx {data = data; info = {keyConfig = keyConfig; compositeName = name}}) =
         if KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey
-        then clientError $"Invalid partition key type {AttributeValue.getType partitionKey} for index {name}. Expected {KeyConfig.partitionType keyConfig}"
+        then ClientError.clientError $"Invalid partition key type {AttributeValue.getType partitionKey} for index {name}. Expected {KeyConfig.partitionType keyConfig}"
 
         if KeyConfig.sortKeyType keyConfig <> ValueOption.map AttributeValue.getType sortKey
-        then clientError $"Invalid sort key type {sortKey ?|> AttributeValue.getType} for index {name}. Expected {KeyConfig.sortKeyType keyConfig}"
+        then ClientError.clientError $"Invalid sort key type {sortKey ?|> AttributeValue.getType} for index {name}. Expected {KeyConfig.sortKeyType keyConfig}"
 
         IndexItems.partitions data
         |> AvlTree.tryFind partitionKey
@@ -378,7 +378,7 @@ module Index =
         | Idx {info = {keyConfig = keyConfig}} & idx when KeyConfig.partitionType keyConfig <> AttributeValue.getType partitionKey ->
             let actual = AttributeValue.getType partitionKey
             let expected = KeyConfig.partitionType keyConfig
-            clientError $"Attempting to use {actual} data to query index \"{idx}\"; expected {expected}"
+            ClientError.clientError $"Attempting to use {actual} data to query index \"{idx}\"; expected {expected}"
 
         | Idx {data = data} -> IndexItems.partitions data |> AvlTree.tryFind partitionKey
 

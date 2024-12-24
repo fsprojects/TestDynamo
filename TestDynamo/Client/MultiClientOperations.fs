@@ -22,7 +22,7 @@ module MultiClientOperations =
     let private chooseDatabase databaseId =
         Either.map2Of2 (fun struct (db: GlobalDatabase, _) ->
             match db.TryGetDatabase databaseId with
-            | ValueNone -> clientError $"No resources have been created in DB region {databaseId.regionId}"
+            | ValueNone -> ClientError.clientError $"No resources have been created in DB region {databaseId.regionId}"
             | ValueSome db -> db)
         >> Either.reduce
 

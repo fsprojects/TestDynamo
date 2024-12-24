@@ -52,7 +52,7 @@ module private ObjPipelineInterceptorUtils =
     let private notSupported ``member`` = ``member`` |> sprintf "%s member is not supported" |> NotSupportedException |> raise
 
     let private describeRequiredTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) =
-        db.TryDescribeTable logger name |> ValueOption.defaultWith (fun _ -> clientError $"Table {name} not found on database {db.Id}")
+        db.TryDescribeTable logger name |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Table {name} not found on database {db.Id}")
 
     let private maybeUpdateTable (db: Api.FSharp.Database) (logger: ILogger voption) (name: string) (req: UpdateSingleTableData voption) =
         match req with
@@ -89,7 +89,7 @@ module private ObjPipelineInterceptorUtils =
             |> execute state overrideDelay Item.Delete.input state.db.Delete Item.Delete.output c
         | :? DeleteTableRequest as request ->
             request.TableName
-            |> Maybe.expectSomeClientErr "TableName property is required%s" ""
+            |> ClientError.expectSomeClientErr "TableName property is required%s" ""
             |> executeAsync state overrideDelay id state.db.DeleteTable (Table.Local.Delete.output state.awsAccountId) c
         | :? DescribeGlobalTableRequest as request ->
             let cluster =
@@ -99,16 +99,16 @@ module private ObjPipelineInterceptorUtils =
 
             let name =
                 request.GlobalTableName
-                |> Maybe.expectSomeClientErr "GlobalTableName property is required%s" ""
+                |> ClientError.expectSomeClientErr "GlobalTableName property is required%s" ""
 
             if cluster.IsGlobalTable state.defaultLogger state.db.Id name |> not
-            then clientError $"{request.GlobalTableName} in {state.db.Id} is not a global table"
+            then ClientError.clientError $"{request.GlobalTableName} in {state.db.Id} is not a global table"
 
             name
             |> execute state overrideDelay id state.db.DescribeTable (Table.Global.Describe.output state.awsAccountId (ValueSome cluster) GlobalTableStatus.ACTIVE) c
         | :? DescribeTableRequest as request ->
             request.TableName
-            |> Maybe.expectSomeClientErr "TableName property is required%s" ""
+            |> ClientError.expectSomeClientErr "TableName property is required%s" ""
             |> execute state overrideDelay id state.db.DescribeTable (Table.Local.Describe.output state.awsAccountId) c
         | :? GetItemRequest<AttributeValue> as request ->
             execute state overrideDelay Item.Get.input state.db.Get Item.Get.output c request

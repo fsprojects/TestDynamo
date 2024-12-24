@@ -56,7 +56,7 @@ let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attr
         match struct (comparisonOperator value, attrValues, exists value) with
         | _, _, ValueSome true -> sprintf "attribute_exists(%s)" attrAlias
         | _, _, ValueSome false -> sprintf "attribute_not_exists(%s)" attrAlias
-        | ValueNone, _, _ -> clientError "Condition operator is mandatory"  // TODO: test? 
+        | ValueNone, _, _ -> ClientError.clientError "Condition operator is mandatory"  // TODO: test? 
         | ValueSome x, [struct (value, _)], ValueNone when x.Value = ComparisonOperator.EQ.Value -> sprintf "%s = %s" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.GE.Value -> sprintf "%s >= %s" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.GT.Value -> sprintf "%s > %s" attrAlias value
@@ -72,7 +72,7 @@ let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attr
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.CONTAINS.Value -> sprintf "contains(%s, %s)" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.BEGINS_WITH.Value -> sprintf "begins_with(%s, %s)" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.NOT_CONTAINS.Value -> sprintf "NOT contains(%s, %s)" attrAlias value
-        | ValueSome x, args , ValueNone -> clientError $"Unknown operation {x.Value} with {args.Length} args"
+        | ValueSome x, args , ValueNone -> ClientError.clientError $"Unknown operation {x.Value} with {args.Length} args"
 
     struct (exprString, Mapping.create [struct (attrAlias, attrName)] attrValues)
 
@@ -89,7 +89,7 @@ let private buildKeyConditions' conditionType (op: ConditionalOperator) keyCondi
 let buildFetchExpression expressionName conditionsName conditionType op expression (conditions: Map<_, _> voption) =
     match struct (expression, conditions) with
     | ValueNone, ValueNone -> ValueNone
-    | ValueSome _, ValueSome _ -> clientError $"Cannot specify {conditionsName} and {expressionName} in the same query"
+    | ValueSome _, ValueSome _ -> ClientError.clientError $"Cannot specify {conditionsName} and {expressionName} in the same query"
     | ValueSome x, ValueNone -> struct (x, struct (id, id)) |> ValueSome
     | ValueNone, ValueSome x ->
         MapUtils.toSeq x
@@ -100,7 +100,7 @@ let buildFetchExpression expressionName conditionsName conditionType op expressi
 let buildSelectTypes select projectionExpression (attributesToGet: string list voption) indexName =
 
     match struct (select, projectionExpression, attributesToGet, indexName) with
-    | _, ValueSome _, ValueSome (_::_), _ -> clientError $"Cannot have a projection expression and AttributesToGet on the same request"
+    | _, ValueSome _, ValueSome (_::_), _ -> ClientError.clientError $"Cannot have a projection expression and AttributesToGet on the same request"
     | ValueNone, ValueNone, ValueNone, _
     | ValueNone, ValueNone, ValueSome [], _ -> ExpressionExecutors.Fetch.AllAttributes |> flip tpl id
     | ValueSome (select: Select), proj, attr, _ when select.Value = Select.SPECIFIC_ATTRIBUTES.Value ->
@@ -111,8 +111,8 @@ let buildSelectTypes select projectionExpression (attributesToGet: string list v
     | ValueSome (x: Select), _, _, _ when x.Value = Select.ALL_ATTRIBUTES.Value -> ExpressionExecutors.Fetch.AllAttributes |> flip tpl id
     | ValueSome x, _, _, _ when x.Value = Select.COUNT.Value -> ExpressionExecutors.Fetch.Count |> flip tpl id
     | ValueSome x, _, _, ValueNone when x.Value = Select.ALL_PROJECTED_ATTRIBUTES.Value ->
-        clientError "ALL_PROJECTED_ATTRIBUTES is only valid on indexes"
+        ClientError.clientError "ALL_PROJECTED_ATTRIBUTES is only valid on indexes"
     | ValueSome x, _, _, ValueSome _ when x.Value = Select.ALL_PROJECTED_ATTRIBUTES.Value ->
         ExpressionExecutors.Fetch.AllAttributes |> flip tpl id
-    | ValueSome x, proj, _, _ -> clientError $"Invalid Select and ProjectionExpression properties ({x.Value}, {proj})"
+    | ValueSome x, proj, _, _ -> ClientError.clientError $"Invalid Select and ProjectionExpression properties ({x.Value}, {proj})"
     

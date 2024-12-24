@@ -117,7 +117,7 @@ type GetItemTests(output: ITestOutputHelper) =
                 req.ProjectionExpression <- "#attr, IndexSk_Copy, blablabla"
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TablePk_Copy" Map.empty
-                    |> CSharp.toDictionary id id
+                    |> kvpToDictionary
 
             // act
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req

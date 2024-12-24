@@ -51,13 +51,13 @@ module QueryExpressionCompiler =
 
     let private setPartitionKey acc ast =
         match acc.partitionKey with
-        | ValueSome _ -> clientError "Found multiple partition key queries"
+        | ValueSome _ -> ClientError.clientError "Found multiple partition key queries"
         | ValueNone -> {acc with partitionKey = ValueSome ast }
 
     let private setSortKey acc sk =
 
         match acc.sortKey with
-        | ValueSome _ -> clientError "Found multiple sort key queries"
+        | ValueSome _ -> ClientError.clientError "Found multiple sort key queries"
         | ValueNone -> {acc with sortKey = ValueSome sk }
 
     let private setAliasedKey acc builder =
@@ -66,7 +66,7 @@ module QueryExpressionCompiler =
     let private getExpressionAttrValue expressionAttrValue expressionAttrValues =
         match MapUtils.tryFind expressionAttrValue expressionAttrValues with
         | ValueSome x -> x
-        | ValueNone -> clientError $"Cannot find expression attribute value {expressionAttrValue}"
+        | ValueNone -> ClientError.clientError $"Cannot find expression attribute value {expressionAttrValue}"
 
     let private sortKeyEq expressionAttrValue (inputs: QueryParams) =
         let p = getExpressionAttrValue expressionAttrValue inputs.expressionParams.expressionAttrValues |> ValueSome
@@ -99,31 +99,31 @@ module QueryExpressionCompiler =
         | Lte -> sortKeyLte
         | Gt -> sortKeyGt
         | Gte -> sortKeyGte
-        | Plus -> clientError "+ symbol is not supported in queries"
-        | Minus -> clientError "- symbol is not supported in queries"
-        | Acc -> clientError ". or [] symbol is not supported in queries"
-        | Neq -> clientError "<> symbol is not supported in queries"
-        | In -> clientError "IN operation is not supported in queries"
-        | And -> clientError "AND operation is only supported when querying a single partition key value AND a single sort key value, or as part of a BETWEEN operation"
-        | Or -> clientError "OR operation is not supported in queries"
-        | WhiteSpace -> clientError "Invalid query expression"
+        | Plus -> ClientError.clientError "+ symbol is not supported in queries"
+        | Minus -> ClientError.clientError "- symbol is not supported in queries"
+        | Acc -> ClientError.clientError ". or [] symbol is not supported in queries"
+        | Neq -> ClientError.clientError "<> symbol is not supported in queries"
+        | In -> ClientError.clientError "IN operation is not supported in queries"
+        | And -> ClientError.clientError "AND operation is only supported when querying a single partition key value AND a single sort key value, or as part of a BETWEEN operation"
+        | Or -> ClientError.clientError "OR operation is not supported in queries"
+        | WhiteSpace -> ClientError.clientError "Invalid query expression"
 
     let private begins_with keyName expressionAttrValueName =
         let itemValue =
             PartitionBlock.peek
             >> Item.attributes
             >> (MapUtils.tryFind keyName
-                >> ValueOption.defaultWith (fun _ -> clientError $"Missing expected sort key {keyName}"))
+                >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Missing expected sort key {keyName}"))
 
         let getSubstring =
             MapUtils.tryFind expressionAttrValueName
-            >> ValueOption.defaultWith (fun _ -> clientError $"Expression attribute value {expressionAttrValueName} not defined")
+            >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Expression attribute value {expressionAttrValueName} not defined")
 
         let startsWith = function
             | struct (String x, String y) -> x.StartsWith(y)
             | struct (Binary x, Binary y) when x.Length < y.Length -> false
             | struct (Binary x, Binary y) -> Comparison.compareArrays 0 (y.Length - 1) x y
-            | x, y -> clientError $"Cannot use begins_with function on a {AttributeValue.getType x} and {AttributeValue.getType y}"
+            | x, y -> ClientError.clientError $"Cannot use begins_with function on a {AttributeValue.getType x} and {AttributeValue.getType y}"
 
         fun (query: QueryParams) (partition: Partition) ->
 
@@ -144,33 +144,33 @@ module QueryExpressionCompiler =
 
         | AstNode.BinaryOperator (op, (l, AstNode.Accessor (AccessorType.ExpressionAttrName alias))) ->
             MapUtils.tryFind alias
-            >> ValueOption.defaultWith (fun _ -> clientError $"Could not find expression attribute name {alias}")
+            >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
             >> AccessorType.Attribute >> AstNode.Accessor >> tpl l >> tpl op >> AstNode.BinaryOperator
             >> findKeyExpressions key
             |> setAliasedKey acc
 
         | AstNode.BinaryOperator (op, (AstNode.Accessor (AccessorType.ExpressionAttrName alias), r)) ->
             MapUtils.tryFind alias
-            >> ValueOption.defaultWith (fun _ -> clientError $"Could not find expression attribute name {alias}")
+            >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
             >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl r >> tpl op >> AstNode.BinaryOperator
             >> findKeyExpressions key
             |> setAliasedKey acc
 
         | AstNode.Between (AstNode.Accessor (AccessorType.ExpressionAttrName alias), lowHigh) ->
             MapUtils.tryFind alias
-            >> ValueOption.defaultWith (fun _ -> clientError $"Could not find expression attribute name {alias}")
+            >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
             >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl lowHigh >> AstNode.Between
             >> findKeyExpressions key
             |> setAliasedKey acc
 
         | AstNode.Call (method, ValueSome (BinaryOperator (op, (AstNode.Accessor (AccessorType.ExpressionAttrName alias), rArg)))) ->
             MapUtils.tryFind alias
-            >> ValueOption.defaultWith (fun _ -> clientError $"Could not find expression attribute name {alias}")
+            >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
             >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl rArg >> tpl op >> BinaryOperator >> ValueSome >> tpl method >> AstNode.Call
             >> findKeyExpressions key
             |> setAliasedKey acc
 
-        | AstNode.EmptyParenthesis -> clientError "Unexpected token \"()\""
+        | AstNode.EmptyParenthesis -> ClientError.clientError "Unexpected token \"()\""
 
         | AstNode.BinaryOperator (Single And, (l, r)) ->
             findKeyExpressions key l acc
@@ -180,7 +180,7 @@ module QueryExpressionCompiler =
         | AstNode.BinaryOperator (Single Eq, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue pl)) when attr = KeyConfig.partitionKeyName key ->
             let pk (inputs: QueryParams) index =
                 MapUtils.tryFind pl inputs.expressionParams.expressionAttrValues
-                |> ValueOption.defaultWith (fun _ -> clientError $"Expression attribute value {pl} not defined")
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Expression attribute value {pl} not defined")
                 |> flip (Index.getPartition inputs.logger) index
 
             setPartitionKey acc pk
@@ -198,7 +198,7 @@ module QueryExpressionCompiler =
 
             let sortKey =
                 KeyConfig.sortKeyName key
-                |> ValueOption.defaultWith (fun _ -> clientError $"Invalid key configuration")    // should not happen
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Invalid key configuration")    // should not happen
 
             begins_with sortKey pl |> setSortKey acc
 
@@ -206,7 +206,7 @@ module QueryExpressionCompiler =
         | AstNode.BinaryOperator (Single Eq, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue _))
         | AstNode.Between (AstNode.Accessor (AccessorType.Attribute attr), (AstNode.ExpressionAttrValue _, AstNode.ExpressionAttrValue _))
         | AstNode.Call ("begins_with", ValueSome (BinaryOperator (Multi Comma, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue _)))) ->
-            clientError $"Invalid query {ast}. Found non key attribute {attr}"
+            ClientError.clientError $"Invalid query {ast}. Found non key attribute {attr}"
 
         | AstNode.Synthetic (AccessorPath _)
         | AstNode.Synthetic (CsvList _)
@@ -222,7 +222,7 @@ module QueryExpressionCompiler =
         | AstNode.Update _
         | AstNode.Updates _
         | AstNode.Accessor _
-        | AstNode.BinaryOperator _ -> clientError $"Invalid query {ast}"
+        | AstNode.BinaryOperator _ -> ClientError.clientError $"Invalid query {ast}"
 
     let private defaultSortFilter (inputs: QueryParams) =
         let sk = inputs.expressionParams.lastEvaluatedKey ?>>= sndT
@@ -245,7 +245,7 @@ module QueryExpressionCompiler =
                     >> ValueOption.defaultValue Seq.empty
 
                 queryKeys.partitionKey
-                |> ValueOption.defaultWith (fun _ -> clientError "Query does not contain partition key condition")
+                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Query does not contain partition key condition")
                 <| inputs
                 <| index
                 |> function

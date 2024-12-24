@@ -1543,7 +1543,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
                 req.ExpressionAttributeNames <-
                     Map.add "#attr" "TableSk" Map.empty
-                    |> CSharp.toDictionary id id
+                    |> kvpToDictionary
 
                 req.ExpressionAttributeValues.Add(":v", (Model.AttributeValue.String "XX") |> attributeToDynamoDb)
 

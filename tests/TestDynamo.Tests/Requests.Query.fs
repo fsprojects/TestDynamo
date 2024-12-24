@@ -182,20 +182,20 @@ type QueryBuilder =
         | ValueSome x -> output.ScanIndexForward <- x
         | ValueNone -> ()
 
-        output.Select <- CSharp.fromOption x.select
-        output.TableName <- CSharp.fromOption x.tableName
-        output.IndexName <- CSharp.fromOption x.indexName
-        output.FilterExpression <- CSharp.fromOption x.filterExpression
+        output.Select <- Maybe.Null.fromOption x.select
+        output.TableName <- Maybe.Null.fromOption x.tableName
+        output.IndexName <- Maybe.Null.fromOption x.indexName
+        output.FilterExpression <- Maybe.Null.fromOption x.filterExpression
         x.limit ?|> (fun l -> output.Limit <- l) |> ValueOption.defaultValue ()
-        output.KeyConditionExpression <- CSharp.fromOption x.keyConditionExpression
-        output.ProjectionExpression <- CSharp.fromOption x.projectionExpression
-        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> CSharp.fromOption
-        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> (CSharp.toDictionary id id) |> CSharp.fromOption
+        output.KeyConditionExpression <- Maybe.Null.fromOption x.keyConditionExpression
+        output.ProjectionExpression <- Maybe.Null.fromOption x.projectionExpression
+        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> Maybe.Null.fromOption
+        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> kvpToDictionary |> Maybe.Null.fromOption
 
         output.ExpressionAttributeValues <-
             x.expressionAttrValues
             ?|> itemToDynamoDb
-            |> CSharp.fromOption
+            |> Maybe.Null.fromOption
 
         x.randomizeExprAttrNames
         ?|> (QueryBuilder.addSomeAliasesToQ output)
@@ -231,18 +231,18 @@ type QueryBuilder =
         match x.keyConditionExpression with | ValueSome _ -> invalidOp "keyConditionExpression" | ValueNone -> ()
         match x.updateKey with | ValueSome _ -> invalidOp "updateKey" | ValueNone -> ()
 
-        output.Select <- CSharp.fromOption x.select
-        output.TableName <- CSharp.fromOption x.tableName
-        output.IndexName <- CSharp.fromOption x.indexName
-        output.FilterExpression <- CSharp.fromOption x.filterExpression
-        output.ProjectionExpression <- CSharp.fromOption x.projectionExpression
-        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> CSharp.fromOption
+        output.Select <- Maybe.Null.fromOption x.select
+        output.TableName <- Maybe.Null.fromOption x.tableName
+        output.IndexName <- Maybe.Null.fromOption x.indexName
+        output.FilterExpression <- Maybe.Null.fromOption x.filterExpression
+        output.ProjectionExpression <- Maybe.Null.fromOption x.projectionExpression
+        output.AttributesToGet <- x.attributesToGet ?|> Enumerable.ToList |> Maybe.Null.fromOption
         x.limit ?|> (fun l -> output.Limit <- l) |> ValueOption.defaultValue ()
-        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> (CSharp.toDictionary id id) |> CSharp.fromOption
+        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> kvpToDictionary |> Maybe.Null.fromOption
         output.ExpressionAttributeValues <-
             x.expressionAttrValues
             ?|> itemToDynamoDb
-            |> CSharp.fromOption
+            |> Maybe.Null.fromOption
 
         x.randomizeExprAttrNames
         ?|> (QueryBuilder.addSomeAliasesToS output)
@@ -263,22 +263,22 @@ type QueryBuilder =
         match x.forwards with | ValueSome _ -> invalidOp "forwards" | ValueNone -> ()
         match x.limit with | ValueSome _ -> invalidOp "limit" | ValueNone -> ()
 
-        output.TableName <- CSharp.fromOption x.tableName
-        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> (CSharp.toDictionary id id) |> CSharp.fromOption
-        output.UpdateExpression <- CSharp.fromOption x.updateExpression
-        output.ConditionExpression <- CSharp.fromOption x.conditionExpression
-        output.AttributeUpdates <- ValueOption.map (CSharp.toDictionary id id) x.attributeUpdates |> CSharp.fromOption
+        output.TableName <- Maybe.Null.fromOption x.tableName
+        output.ExpressionAttributeNames <- x.expressionAttrNames ?|> kvpToDictionary |> Maybe.Null.fromOption
+        output.UpdateExpression <- Maybe.Null.fromOption x.updateExpression
+        output.ConditionExpression <- Maybe.Null.fromOption x.conditionExpression
+        output.AttributeUpdates <- ValueOption.map kvpToDictionary x.attributeUpdates |> Maybe.Null.fromOption
 
         output.ExpressionAttributeValues <-
             x.expressionAttrValues
             ?|> itemToDynamoDb
-            |> CSharp.fromOption
+            |> Maybe.Null.fromOption
 
         output.Key <-
             Maybe.expectSome x.updateKey
             |> itemToDynamoDb
 
-        output.ReturnValues <- CSharp.fromOption x.returnValues
+        output.ReturnValues <- Maybe.Null.fromOption x.returnValues
 
         x.randomizeExprAttrNames
         ?|> (QueryBuilder.addSomeAliasesToU output)

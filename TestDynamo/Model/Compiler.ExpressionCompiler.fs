@@ -292,7 +292,7 @@ module ExpressionCompiler =
                 MaybeLazyResult.map (tpl fn) ``lazy``
                 |> flip MaybeLazyResult.execute
 
-        let private throw = Result.throw "Error compiling expression\n%s"
+        let private throw = Result.throw ClientError.clientError "Error compiling expression\n%s"
         let buildCompiler (compilerSettings: CompilerSettings) =
 
             // IMPORTANT: if modifying any code related to CodeGenSettings, see comments in CodeGenSettings
@@ -355,7 +355,7 @@ module ExpressionCompiler =
                 | "" -> Ok ()
                 | err -> sprintf "Key attributes cannot be updated\n%s" err |> NonEmptyList.singleton |> Error
 
-        let private throw = Result.throw "Error compiling expression\n%s"
+        let private throw = Result.throw ClientError.clientError "Error compiling expression\n%s"
         let private validateMutatedAttributes struct (mutations, settings) (xs: ValidatedPath list) =
             [ validateKeyAttributes settings xs
               validateDuplicatePaths xs
@@ -418,7 +418,7 @@ module ExpressionCompiler =
                 | _ -> s) 0 node
 
         if operatorCount > Settings.ExpressionOperatorLimit
-        then clientError operatorLimitError
+        then ClientError.clientError operatorLimitError
 
         c.compiler node lookups
         |> mapFst (flip Writer.map)

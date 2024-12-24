@@ -546,7 +546,7 @@ module TableStreams =
     let addStream tableName enabled =
         fun logger -> function
         | Strs x when Map.containsKey tableName x ->
-            clientError $"Table \"{tableName}\" already has streams configured"
+            ClientError.clientError $"Table \"{tableName}\" already has streams configured"
         | Strs x ->
             let str =
                 if enabled then Stream.empty tableName |> ValueSome
@@ -608,8 +608,8 @@ module TableStreams =
         fun logger -> function
         | Strs streams ->
             match MapUtils.tryFind table streams with
-            | ValueNone -> clientError $"Cannot find table \"{table}\" on database \"{databaseId}\" for stream creation"
-            | ValueSome ValueNone -> clientError $"Streams are disabled for table \"{table}\" on database \"{databaseId}\""
+            | ValueNone -> ClientError.clientError $"Cannot find table \"{table}\" on database \"{databaseId}\" for stream creation"
+            | ValueSome ValueNone -> ClientError.clientError $"Streams are disabled for table \"{table}\" on database \"{databaseId}\""
             | ValueSome (ValueSome config) ->
 
                 Stream.addSubscriber behaviour dataType subscriber deletionProtection config
@@ -660,19 +660,19 @@ module TableStreams =
                 // You receive a ValidationException if you:
                 // 1) try to enable a stream on a table that already has a stream
                 | ValueSome _, CreateStream ->
-                    clientError $"Table \"{tableName}\" already has streams enabled"
+                    ClientError.clientError $"Table \"{tableName}\" already has streams enabled"
                 // 2) if you try to disable a stream on a table that doesn't have a stream.
                 | ValueNone, DeleteStream ->
-                    clientError $"Table \"{tableName}\" does not have a stream to disable"
+                    ClientError.clientError $"Table \"{tableName}\" does not have a stream to disable"
                 | ValueSome str, DeleteStream when Stream.hasDeletionProtection str ->
-                    clientError $"Stream for table \"{tableName}\" cannot be removed. This might be because it is used for database replication"
+                    ClientError.clientError $"Stream for table \"{tableName}\" cannot be removed. This might be because it is used for database replication"
                 | ValueSome _, DeleteStream ->
                     Map.add tableName ValueNone streams |> Strs
                 | ValueNone, CreateStream ->
                     let newV = Stream.empty tableName |> ValueSome
                     Map.add tableName newV streams |> Strs)
             |> ValueOption.defaultWith (fun _ ->
-                clientError $"Cannot find table \"{tableName}\" for stream modification")
+                ClientError.clientError $"Cannot find table \"{tableName}\" for stream modification")
         |> logOperation "UPDATE STREAMS"
 
     /// <summary>Lists enabled streams along with distinct config of their subscribers</summary>

@@ -79,14 +79,14 @@ type AttributeSet =
             let ``type`` = t ?|? AttributeValue.getType x
 
             match AttributeValue.asType ``type`` x with
-            | ValueNone -> clientError "Found multiple types in single set"
+            | ValueNone -> ClientError.clientError "Found multiple types in single set"
             | ValueSome x ->
                 match SetUtils.add x s with
-                | false, _ -> clientError $"Duplicate value in {``type``} set"
+                | false, _ -> ClientError.clientError $"Duplicate value in {``type``} set"
                 | true, s -> struct (ValueSome ``type``, s)) struct (ValueNone, Set.empty) strs
         |> function
-            | _, xs when xs = Set.empty -> clientError $"Empty set not supported"
-            | ValueNone, _ -> clientError $"Empty set not supported"
+            | _, xs when xs = Set.empty -> ClientError.clientError $"Empty set not supported"
+            | ValueNone, _ -> ClientError.clientError $"Empty set not supported"
             | ValueSome t, xs -> struct (t, xs)
         |> As
 
@@ -95,25 +95,25 @@ type AttributeSet =
 
     static member asBinarySeq = function
         | As struct (t, x) when t <> AttributeType.Binary ->
-            clientError $"Set has type {t}, not {AttributeType.Binary}"
+            ClientError.clientError $"Set has type {t}, not {AttributeType.Binary}"
         | As struct (_, xs) ->
             Seq.map (function
                 | Binary x -> x
-                | x -> clientError $"Set item {x} is not {AttributeType.Binary}") xs
+                | x -> ClientError.clientError $"Set item {x} is not {AttributeType.Binary}") xs
     static member asNumberSeq = function
         | As struct (t, x) when t <> AttributeType.Number ->
-            clientError $"Set has type {t}, not {AttributeType.Number}"
+            ClientError.clientError $"Set has type {t}, not {AttributeType.Number}"
         | As struct (_, xs) ->
             Seq.map (function
                 | Number x -> x
-                | x -> clientError $"Set item {x} is not {AttributeType.Number}") xs
+                | x -> ClientError.clientError $"Set item {x} is not {AttributeType.Number}") xs
     static member asStringSeq = function
         | As struct (t, x) when t <> AttributeType.String ->
-            clientError $"Set has type {t}, not {AttributeType.String}"
+            ClientError.clientError $"Set has type {t}, not {AttributeType.String}"
         | As struct (_, xs) ->
             Seq.map (function
                 | String x -> x
-                | x -> clientError $"Set item {x} is not {AttributeType.String}") xs
+                | x -> ClientError.clientError $"Set item {x} is not {AttributeType.String}") xs
     static member contains =
         function
         | struct (value, As struct (_, set)) -> Set.contains value set
@@ -690,8 +690,8 @@ type AttributeSelector =
 
     static member get item selector =
         match AttributeSelector.test item selector with
-        | NoValue -> clientError $"""Missing {selector.attributeDescription} "{selector.attributeName}" for item {item}"""
-        | ExpectedType t -> clientError $"""Expected {selector.attributeDescription} "{selector.attributeName}" to have type "{t}" for item {item}"""
+        | NoValue -> ClientError.clientError $"""Missing {selector.attributeDescription} "{selector.attributeName}" for item {item}"""
+        | ExpectedType t -> ClientError.clientError $"""Expected {selector.attributeDescription} "{selector.attributeName}" to have type "{t}" for item {item}"""
         | HasValue x -> x
 
     static member asTpl selector = struct (selector.attributeName, selector.attributeType)
@@ -809,7 +809,7 @@ module Item =
               itemName = name
               size =
                   ItemSize.tryCreate item
-                  |> ValueOption.defaultWith (fun _ -> clientError "Maximum item size if 400kB") 
+                  |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Maximum item size if 400kB") 
               attributes = item }
 
         It data
@@ -847,7 +847,7 @@ module Item =
         fun item ->
             match getAttrErrors ((1, []), HashMap item) |> Str.join "; " with
             | "" -> ()
-            | e -> clientError $"Invalid item - {e}"
+            | e -> ClientError.clientError $"Invalid item - {e}"
 
     let create name item =
         validateMap item

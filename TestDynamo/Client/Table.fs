@@ -196,7 +196,7 @@ module Local =
         | ValueSome { AttributeName = ValueSome pka }, ValueNone, 1 -> struct (pka, ValueNone)
         | ValueSome { AttributeName = ValueSome pka }, ValueSome { AttributeName = ValueSome ska }, 2 -> struct (pka, ValueSome ska)
         | ValueNone, _, _
-        | ValueSome _, _, _ -> clientError "Invalid key"
+        | ValueSome _, _, _ -> ClientError.clientError "Invalid key"
 
     let private buildGsiSchema keySchema (projection: Projection) =
         let key = fromKeySchema (keySchema |> List.ofSeq)
@@ -205,7 +205,7 @@ module Local =
             | ValueSome t when t.Value = ProjectionType.ALL.Value -> struct (ValueNone, false)
             | ValueSome t when t.Value = ProjectionType.KEYS_ONLY.Value -> struct (List.empty |> ValueSome, true)
             | ValueSome t when t.Value = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [] |> List.ofSeq |> ValueSome, false)
-            | t -> clientError $"Invalid projection type {t}"
+            | t -> ClientError.clientError $"Invalid projection type {t}"
 
         { keys = key; projectionCols = projection; projectionsAreKeys = projectionsAreKeys  }
 
@@ -215,8 +215,8 @@ module Local =
             | ValueSome ``type`` when ``type``.Value = ScalarAttributeType.S.Value -> AttributeType.String
             | ValueSome ``type`` when ``type``.Value = ScalarAttributeType.N.Value -> AttributeType.Number
             | ValueSome ``type`` when ``type``.Value = ScalarAttributeType.B.Value -> AttributeType.Binary
-            | ValueSome ``type`` -> clientError $"Invalid attribute type {``type``} for key schema element {x.AttributeName}"
-            | ValueNone -> clientError $"Attribute type not set for key schema element {x.AttributeName}"
+            | ValueSome ``type`` -> ClientError.clientError $"Invalid attribute type {``type``} for key schema element {x.AttributeName}"
+            | ValueNone -> ClientError.clientError $"Attribute type not set for key schema element {x.AttributeName}"
             |> tpl (x.AttributeName <!!> nameof x.AttributeName)) attr
 
     let private buildStreamConfig (streamSpecification: StreamSpecification) =
@@ -225,7 +225,7 @@ module Local =
         | { StreamViewType = ValueNone } -> CreateStream |> ValueSome
         | { StreamViewType = ValueSome x } ->
             match StreamDataType.tryParse x.Value with
-            | ValueNone -> clientError $"Invalid StreamViewType \"{x.Value}\""
+            | ValueNone -> ClientError.clientError $"Invalid StreamViewType \"{x.Value}\""
             | ValueSome _ & x -> CreateStream |> ValueSome
 
     module Describe =
@@ -262,8 +262,8 @@ module Local =
                 | ValueSome t when t = ProjectionType.ALL.Value -> struct (ValueNone, false)
                 | ValueSome t when t = ProjectionType.KEYS_ONLY.Value -> struct (List.empty |> ValueSome, true)
                 | ValueSome t when t = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [] |> List.ofSeq |> ValueSome, false)
-                | ValueNone -> clientError $"Projection type required"
-                | t -> clientError $"Invalid projection type {t}"
+                | ValueNone -> ClientError.clientError $"Projection type required"
+                | t -> ClientError.clientError $"Invalid projection type {t}"
 
             { keys = key; projectionCols = projection; projectionsAreKeys = projectionsAreKeys  }
 
@@ -272,14 +272,14 @@ module Local =
 
         let buildLsiSchema tablePk keySchema =
             match fromKeySchema (keySchema |> List.ofSeq) with
-            | _, ValueNone -> clientError "Sort key is mandatory for local secondary index"
-            | indexPk, ValueSome _ when indexPk <> tablePk -> clientError $"Partition key ({indexPk}) must be the same as table partition key ({tablePk}) for local secondary index"
+            | _, ValueNone -> ClientError.clientError "Sort key is mandatory for local secondary index"
+            | indexPk, ValueSome _ when indexPk <> tablePk -> ClientError.clientError $"Partition key ({indexPk}) must be the same as table partition key ({tablePk}) for local secondary index"
             | _, ValueSome _ -> gsiSchema keySchema
 
         let addLsi key oldV newV =
             match oldV with
             | ValueNone -> newV
-            | ValueSome _ -> clientError $"Duplicate key definition {key}"
+            | ValueSome _ -> ClientError.clientError $"Duplicate key definition {key}"
 
         let private buildLsiSchema' tablePk (x: LocalSecondaryIndex) = buildLsiSchema tablePk (x.KeySchema ?|? []) (x.Projection ?|? noProjection)
 
@@ -370,7 +370,7 @@ module Local =
                 |> List.ofSeq
                 |> Either.partition
 
-            if List.length gsiCreate + List.length gsiDelete > 1 then clientError "You can only create or delete one global secondary index per UpdateTable operation."
+            if List.length gsiCreate + List.length gsiDelete > 1 then ClientError.clientError "You can only create or delete one global secondary index per UpdateTable operation."
 
             { tableName = req.TableName  <!!> nameof req.TableName
               globalTableData =

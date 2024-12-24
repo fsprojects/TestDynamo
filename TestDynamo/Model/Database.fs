@@ -235,8 +235,8 @@ module Database =
                     |> mapSnd purgeTransactWriteCache
                 with
                 | e ->
-                    match struct (Settings.Logging.LogDatabaseExceptions, e) with
-                    | false, :? Amazon.DynamoDBv2.AmazonDynamoDBException -> ()
+                    match struct (Settings.Logging.LogDatabaseExceptions, e.GetType().Name = "AmazonDynamoDBException") with
+                    | false, true -> ()
                     | _ ->
                         Logger.debug1 "Error in %s operation" name logger
 
@@ -388,7 +388,7 @@ module Database =
             |> tplDouble
             |> mapFst (
                 Table.getIndex req.indexName
-                >> Maybe.defaultWith (fun name -> clientError $"Invalid index {name}") req.indexName
+                >> Maybe.defaultWith (fun name -> ClientError.clientError $"Invalid index {name}") req.indexName
                 >> Logger.logFn1 "Using index %A" logger)
             |> mapSnd Table.attributeNames
             |> uncurry (executeFetch req logger))
@@ -460,7 +460,7 @@ module Database =
             | struct ({ conditionExpression = ValueSome _ }: ConditionAndProject<BasicReturnValues>, { items = [||] }: FetchOutput) ->
                 let struct (err, log) = validateMessages reqName
                 Logger.log0 log logger
-                clientError err
+                ClientError.clientError err
             | _, { items = items } -> items
 
     let private removeUnWanted = function
@@ -807,7 +807,7 @@ module Database =
         tryDeleteTable name logger db
         |> mapFst (Io.map (function
             | ValueSome x -> x
-            | ValueNone -> clientError $"Table \"{name}\" not found"))
+            | ValueNone -> ClientError.clientError $"Table \"{name}\" not found"))
 
     let addTable =
         Execute.command "ADD TABLE" (fun logger (args: CreateTableData) db ->
@@ -997,7 +997,7 @@ module Database =
                     |> buildCorrectDbType syncErr
                     |> tpl Ingested
                 with
-                | :? TestDynamoException as e when Table.isItemNotValidOnIndexError e ->
+                | e when Table.isItemNotValidOnIndexError e ->
                     let fromDb = DatabaseChange.instancePacketPath change |> NonEmptyList.unwrap |> List.head
                     let toDb = db.info.databaseId
                     syncErrorDescriber struct (fromDb, toDb, streamSubscriberId)
@@ -1047,7 +1047,7 @@ module Database =
                 + List.length writes.updates
 
             if totalCount > Settings.TransactWriteSettings.MaxItemsPerRequest
-            then clientError
+            then ClientError.clientError
                      ($"Maximum items in a transact write is {Settings.BatchItems.MaxBatchWriteItems}, got {totalCount}. "
                        + $"You can change this value by modifying {nameof Settings}.{nameof Settings.TransactWriteSettings}.{nameof Settings.TransactWriteSettings.MaxItemsPerRequest}")
 
@@ -1071,7 +1071,7 @@ module Database =
                 |> function
                     | struct (AttributeLookupResult.HasValue x, ValueNone) -> struct (x, ValueNone)
                     | AttributeLookupResult.HasValue x, ValueSome (AttributeLookupResult.HasValue y) -> struct (x, ValueSome y)
-                    | pp -> clientError $"Invalid key specification for write request to table {tableName}"
+                    | pp -> ClientError.clientError $"Invalid key specification for write request to table {tableName}"
 
             let tableModifications =    
                 [
@@ -1097,7 +1097,7 @@ module Database =
 
             match keyErrs with
             | "" -> ()
-            | err -> sprintf "Error executing transact write\n%s" err |> clientError
+            | err -> sprintf "Error executing transact write\n%s" err |> ClientError.clientError
 
             tableModifications
             |> Collection.groupBy fstT
@@ -1107,14 +1107,14 @@ module Database =
         let private getForCondition =
             get
             >>>> function
-                | { items = [||]; scannedCount = s } when s > 0 -> $"An error occurred (ConditionalCheckFailedException): The conditional request failed" |> clientError
+                | { items = [||]; scannedCount = s } when s > 0 -> $"An error occurred (ConditionalCheckFailedException): The conditional request failed" |> ClientError.clientError
                 | xs -> xs.itemSizeBytes
 
         let private validateItemSize = function
             | s when s > Settings.TransactWriteSettings.MaxRequestDataBytes ->
                 $"The maximum size of a transact write is {Settings.TransactWriteSettings.MaxRequestDataBytes}B, attempted {s}B. "
                 + $"You can change this value by modifying {nameof Settings}.{nameof Settings.TransactWriteSettings}.{nameof Settings.TransactWriteSettings.MaxRequestDataBytes}"
-                |> clientError
+                |> ClientError.clientError
             | _ -> ()
 
         let private transactPut =

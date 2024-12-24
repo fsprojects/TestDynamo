@@ -4,6 +4,7 @@ open System
 open System.Runtime.InteropServices
 open Microsoft.FSharp.Core
 open TestDynamo
+open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open Microsoft.Extensions.Logging
 
@@ -26,7 +27,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let db =
-            CSharp.toOption logger
+            Maybe.Null.toOption logger
             ?|> fun x -> new FsGlobalDb(initialDatabases, x)
             ?|>? fun _ -> new FsGlobalDb(initialDatabases)
 
@@ -34,7 +35,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
 
     new([<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
         let db =
-            CSharp.toOption logger
+            Maybe.Null.toOption logger
             ?|> fun x -> new FsGlobalDb(x)
             ?|>? fun _ -> new FsGlobalDb()
 
@@ -45,7 +46,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
         let db =
-            CSharp.toOption logger
+            Maybe.Null.toOption logger
             ?|> fun x -> new FsGlobalDb(x)
             ?|>? fun _ -> new FsGlobalDb()
 
@@ -73,7 +74,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
     /// If the Database does not exist it will be created  
     /// </summary>
     member _.GetDatabase(databaseId, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        new Database(db.GetDatabase (CSharp.toOption logger) databaseId)
+        new Database(db.GetDatabase (Maybe.Null.toOption logger) databaseId)
 
     /// <summary>
     /// Try to get a database in a specific region.
@@ -95,7 +96,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
     /// Optionally omit tables which replicate TO a specific DB 
     /// </summary>
     member _.TryDescribeGlobalTable(dbId, table, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.TryDescribeGlobalTable (CSharp.toOption logger) dbId table
+        db.TryDescribeGlobalTable (Maybe.Null.toOption logger) dbId table
 
     member this.ListGlobalTables(
         databaseId,
@@ -104,35 +105,35 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
         [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
 
         db.ListGlobalTables
-            (CSharp.toOption logger)
+            (Maybe.Null.toOption logger)
             struct (
                 databaseId,
-                CSharp.toOption start,
-                CSharp.valToOption limit ?|? System.Int32.MaxValue)
+                Maybe.Null.toOption start,
+                Maybe.Null.valToOption limit ?|? System.Int32.MaxValue)
 
     /// <summary>
     /// Describe a global table as a list of linked tables
     /// Optionally omit tables which replicate TO a specific DB 
     /// </summary>
     member this.DescribeGlobalTable(dbId, table, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.TryDescribeGlobalTable (CSharp.toOption logger) dbId table
+        db.TryDescribeGlobalTable (Maybe.Null.toOption logger) dbId table
 
     member this.IsGlobalTable([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.IsGlobalTable  (CSharp.toOption logger)
+        db.IsGlobalTable  (Maybe.Null.toOption logger)
 
     /// <param name="rootsOnly">
     /// If true, will only list replications which describe a paren => child operation.
     /// If false, will include all replications, half of which will be child => parent operations
     /// </param>
     member _.ListReplications (rootsOnly, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.ListReplications  (CSharp.toOption logger) rootsOnly
+        db.ListReplications  (Maybe.Null.toOption logger) rootsOnly
 
     /// <summary>
     /// Build a clone of this GlobalDatabase which contains Databases with data, stream config and replication settings
     /// Does not clone subscription callbacks to streams
     /// </summary>
     member _.Clone([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.Clone  (CSharp.toOption logger)
+        db.Clone  (Maybe.Null.toOption logger)
 
     /// <summary>
     /// Build some data which can be used to clone this GlobalDatabase at a later state.
@@ -141,14 +142,14 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
     /// It will not contain subscription callbacks to streams
     /// </summary>
     member _.BuildCloneData([<Optional; DefaultParameterValue(null: ILogger)>] logger) =
-        db.BuildCloneData  (CSharp.toOption logger)
+        db.BuildCloneData  (Maybe.Null.toOption logger)
 
     /// <summary>
     /// Change how a replication propagates it's data
     /// </summary>
     member this.UpdateReplication(replicationId, behaviour, twoWayUpdate, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.UpdateReplication
-            (CSharp.toOption logger)
+            (Maybe.Null.toOption logger)
             replicationId
             behaviour
             twoWayUpdate
@@ -159,7 +160,7 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
     member this.UpdateTable(dbId, tableName, args, [<Optional; DefaultParameterValue(null: ILogger)>] logger) =
         db.UpdateTable
             dbId
-            (CSharp.toOption logger)
+            (Maybe.Null.toOption logger)
             tableName
             args
 
@@ -171,4 +172,4 @@ type GlobalDatabase (db: FsGlobalDb, [<Optional; DefaultParameterValue(false)>] 
         [<Optional; DefaultParameterValue(null: ILogger)>] logger,
         [<Optional; DefaultParameterValue(System.Threading.CancellationToken())>] c) =
 
-        db.AwaitAllSubscribers (CSharp.toOption logger) c
+        db.AwaitAllSubscribers (Maybe.Null.toOption logger) c

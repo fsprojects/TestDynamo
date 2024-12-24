@@ -9,6 +9,7 @@ open Microsoft.FSharp.Core
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.GeneratedCode.Dtos
+open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.GenericMapper.Expressions
 open TestDynamo.GenericMapper.Utils
@@ -32,8 +33,8 @@ type private DebugUtils() =
     // this env variable must be set before application startup
     static let traceDtoMapping =
         System.Environment.GetEnvironmentVariable "TRACE_DTO_MAPPING"
-        |> CSharp.emptyStringToNull
-        |> CSharp.toOption
+        |> Str.emptyStringToNull
+        |> Maybe.Null.toOption
         ?|> (fun x -> Regex.IsMatch(x, @"^\s*(0|false|no|null)\s*$") |> not)
         ?|? false
 
@@ -169,7 +170,7 @@ module ToAttributeValue =
             | ValueNone ->
             match l x with
             | ValueSome l -> l |> Seq.map this.attrV |> Array.ofSeq |> AttributeListType.CompressedList |> AttributeValue.AttributeList
-            | ValueNone -> clientError "AttributeValue object has no data"
+            | ValueNone -> ClientError.clientError "AttributeValue object has no data"
 
     let private isNullAccessor (t: Type) =
 
@@ -612,7 +613,7 @@ module EmptyTypeMapper =
         | _ ->
             tTo.GetField("value", BindingFlags.Static ||| BindingFlags.Public)
             :> MemberInfo
-            |> CSharp.toOption
+            |> Maybe.Null.toOption
             ?|? tTo.GetProperty("value", BindingFlags.Static ||| BindingFlags.Public)
             |> Expr.propStatic
             |> ValueSome
@@ -1027,7 +1028,7 @@ let struct (amzDto, dtoAmz) =
     typeof<DynamodbTypeAttribute>.Assembly.GetTypes()
     |> Seq.map (fun x ->
         x.GetCustomAttribute<DynamodbTypeAttribute>()
-        |> CSharp.toOption
+        |> Maybe.Null.toOption
         ?|> (_.Name >> getType >> tpl (addGenerics x)))
     |> Maybe.traverse
     |> Seq.fold (fun struct (amzDto: Dictionary<_, _>, dtoAmz: Dictionary<_, _>) struct (dto, amz) ->

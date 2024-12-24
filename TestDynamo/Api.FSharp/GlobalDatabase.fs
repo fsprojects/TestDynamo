@@ -199,7 +199,7 @@ type GlobalDatabase private (initialDatabases: GlobalDatabaseClone, logger: ILog
         |> function
             | ValueNone ->
                 let fromDb = dbId ?|> sprintf " from database %A" ?|? ""
-                clientError $"Table {table}{fromDb} is not a global table"
+                ClientError.clientError $"Table {table}{fromDb} is not a global table"
             | ValueSome xs -> xs
 
     member this.GetGlobalTable databaseId name =
