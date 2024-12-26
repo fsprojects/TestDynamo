@@ -20,12 +20,11 @@ open Tests.Loggers
 type ApiDb = TestDynamo.Api.FSharp.Database
 let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f 
 
-// TODO: name not used
-let attributeFromDynamodb name (attr: DynamoAttributeValue) =
+let attributeFromDynamodb (attr: DynamoAttributeValue) =
     DtoMappers.mapDto<DynamoAttributeValue, AttributeValue> attr
     
-let itemFromDynamodb name (x: Dictionary<string,DynamoAttributeValue>) =
-    x |> Seq.map (fun x -> KeyValuePair<_, _>(x.Key, attributeFromDynamodb name x.Value)) |> MapUtils.fromKvp
+let itemFromDynamodb (x: Dictionary<string,DynamoAttributeValue>) =
+    x |> Seq.map (fun x -> KeyValuePair<_, _>(x.Key, attributeFromDynamodb x.Value)) |> MapUtils.fromKvp
     
 let attributeToDynamoDb = DtoMappers.mapDto<AttributeValue, DynamoAttributeValue>
 

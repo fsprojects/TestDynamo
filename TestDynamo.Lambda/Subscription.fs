@@ -18,8 +18,6 @@ open TestDynamo.Utils
 
 #nowarn "3390"
 
-// TODO: code gen???
-
 module LambdaSubscriberUtils =
     
     /// <summary>

@@ -258,6 +258,16 @@ module MappingTestGenerator =
                                .Using<DynamoAttributeValue, DynamoAttributeValueComparer>()))
                 |> ignoreTyped<AndConstraint<Primitives.ObjectAssertions>>
 
+type MonitoredMemoryStream() =
+    inherit MemoryStream([|1uy|])
+    
+    let mutable disposed = false
+    member _.Disposed = disposed
+    override this.Dispose(disposing) =
+        disposed <- true
+        base.Dispose(disposing)
+
+[<Collection("DisposeOfInputMemoryStreams lock")>]
 type MappingTests(output: ITestOutputHelper) =
 
     let random = randomBuilder output
@@ -337,7 +347,6 @@ type MappingTests(output: ITestOutputHelper) =
 
         // arrange
         let data =
-            // TODO: can these Nones be mapped to empty lists automatically for certain props?
             { AttributesToGet = ValueNone
               ConditionalOperator = ValueNone
               ConsistentRead = ValueNone
@@ -364,3 +373,100 @@ type MappingTests(output: ITestOutputHelper) =
         Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
         Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
         Assert.Equal((if ``is set`` then 1 else 0), result1.Limit)
+
+    // particular use case with bug
+    [<Theory>]
+    //[<InlineData(false)>]
+    [<ClassData(typeof<OneFlag>)>]
+    let ``Test ScanRequest, to AWS, is limit set`` ``is set`` =
+
+        // arrange
+        let data =
+            { AttributesToGet = ValueNone
+              ConditionalOperator = ValueNone
+              ConsistentRead = ValueNone
+              ExclusiveStartKey = ValueNone
+              ExpressionAttributeNames = ValueNone
+              ExpressionAttributeValues = ValueNone
+              FilterExpression = ValueNone
+              IndexName = ValueNone
+              Limit = if ``is set`` then ValueSome 1 else ValueNone
+              ProjectionExpression = ValueNone
+              ReturnConsumedCapacity = ValueNone
+              ScanFilter = ValueNone
+              Segment = ValueNone
+              Select = ValueNone
+              TableName = ValueNone
+              TotalSegments = ValueNone }: ScanRequest<AttributeValue>
+
+        // act
+        let result1 = DtoMappers.mapDto<
+            TestDynamo.GeneratedCode.Dtos.ScanRequest<AttributeValue>,
+            Amazon.DynamoDBv2.Model.ScanRequest> data
+
+        // assert
+        Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
+        Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
+        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit)
+
+    // This test can modify the behavior of other tests
+    // As far as I can see, it will only break tests in this class, so all good if these are
+    // run serially
+    [<Theory>]
+    [<ClassData(typeof<OneFlag>)>]
+    let ``Test MemoryStream disposal`` ``should dispose`` =
+
+        use _ = new ConsoleLogger(output)
+        let disp = Settings.DisposeOfInputMemoryStreams
+        try
+            // arrange
+            Settings.DisposeOfInputMemoryStreams <- ``should dispose``
+            Console.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
+            
+            let attr = DynamoAttributeValue()
+            use ms = new MonitoredMemoryStream()
+            attr.B <- ms
+            
+            // act
+            DtoMappers.mapDto<DynamoAttributeValue, AttributeValue> attr
+            |> ignoreTyped<AttributeValue>
+                
+            // assert
+            Console.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
+            Assert.Equal(``should dispose``, ms.Disposed)
+        finally
+            Settings.DisposeOfInputMemoryStreams <- disp
+            
+    [<Fact>]
+    let ``Test null in list, 1`` () =
+         
+        let req = Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest()
+        req.Statements <- MList<_>([null])
+
+        // act
+        let e = Assert.ThrowsAny(fun _ ->
+            DtoMappers.mapDto<
+                Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest,
+                BatchExecuteStatementRequest<AttributeValue>> req
+            |> ignoreTyped<BatchExecuteStatementRequest<AttributeValue>>)
+        
+        // assert
+        assertError output "Found null value in input or output" e
+            
+    [<Fact>]
+    let ``Test null in list, 2`` () =
+         
+        let req =
+            { Statements = [|(Unchecked.defaultof<BatchStatementRequest<AttributeValue>>)|] |> ValueSome
+              ReturnConsumedCapacity = ValueNone }: BatchExecuteStatementRequest<AttributeValue>
+
+        // act
+        let e = Assert.ThrowsAny(fun _ ->
+            DtoMappers.mapDto<
+                BatchExecuteStatementRequest<AttributeValue>,
+                Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest> req
+            |> ignoreTyped<Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest>)
+        
+        // assert
+        assertError output "Found null value in input or output" e
+        

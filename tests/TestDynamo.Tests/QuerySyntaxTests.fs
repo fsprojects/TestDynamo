@@ -686,8 +686,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
     let ``Query on various numeric representations`` number =
 
         task {
-            use client = buildClient output
-
+            
             // arrange - make sure tables are added to common host
             let! tables = sharedTestData ValueNone // (ValueSome output)
             use client = buildClient output
@@ -712,11 +711,6 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
 
             // assert
             Assert.Equal(1, response.Count)
-
-            // TODO: uncomment or remove
-            // if isEqual then Assert.Equal(1, response.Items.Count)
-            // else Assert.Equal(0, response.Items.Count)
-            ()
         }
 
     [<Theory>]

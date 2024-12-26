@@ -160,7 +160,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             Assert.Equal(1, result.Items.Count)
             let output =
                 result.Items[0]
-                |> itemFromDynamodb "$"
+                |> itemFromDynamodb
                 |> tpl keys
 
             return output
@@ -186,7 +186,7 @@ type ProjectionTests(output: ITestOutputHelper) =
             Assert.Equal(1, result.Items.Count)
             let output =
                 result.Items[0]
-                |> itemFromDynamodb "$"
+                |> itemFromDynamodb
                 |> tpl keys
 
             return output

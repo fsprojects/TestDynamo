@@ -31,13 +31,12 @@ type Mapping =
 let private exists = function
     | Either1 (x: Condition<_>) -> ValueNone
     | Either2 (x: ExpectedAttributeValue<_>) -> x.Exists
-    // TODO: can Condition be mapped onto ExpectedAttributeValue automatically?? 
 
 let private attributeValueList = function
-    | Either1 (x: Condition<_>) -> x.AttributeValueList ?|? []
-    | Either2 ({ AttributeValueList = ValueSome (_::_ & l) }: ExpectedAttributeValue<_>) -> l
-    | Either2 ({ Value = ValueSome v }: ExpectedAttributeValue<_>) -> [v]
-    | Either2 _ -> []
+    | Either1 (x: Condition<_>) -> x.AttributeValueList ?|? [||]
+    | Either2 ({ AttributeValueList = ValueSome l }: ExpectedAttributeValue<_>) when l.Length > 0 -> l
+    | Either2 ({ Value = ValueSome v }: ExpectedAttributeValue<_>) -> [|v|]
+    | Either2 _ -> [||]
 
 let private comparisonOperator =
     function
@@ -56,7 +55,7 @@ let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attr
         match struct (comparisonOperator value, attrValues, exists value) with
         | _, _, ValueSome true -> sprintf "attribute_exists(%s)" attrAlias
         | _, _, ValueSome false -> sprintf "attribute_not_exists(%s)" attrAlias
-        | ValueNone, _, _ -> ClientError.clientError "Condition operator is mandatory"  // TODO: test? 
+        | ValueNone, _, _ -> ClientError.clientError "Comparison operator is mandatory" 
         | ValueSome x, [struct (value, _)], ValueNone when x.Value = ComparisonOperator.EQ.Value -> sprintf "%s = %s" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.GE.Value -> sprintf "%s >= %s" attrAlias value
         | ValueSome x, [(value, _)], ValueNone when x.Value = ComparisonOperator.GT.Value -> sprintf "%s > %s" attrAlias value
@@ -97,12 +96,12 @@ let buildFetchExpression expressionName conditionsName conditionType op expressi
         |> mapSnd Mapping.asMapAdders
         |> ValueSome
 
-let buildSelectTypes select projectionExpression (attributesToGet: string list voption) indexName =
+let buildSelectTypes select projectionExpression (attributesToGet: string array voption) indexName =
 
     match struct (select, projectionExpression, attributesToGet, indexName) with
-    | _, ValueSome _, ValueSome (_::_), _ -> ClientError.clientError $"Cannot have a projection expression and AttributesToGet on the same request"
+    | _, ValueSome _, ValueSome arr, _ when arr.Length > 0 -> ClientError.clientError $"Cannot have a projection expression and AttributesToGet on the same request"
     | ValueNone, ValueNone, ValueNone, _
-    | ValueNone, ValueNone, ValueSome [], _ -> ExpressionExecutors.Fetch.AllAttributes |> flip tpl id
+    | ValueNone, ValueNone, ValueSome [||], _ -> ExpressionExecutors.Fetch.AllAttributes |> flip tpl id
     | ValueSome (select: Select), proj, attr, _ when select.Value = Select.SPECIFIC_ATTRIBUTES.Value ->
         GetUtils.buildProjection proj attr
         ?|> mapFst (ValueSome >> ProjectedAttributes)

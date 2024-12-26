@@ -115,7 +115,7 @@ type ItemBuilder =
 
     static member buildItemAttribute name ``type`` =
         ItemBuilder.buildAttribute name ``type``
-        |> attributeFromDynamodb name
+        |> attributeFromDynamodb
 
     static member addAttribute name attr x =
         { x with attrs = Map.add name attr x.attrs }: ItemBuilder
@@ -145,11 +145,11 @@ type ItemBuilder =
         { x with attrs = Map.add name attr x.attrs }: ItemBuilder
 
     static member getAttribute name (x: ItemBuilder) =
-        Map.find name x.attrs |> attributeFromDynamodb "$"
+        Map.find name x.attrs |> attributeFromDynamodb
 
     static member attributes (x: ItemBuilder) =
         x.attrs
-        |> Map.map (asLazy (attributeFromDynamodb "$"))
+        |> Map.map (asLazy attributeFromDynamodb)
 
     static member dynamoDbAttributes (x: ItemBuilder) =
         x.attrs

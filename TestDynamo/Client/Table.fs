@@ -24,17 +24,17 @@ module Local =
                 match i with
                 | 0 -> !!<KeyType.HASH
                 | _ -> !!<KeyType.RANGE }: KeySchemaElement)
-        |> List.ofSeq
+        |> Array.ofSeq
 
     let private buildProjection (p: TestDynamo.Model.ProjectionType) keys =
 
         match p with
         | All ->
             { ProjectionType = !!<ProjectionType.ALL
-              NonKeyAttributes = !!<[] }: Projection
+              NonKeyAttributes = !!<[||] }: Projection
         | Keys k ->
             { ProjectionType = !!<ProjectionType.KEYS_ONLY
-              NonKeyAttributes = !!<[] }
+              NonKeyAttributes = !!<[||] }
         | Attributes attr ->
             let k =
                 Seq.collect KeyConfig.keyNames keys
@@ -46,7 +46,7 @@ module Local =
               NonKeyAttributes = 
                 attr
                 |> Seq.filter (k >> not)
-                |> List.ofSeq
+                |> Array.ofSeq
                 |> ValueSome }
 
     let private buildGsi awsAccountId databaseId t (x: Index) =
@@ -105,7 +105,7 @@ module Local =
             |> Collection.tryHead }: StreamSpecification
 
     let private buildReplica databaseId (replicaIndexes: Index seq) =
-        { GlobalSecondaryIndexes = buildReplicaGsis replicaIndexes |> List.ofSeq |> ValueSome
+        { GlobalSecondaryIndexes = buildReplicaGsis replicaIndexes |> Array.ofSeq |> ValueSome
           RegionName = !!<databaseId.regionId
 
           KMSMasterKeyId = Unchecked.defaultof<_>
@@ -155,7 +155,7 @@ module Local =
                 >> _.Values
                 >> Seq.filter (Index.getName >> hasIndex)))
         |> Seq.map (uncurry buildReplica)
-        |> List.ofSeq
+        |> Array.ofSeq
 
     let tableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status =
 
@@ -170,9 +170,9 @@ module Local =
           LatestStreamLabel = table.streamLabel
           DeletionProtectionEnabled = !!<table.hasDeletionProtection
           TableName = !!<table.name
-          GlobalSecondaryIndexes = buildGsis awsAccountId databaseId table.table table.indexes.Values |> List.ofSeq |> ValueSome
-          LocalSecondaryIndexes = buildLsis awsAccountId databaseId table.table table.indexes.Values |> List.ofSeq |> ValueSome
-          AttributeDefinitions = toAttributeDefinitions table.attributes |> List.ofSeq |> ValueSome
+          GlobalSecondaryIndexes = buildGsis awsAccountId databaseId table.table table.indexes.Values |> Array.ofSeq |> ValueSome
+          LocalSecondaryIndexes = buildLsis awsAccountId databaseId table.table table.indexes.Values |> Array.ofSeq |> ValueSome
+          AttributeDefinitions = toAttributeDefinitions table.attributes |> Array.ofSeq |> ValueSome
           KeySchema = toKeySchema table.primaryIndex |> ValueSome
           Replicas = !!<replicas
           GlobalTableVersion =
@@ -204,7 +204,7 @@ module Local =
             match projection.ProjectionType with
             | ValueSome t when t.Value = ProjectionType.ALL.Value -> struct (ValueNone, false)
             | ValueSome t when t.Value = ProjectionType.KEYS_ONLY.Value -> struct (List.empty |> ValueSome, true)
-            | ValueSome t when t.Value = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [] |> List.ofSeq |> ValueSome, false)
+            | ValueSome t when t.Value = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [||] |> List.ofSeq |> ValueSome, false)
             | t -> ClientError.clientError $"Invalid projection type {t}"
 
         { keys = key; projectionCols = projection; projectionsAreKeys = projectionsAreKeys  }
@@ -242,7 +242,7 @@ module Local =
             struct (noneifyStrings req.ExclusiveStartTableName, req.Limit ?|? Int32.MaxValue)
 
         let output expectedLimit _ (names: _ seq): ListTablesResponse =
-            let tableNames = names |> Seq.map fstT |> List.ofSeq
+            let tableNames = names |> Seq.map fstT |> Array.ofSeq
             let tableNamesL = tableNames.Length
             { TableNames = tableNames |> ValueSome
               LastEvaluatedTableName =
@@ -261,14 +261,14 @@ module Local =
                 match projection.ProjectionType ?|> _.Value with
                 | ValueSome t when t = ProjectionType.ALL.Value -> struct (ValueNone, false)
                 | ValueSome t when t = ProjectionType.KEYS_ONLY.Value -> struct (List.empty |> ValueSome, true)
-                | ValueSome t when t = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [] |> List.ofSeq |> ValueSome, false)
+                | ValueSome t when t = ProjectionType.INCLUDE.Value -> struct (projection.NonKeyAttributes ?|? [||] |> List.ofSeq |> ValueSome, false)
                 | ValueNone -> ClientError.clientError $"Projection type required"
                 | t -> ClientError.clientError $"Invalid projection type {t}"
 
             { keys = key; projectionCols = projection; projectionsAreKeys = projectionsAreKeys  }
 
         let private noProjection: Projection = { ProjectionType = ValueNone; NonKeyAttributes = ValueNone }
-        let private buildGsiSchema' (x: GlobalSecondaryIndex) = gsiSchema (x.KeySchema ?|? []) (x.Projection ?|? noProjection)
+        let private buildGsiSchema' (x: GlobalSecondaryIndex) = gsiSchema (x.KeySchema ?|? [||]) (x.Projection ?|? noProjection)
 
         let buildLsiSchema tablePk keySchema =
             match fromKeySchema (keySchema |> List.ofSeq) with
@@ -281,13 +281,13 @@ module Local =
             | ValueNone -> newV
             | ValueSome _ -> ClientError.clientError $"Duplicate key definition {key}"
 
-        let private buildLsiSchema' tablePk (x: LocalSecondaryIndex) = buildLsiSchema tablePk (x.KeySchema ?|? []) (x.Projection ?|? noProjection)
+        let private buildLsiSchema' tablePk (x: LocalSecondaryIndex) = buildLsiSchema tablePk (x.KeySchema ?|? [||]) (x.Projection ?|? noProjection)
 
         let input (req: CreateTableRequest): CreateTableData =
 
             let indexes =
                 req.GlobalSecondaryIndexes
-                ?|? []
+                ?|? [||]
                 |> Seq.map (fun x -> { isLocal = false; data = buildGsiSchema' x } |> tpl (x.IndexName <!!> nameof x.IndexName))
                 |> MapUtils.fromTuple
 
@@ -295,13 +295,13 @@ module Local =
             let indexes =
                 Seq.fold (fun s x ->
                     { isLocal = true; data = buildLsiSchema' pk x }
-                    |> flip (MapUtils.change addLsi (x.IndexName <!!> nameof x.IndexName)) s) indexes (req.LocalSecondaryIndexes ?|? [])
+                    |> flip (MapUtils.change addLsi (x.IndexName <!!> nameof x.IndexName)) s) indexes (req.LocalSecondaryIndexes ?|? [||])
 
             let tableConfig =
                 { name = req.TableName <!!> nameof req.TableName
                   primaryIndex = primaryIndex
                   addDeletionProtection = req.DeletionProtectionEnabled ?|? false
-                  attributes = fromAttributeDefinitions (req.AttributeDefinitions ?|? []) |> List.ofSeq
+                  attributes = fromAttributeDefinitions (req.AttributeDefinitions ?|? [||]) |> List.ofSeq
                   indexes = indexes }
 
             { tableConfig = tableConfig
@@ -328,7 +328,7 @@ module Local =
 
             let replicaInstructions =
                 req.ReplicaUpdates
-                ?|? []
+                ?|? [||]
                 |> Seq.collect (fun x ->
                     [
                         x.Create
@@ -337,7 +337,7 @@ module Local =
                                { regionId = x.RegionName <!!> nameof x.RegionName }
                               copyIndexes =
                                   x.GlobalSecondaryIndexes
-                                  ?|? []
+                                  ?|? [||]
                                   |> Seq.map (fun x -> x.IndexName <!!> nameof x.IndexName)
                                   |> List.ofSeq
                                   |> ReplicateFromSource } |> Either1
@@ -352,7 +352,7 @@ module Local =
 
             let struct (gsiCreate, gsiDelete) =
                 req.GlobalSecondaryIndexUpdates
-                ?|? []
+                ?|? [||]
                 |> Seq.collect (fun x ->
                     [
                         x.Create
@@ -383,7 +383,7 @@ module Local =
                               deleteGsi = gsiDelete |> Set.ofSeq
                               attributes =
                                   req.AttributeDefinitions
-                                  ?|? []
+                                  ?|? [||]
                                   |> fromAttributeDefinitions
                                   |> List.ofSeq }
                           deletionProtection = req.DeletionProtectionEnabled }
@@ -399,7 +399,7 @@ module Global =
 
     let private buildReplica databaseId (replicaIndexes: Index seq): ReplicaDescription =
 
-        { GlobalSecondaryIndexes = Local.buildReplicaGsis replicaIndexes |> List.ofSeq |> ValueSome
+        { GlobalSecondaryIndexes = Local.buildReplicaGsis replicaIndexes |> Array.ofSeq |> ValueSome
           RegionName = !!< databaseId.regionId
           KMSMasterKeyId = ValueNone
           OnDemandThroughputOverride =  ValueNone
@@ -434,7 +434,7 @@ module Global =
                 >> _.Values
                 >> Seq.filter (Index.getName >> hasIndex)))
         |> Seq.map (uncurry buildReplica)
-        |> List.ofSeq
+        |> Array.ofSeq
 
     let globalTableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status: GlobalTableDescription =
 
@@ -477,9 +477,9 @@ module Global =
                         group
                         |> Seq.map fstT
                         |> Seq.map (fun item -> { RegionName = ValueSome item.regionId }: Replica)
-                        |> List.ofSeq
+                        |> Array.ofSeq
                         |> ValueSome }: GlobalTable)
-                |> List.ofSeq
+                |> Array.ofSeq
 
             let globalTablesL = globalTables.Length
 
@@ -498,7 +498,7 @@ module Global =
 
             let replicaInstructions =
                 req.ReplicationGroup
-                ?|? []
+                ?|? [||]
                 |> Seq.collect (fun x ->
                      [
                          { copyIndexes = ReplicateAll
@@ -527,7 +527,7 @@ module Global =
 
             let replicaInstructions =
                 req.ReplicaUpdates
-                ?|? []
+                ?|? [||]
                 |> Seq.collect (fun x ->
                     [
                         x.Create

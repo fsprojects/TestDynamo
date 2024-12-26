@@ -100,7 +100,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Io.ignoreTask
 
             let! x = client.GetItemAsync(t, query.Key)
-            return x.Item |> itemFromDynamodb "$"
+            return x.Item |> itemFromDynamodb
         }
 
     let update = QueryBuilder.updateRequest >> updateRaw
@@ -116,7 +116,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> Io.ignoreTask)
 
             let! after = client.GetItemAsync(t, q.Key)
-            Assert.Equal<Map<string, AttributeValue>>(after.Item |> itemFromDynamodb "$", before.Item |> itemFromDynamodb "$")
+            Assert.Equal<Map<string, AttributeValue>>(after.Item |> itemFromDynamodb, before.Item |> itemFromDynamodb)
 
             return e
         }
@@ -1424,7 +1424,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let actual =
                 response.Attributes
-                |> itemFromDynamodb "$"
+                |> itemFromDynamodb
 
             Assert.Equal<Map<string, AttributeValue>>(expected, actual)
         }
@@ -1471,7 +1471,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
             let actual =
                 response.Attributes
-                |> itemFromDynamodb "$"
+                |> itemFromDynamodb
 
             Assert.Equal(expected, actual["#prop"])
         }

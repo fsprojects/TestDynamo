@@ -8,7 +8,6 @@ open TestDynamo.Utils
 let (!!<) = ValueSome
 let (<!!>) x propName = ClientError.expectSomeClientErr "%s property is mandatory" propName x
 
-// TODO: include in mapping?
 let noneifyStrings = function
     | ValueSome null
     | ValueSome ""
@@ -52,16 +51,15 @@ module NameValueEnumerator =
 
 module GetUtils =
 
-    // TODO: move more local?
-    let buildProjection projectionExpression (attributesToGet: string list voption) =
+    let buildProjection projectionExpression (attributesToGet: string array voption) =
 
         match struct (projectionExpression, attributesToGet) with
-        | ValueSome _, ValueSome (_::_) ->
+        | ValueSome _, ValueSome arr when arr.Length > 0 ->
             ClientError.clientError $"Cannot use ProjectionExpression and AttributesToGet in the same request"
         | ValueNone, ValueNone
-        | ValueNone, ValueSome [] -> ValueNone
+        | ValueNone, ValueSome [||] -> ValueNone
         | ValueSome prj, ValueNone
-        | ValueSome prj, ValueSome [] -> struct (prj, id) |> ValueSome
+        | ValueSome prj, ValueSome _ -> struct (prj, id) |> ValueSome
         | ValueNone, ValueSome xs ->
             xs
             |> Collection.zip (NameValueEnumerator.infiniteNames "p")

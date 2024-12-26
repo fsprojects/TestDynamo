@@ -151,9 +151,9 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                 |> Seq.map (fun struct (table, key) ->
                     client.GetItemAsync(table, key)
                     |> Io.fromTask
-                    |> Io.map (tpl struct (table, attributeFromDynamodb "$" key["TablePk"])))
+                    |> Io.map (tpl struct (table, attributeFromDynamodb key["TablePk"])))
                 |> Io.traverse
-                |> Io.map (Seq.map (sndT >> fun x -> x.Item |> itemFromDynamodb "$") >> List.ofSeq)
+                |> Io.map (Seq.map (sndT >> fun x -> x.Item |> itemFromDynamodb) >> List.ofSeq)
 
             return! items.AsTask()
         }

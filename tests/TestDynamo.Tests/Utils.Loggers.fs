@@ -108,8 +108,12 @@ type ConsoleLogger private (output: ITestOutputHelper, dummy: bool) as this =
     static let mutable globalCount = 0
 
     do
+        output.WriteLine "Taking control of console..."
+        
         previousOut <- Console.Out
-        Console.SetOut(this);
+        Console.SetOut(this)
+        
+        Console.WriteLine "...Taken control of console"
 
     new(output: ITestOutputHelper) =
         let c = Interlocked.Increment &globalCount
@@ -133,6 +137,7 @@ type ConsoleLogger private (output: ITestOutputHelper, dummy: bool) as this =
         member _.Dispose() =
             let c = Interlocked.Decrement &localCount
             if c = 0 then
+                Console.Out.Flush()
                 Console.SetOut(previousOut)
                 Interlocked.Decrement &globalCount |> ignoreTyped<int>
 

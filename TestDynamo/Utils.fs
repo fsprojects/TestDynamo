@@ -25,7 +25,7 @@ type IList<'a> =  System.Collections.Generic.IList<'a>
 // copied from https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations
 type internal HashCode() =
     static member Combine<'a when 'a: equality>(h1: int, h2: 'a) =
-        // unchecked operators (TODO: are they unchecked???)
+        // unchecked operators
         let (+) = Operators.(+)
         let (*) = Operators.(*)
 

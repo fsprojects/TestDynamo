@@ -49,8 +49,7 @@ let output databaseId (selectOutput: ExpressionExecutors.Fetch.FetchOutput): Sca
 
     { ConsumedCapacity = ValueNone
       Count = !!<selectOutput.resultCount
-      // TODO: array to list
-      Items = selectOutput.items |> List.ofArray |> ValueSome
+      Items = selectOutput.items |> ValueSome
       LastEvaluatedKey = selectOutput.evaluatedKeys ?|> _.lastEvaluatedKey
       ScannedCount = !!<selectOutput.scannedCount
       ResponseMetadata = !!<Shared.ResponseHeaders.responseMetadata

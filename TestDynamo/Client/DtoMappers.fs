@@ -1,7 +1,7 @@
 ﻿module TestDynamo.GenericMapper.DtoMappers
 
 open System
-open System.Collections.Generic
+open System.IO
 open System.Linq
 open System.Reflection
 open System.Text.RegularExpressions
@@ -24,6 +24,7 @@ type AttributeType = TestDynamo.Model.AttributeType
 type AttributeValue = TestDynamo.Model.AttributeValue
 type AttributeSet = TestDynamo.Model.AttributeSet
 type AttributeListType = TestDynamo.Model.AttributeListType
+type IReadOnlyDictionary<'a, 'b> = System.Collections.Generic.IReadOnlyDictionary<'a, 'b>
 
 let private none _ = ValueNone    
 let private constTrue = Expr.constant true
@@ -32,14 +33,18 @@ type private DebugUtils() =
 
     // this env variable must be set before application startup
     static let traceDtoMapping =
+#if DEBUG
         System.Environment.GetEnvironmentVariable "TRACE_DTO_MAPPING"
         |> Str.emptyStringToNull
         |> Maybe.Null.toOption
-        ?|> (fun x -> Regex.IsMatch(x, @"^\s*(0|false|no|null)\s*$") |> not)
+        ?|> (fun x -> Regex.IsMatch(x, @"^\s*(0|false|n|no|null)\s*$") |> not)
         ?|? false
+#else
+        false
+#endif
 
     // keep private. Does not have any traceDtoMapping protection
-    static member debug'<'a> (f: 'a -> string, x: 'a) =
+    static member private debug'<'a> (f: 'a -> string, x: 'a) =
         Console.WriteLine($"DtoMap {f x}")
         x
 
@@ -416,9 +421,9 @@ module VOption =
             { isStatic = true
               t = typeof<Utils>
               name =
-                  if e.Type.IsClass || e.Type.IsInterface
-                  then nameof Utils.toValueOptionR
-                  else nameof Utils.toValueOptionV
+                  if e.Type.IsValueType
+                  then nameof Utils.toValueOptionV
+                  else nameof Utils.toValueOptionR
               args = [e.Type]
               returnType = typedefof<_ voption>.MakeGenericType([|e.Type|])
               methodGenerics = [e.Type]
@@ -469,6 +474,15 @@ module VOption =
 
 module ByteStream =
 
+    type private Util() =
+        static member streamProcessor (s: MemoryStream) =
+            use _ =
+                if Settings.DisposeOfInputMemoryStreams
+                then s :> IDisposable
+                else Disposable.nothingToDispose
+                
+            s.ToArray()
+            
     let mapper (eFrom: Expr) (tTo: Type) =
         if eFrom.Type = typeof<byte array> && tTo = typeof<System.IO.MemoryStream>
         then
@@ -477,43 +491,18 @@ module ByteStream =
             |> ValueSome
 
         elif eFrom.Type = typeof<System.IO.MemoryStream> && tTo = typeof<byte array>
-        then
-            let dispose = 
-                { isStatic = false
-                  t = eFrom.Type
-                  name = "Dispose"
-                  args = []
-                  returnType = voidType
-                  methodGenerics = []
-                  classGenerics = []
-                  caseInsensitiveName = false }
-                |> method
-                |> Expr.call
-                |> flip
-                |> apply []
-
-            let toArray =
-                { isStatic = false
-                  t = eFrom.Type
-                  name = "ToArray"
-                  args = []
-                  returnType = tTo
-                  methodGenerics = []
-                  classGenerics = []
-                  caseInsensitiveName = false }
-                |> method
-                |> Expr.call
-                |> flip
-                |> apply []
-
-            eFrom
-            |> Expr.cache (fun ms ->
-                toArray ms
-                |> Expr.cache (fun array ->
-                    // TODO: dispose MS strategy
-                    // [dispose ms; array]
-                    [array]
-                    |> Expr.block (ValueSome array.Type)))
+        then 
+            { isStatic = true
+              t = typeof<Util>
+              name = nameof Util.streamProcessor
+              args = [typeof<System.IO.MemoryStream>]
+              returnType = typeof<byte array>
+              methodGenerics = []
+              classGenerics = []
+              caseInsensitiveName = false }
+            |> method
+            |> Expr.callStatic
+            |> apply [eFrom]
             |> ValueSome
         else ValueNone
 
@@ -676,13 +665,13 @@ module EnumerableMapper =
     type private Utils() =
 
         static member throwIfNull<'a> message =
-            if not typeof<'a>.IsValueType && not typeof<'a>.IsInterface
+            if typeof<'a>.IsValueType
             then id
             else fun (x: 'a) -> if box x <> null then x else invalidOp message
 
         static member wrapInThrowIfNull<'a, 'b> (message, f: 'a -> 'b) =
-            let aStruct = not typeof<'a>.IsValueType && not typeof<'a>.IsInterface
-            let bStruct = not typeof<'b>.IsValueType && not typeof<'b>.IsInterface
+            let aStruct = typeof<'a>.IsValueType
+            let bStruct = typeof<'b>.IsValueType
 
             if aStruct && bStruct then f
             else Utils.throwIfNull<'a> message >> f >> Utils.throwIfNull<'b> message
@@ -704,8 +693,8 @@ module EnumerableMapper =
 
         static member buildMList<'a>(x: 'a seq) = Enumerable.ToList x
 
-    // todo: test
-    let private wrapInThrowIfNull tFrom tTo message mapper =
+    let private wrapInThrowIfNull tFrom tTo (message: string) mapper =
+        
         let fType = typedefof<_ -> _>.MakeGenericType([| tFrom; tTo |])
         let m =
             { isStatic = true
@@ -746,7 +735,11 @@ module EnumerableMapper =
               classGenerics = []
               caseInsensitiveName = false }
 
-        if not tTo.IsGenericType then invalidOp "Expected generic enumerable type"
+        if tTo.IsArray
+        then { m' with name = nameof Utils.buildArray; returnType = tTo } |> ValueSome
+        
+        elif not tTo.IsGenericType
+        then invalidOp "Expected generic enumerable type"
 
         elif tTo.GetGenericTypeDefinition() = typedefof<_ seq>
         then ValueNone
@@ -792,7 +785,7 @@ module EnumerableMapper =
             let innerMapper =
                 buildMapperDelegate struct (enmFrom, enmTo)
                 |> fromFunc
-                |> wrapInThrowIfNull enmFrom enmTo $"Found null value in input or output to enumerable mapping function {eFrom} => {tTo}"
+                |> wrapInThrowIfNull enmFrom enmTo $"Found null value in input or output for enumerable mapping function {eFrom} => {tTo}"
                 |> Expr.constant
 
             seqMap enmTo innerMapper eFrom
@@ -889,8 +882,7 @@ module ComplexObjectMapper =
                     Expr.prop fromProp.Name eFrom
                     |> flip (tryInvokePropMap fromProp.Name) toParam.ParameterType
                     ?|> (
-                        maybeInjectConstructorArg struct (eFrom, fromProp)
-                        >> DebugUtils.debug printConstructorArg struct (fromProp.Name, toParam.Name)))
+                        maybeInjectConstructorArg struct (eFrom, fromProp)))
             |> allOrNone
             ?|> Expr.newObj c) eFrom
 
@@ -962,26 +954,26 @@ module ComplexObjectMapper =
                 | [] -> ValueSome eTo
                 | ps -> Expr.maybeMutate ps eTo) eFrom
 
-    let private printConstructorMap =
-        let valNoneString = asLazy "Constructor map: ValueNone"
-
-        let valSomeString struct (state, struct (struct (constructor: ConstructorInfo, args), propSetters)) =
-            let argStr =
-                List.map (fun struct (prop: PropertyInfo, param: ParameterInfo) ->
-                    sprintf "\n  %s: %s = %s: %s" param.Name (typeName param.ParameterType) prop.Name (typeName prop.PropertyType)) args
-                |> Str.join ", "
-
-            let setterStr =
-                List.map (fun struct (fromProp: PropertyInfo, toProp: PropertyInfo) ->
-                    sprintf "\n  %s: %s = %s: %s" toProp.Name (typeName toProp.PropertyType) fromProp.Name (typeName fromProp.PropertyType)) propSetters
-                |> Str.join ", "
-
-            let setterStr = if setterStr = "" then "" else sprintf "\n  %s" setterStr
-            sprintf "Constructor map: %s(%s)%s" constructor.DeclaringType.Name argStr setterStr
-
-        function
-        | ValueNone -> DebugUtils.debug valNoneString () ValueNone
-        | ValueSome x -> DebugUtils.debug valSomeString () x |> ValueSome
+    // let private printConstructorMap =
+    //     let valNoneString = asLazy "Constructor map: ValueNone"
+    //
+    //     let valSomeString struct (state, struct (struct (constructor: ConstructorInfo, args), propSetters)) =
+    //         let argStr =
+    //             List.map (fun struct (prop: PropertyInfo, param: ParameterInfo) ->
+    //                 sprintf "\n  %s: %s = %s: %s" param.Name (typeName param.ParameterType) prop.Name (typeName prop.PropertyType)) args
+    //             |> Str.join ", "
+    //
+    //         let setterStr =
+    //             List.map (fun struct (fromProp: PropertyInfo, toProp: PropertyInfo) ->
+    //                 sprintf "\n  %s: %s = %s: %s" toProp.Name (typeName toProp.PropertyType) fromProp.Name (typeName fromProp.PropertyType)) propSetters
+    //             |> Str.join ", "
+    //
+    //         let setterStr = if setterStr = "" then "" else sprintf "\n  %s" setterStr
+    //         sprintf "Constructor map: %s(%s)%s" constructor.DeclaringType.Name argStr setterStr
+    //
+    //     function
+    //     | ValueNone -> DebugUtils.debug valNoneString () ValueNone
+    //     | ValueSome x -> DebugUtils.debug valSomeString () x |> ValueSome
 
     let mapper tryInvokePropMap (eFrom: Expr) (tTo: Type): Expr voption =
 
@@ -994,13 +986,12 @@ module ComplexObjectMapper =
 
         Expr.maybeCache (fun eFrom ->
             compileConstructorMapParts eFrom.Type tTo
-            |> printConstructorMap
             ?>>= (fun struct (constructor, propMappings) ->
                 buildComplex tryInvokePropMap eFrom constructor
                 ?>>= (flip (assignProps tryInvokePropMap eFrom) propMappings))) eFrom
 
 let private nullProtect (eFrom: Expr) (tTo: Type) (mapper: Expr) =
-    if not eFrom.Type.IsClass && not eFrom.Type.IsInterface
+    if eFrom.Type.IsValueType
     then mapper
     else
         let isNull = Expr.equal eFrom (Expr.constantNull eFrom.Type)

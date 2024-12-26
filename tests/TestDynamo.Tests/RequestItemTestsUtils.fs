@@ -99,7 +99,7 @@ type TableItem =
             Encoding.UTF8.GetBytes x.binaryData |> Convert.ToBase64String
         ]
 
-    static member asItem = TableItem.asItemBuilder >> ItemBuilder.dynamoDbAttributes >> (itemFromDynamodb "$")
+    static member asItem = TableItem.asItemBuilder >> ItemBuilder.dynamoDbAttributes >> itemFromDynamodb
 
     static member asAttributes = TableItem.asItemBuilder >> ItemBuilder.dynamoDbAttributes
 
@@ -452,10 +452,10 @@ module RequestItemTestUtils =
         Assert.True((ex = ac), $"expected:\n{printableEx}\n\nactual:\n{printableAc}")
 
     let assertItems struct (expected, actual, assertOrder) =
-        assertModelItems (expected, actual |> Seq.map (itemFromDynamodb "$"), assertOrder)
+        assertModelItems (expected, actual |> Seq.map itemFromDynamodb, assertOrder)
 
     let assertDynamoDbItems struct (expected, actual, assertOrder) =
-        assertModelItems (expected |> Seq.map (itemFromDynamodb "$"), actual |> Seq.map (itemFromDynamodb "$"), assertOrder)
+        assertModelItems (expected |> Seq.map itemFromDynamodb, actual |> Seq.map itemFromDynamodb, assertOrder)
 
     let addMapWithProp prop (x: DynamoAttributeValue) =
         x.M <- Dictionary<string, DynamoAttributeValue>()

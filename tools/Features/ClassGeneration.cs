@@ -187,14 +187,15 @@ public static class ClassGeneration
         var name = t.Name.Split("`")[0];
         name = name switch
         {
-            "Dictionary" => "Map",
-            "IDictionary" => "Map",
-            "IList" => "List",
+            "Dictionary" => "Map<{0}, {1}>",
+            "IDictionary" => "Map<{0}, {1}>",
+            "List" => "{0} array",
+            "IList" => "{0} array",
             var x => x
         };
 
         var ts = t.GetGenericArguments().Select(TypeName);
-        return $"{name}<{string.Join(", ", ts)}>";
+        return string.Format(name, ts.ToArray());
     }
 
     public static Dictionary<Type, string> EmitEnumSchema(Type t, Dictionary<Type, string> emissions)

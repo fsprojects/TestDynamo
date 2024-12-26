@@ -680,7 +680,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setFilterExpression $"NewItem = :ni"
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
-                |> QueryBuilder.setExpressionAttrValues ":ni" (attributeFromDynamodb "$" newMap)
+                |> QueryBuilder.setExpressionAttrValues ":ni" (attributeFromDynamodb newMap)
                 |> QueryBuilder.queryRequest
                 |> client.QueryAsync
 

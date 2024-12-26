@@ -186,7 +186,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             let! actual = client.GetItemAsync(tableName, itemToDynamoDb keys)
             Assert.NotEmpty(actual.Item)
 
-            assertModelItems ([expected], [itemFromDynamodb "$" actual.Item], true)
+            assertModelItems ([expected], [itemFromDynamodb actual.Item], true)
         }
 
     let assertNoItem tableName keys (client: AmazonDynamoDBClient) =
@@ -545,8 +545,8 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
             Assert.Equal(items1.Items.Count, items2.Items.Count)
 
             let is2 =
-                Seq.map (itemFromDynamodb "$") items2.Items |> Seq.sort
-                |> Seq.zip (Seq.map (itemFromDynamodb "$") items1.Items |> Seq.sort)
+                Seq.map itemFromDynamodb items2.Items |> Seq.sort
+                |> Seq.zip (Seq.map itemFromDynamodb items1.Items |> Seq.sort)
 
             for (expected, actual) in is2 do
                 Assert.True((expected = actual), attrsToString [expected; actual] |> sprintf "EXPECTED; ACTUAL\n%s")

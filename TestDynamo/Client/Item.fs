@@ -13,14 +13,13 @@ open System.Runtime.CompilerServices
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
-// TODO: there are multiple similar (not same) mapReturnValues fns 
-let mapReturnValues (returnValues: ReturnValue): BasicReturnValues =
+let mapBasicReturnValues (returnValues: ReturnValue): BasicReturnValues =
     match returnValues with
     | x when x.Value = ReturnValue.NONE.Value -> None
     | x when x.Value = ReturnValue.ALL_OLD.Value -> AllOld
     | x -> ClientError.clientError "Only NONE and ALL_OLD are supported as ReturnValues"
 
-let mapReturnValues2 (returnValues: ReturnValue): UpdateReturnValues =
+let mapUpdateReturnValues (returnValues: ReturnValue): UpdateReturnValues =
     match returnValues with
     | x when x.Value = ReturnValue.NONE.Value -> Basic None
     | x when x.Value = ReturnValue.ALL_OLD.Value -> Basic AllOld
@@ -54,7 +53,7 @@ module Put =
           conditionExpression =
               { conditionExpression = filterExpression
                 tableName = req.TableName <!!> nameof req.TableName
-                returnValues = req.ReturnValues ?|> mapReturnValues ?|? None
+                returnValues = req.ReturnValues ?|> mapBasicReturnValues ?|? None
                 expressionAttrNames = req.ExpressionAttributeNames ?|? Map.empty |> addNames
                 expressionAttrValues = req.ExpressionAttributeValues ?|? Map.empty |> addValues } } : PutItemArgs<_>
 
@@ -109,7 +108,7 @@ module Delete =
           conditionExpression =
               { conditionExpression = filterExpression
                 tableName = req.TableName <!!> nameof req.TableName
-                returnValues = req.ReturnValues ?|> mapReturnValues ?|? None
+                returnValues = req.ReturnValues ?|> mapBasicReturnValues ?|? None
                 expressionAttrNames = req.ExpressionAttributeNames ?|? Map.empty |> addNames
                 expressionAttrValues = req.ExpressionAttributeValues ?|? Map.empty |> addValues } } : DeleteItemArgs<_>
 
@@ -142,22 +141,20 @@ module Update =
             >> fun struct (expr, xs) ->
                 { expression = expr |> Str.join " "; clauses = List.collect _.clauses xs }
 
-        static member asOutput (logger: ILogger) (reqUpdateExpression: string voption) = function
-            | x when x.clauses = [] -> ValueNone
-            | x ->
-                // TODO: nested match
-                match noneifyStrings reqUpdateExpression with
-                | ValueSome _ -> ClientError.clientError "Legacy AttributeUpdates parameter cannot be used with an UpdateExpression"
-                | ValueNone -> 
-                    x.clauses
-                    |> Seq.fold (fun struct (names, values) x ->
-                        struct (
-                            Map.add x.name x.actualAttributeName names,
-                            x.value
-                            ?|> (uncurry (flip3To1 Map.add values))
-                            ?|? values)) struct (Map.empty, Map.empty)
-                    |> tpl x.expression
-                    |> ValueSome
+        static member asOutput (logger: ILogger) (reqUpdateExpression: string voption) expr =
+            match struct (expr, noneifyStrings reqUpdateExpression) with
+            | x, _ when x.clauses = [] -> ValueNone
+            | x, ValueSome _ -> ClientError.clientError "Legacy AttributeUpdates parameter cannot be used with an UpdateExpression"
+            | x, ValueNone ->
+                x.clauses
+                |> Seq.fold (fun struct (names, values) x ->
+                    struct (
+                        Map.add x.name x.actualAttributeName names,
+                        x.value
+                        ?|> (uncurry (flip3To1 Map.add values))
+                        ?|? values)) struct (Map.empty, Map.empty)
+                |> tpl x.expression
+                |> ValueSome
 
     let private attributeUpdate setValue expr struct (name, value) (update: KeyValuePair<string, AttributeValueUpdate<AttributeValue>>) =
 
@@ -223,7 +220,7 @@ module Update =
           conditionExpression =
               { conditionExpression = filterExpression
                 tableName = req.TableName <!!> nameof req.TableName
-                returnValues = req.ReturnValues ?|> mapReturnValues2 ?|? basicNone
+                returnValues = req.ReturnValues ?|> mapUpdateReturnValues ?|? basicNone
                 expressionAttrNames =
                     req.ExpressionAttributeNames
                     ?|? Map.empty
@@ -288,6 +285,7 @@ module Transact =
                 selectOutput
                 |> Seq.map output'
                 |> Collection.unzip
+                |> mapFst Array.ofList
                 |> mapSnd Seq.sum
 
             if size > 4_000_000
@@ -375,7 +373,7 @@ module Transact =
         let input (req: TransactWriteItemsRequest<AttributeValue>) =
             let struct (struct (put, delete), struct (update, condition)) =
                 req.TransactItems
-                ?|? []
+                ?|? [||]
                 |> Seq.map getCommand
                 |> Collection.unzip
                 |> mapFst Collection.unzip
@@ -388,8 +386,8 @@ module Transact =
               conditionCheck = condition |> Maybe.traverse |> List.ofSeq } : Database.TransactWrite.TransactWrites
 
         let private sizeEstimateRangeGB =
-            [ fstT Settings.TransactWriteSettings.SizeRangeEstimateResponse
-              sndT Settings.TransactWriteSettings.SizeRangeEstimateResponse ] |> ValueSome
+            [| fstT Settings.TransactWriteSettings.SizeRangeEstimateResponse
+               sndT Settings.TransactWriteSettings.SizeRangeEstimateResponse |] |> ValueSome
 
         let private itemCollectionMetrics v =
             { ItemCollectionKey = ValueSome v
@@ -401,7 +399,7 @@ module Transact =
                 modifiedTables
                 |> Map.map (
                     Seq.map itemCollectionMetrics
-                    >> List.ofSeq
+                    >> Array.ofSeq
                     |> asLazy)
 
             { ItemCollectionMetrics = ValueSome metrics
@@ -461,7 +459,7 @@ module Batch =
               projectionExpression: string voption
               expressionAttrNames: Map<string, string>
               /// <summary>Not used by query engine. Only used to pass results back to client</summary>
-              attributesToGetRedux: string list voption }
+              attributesToGetRedux: string array voption }
 
         type BatchGetRequest =
             { requests: Map<BatchItemKey, BatchGetValue> }
@@ -486,8 +484,7 @@ module Batch =
 
         let fromBatchGetValue (x: BatchGetValue): KeysAndAttributes<AttributeValue> =
 
-            //TODO: array to list
-            { Keys = !!< (List.ofArray x.keys)
+            { Keys = !!< x.keys
               ConsistentRead = !!<x.consistentRead
               ProjectionExpression = x.projectionExpression
               ExpressionAttributeNames = !!<x.expressionAttrNames
@@ -522,10 +519,7 @@ module Batch =
                 selectOutput.found
                 |> MapUtils.toSeq
                 |> Seq.map (
-                    mapFst _.userProvidedKey
-                    // TODO: array to list
-                    >> mapSnd List.ofArray)
-                |> List.ofSeq
+                    mapFst _.userProvidedKey)
                 |> MapUtils.ofSeq
                 |> ValueSome
               UnprocessedKeys = 
@@ -621,7 +615,7 @@ module Batch =
 
             { requests = requests }: BatchWriteRequest
 
-        let private sizeEstimateRangeGB: double list voption = ValueSome [0; 1000]
+        let private sizeEstimateRangeGB: double array voption = ValueSome [|0; 1000|]
         let asItemCollectionMetrics struct (pkName, pkValue) =
             { ItemCollectionKey =
                 Map.empty
@@ -649,7 +643,7 @@ module Batch =
                     mapFst _.userProvidedKey
                     >> mapSnd (
                         Seq.map fromBatchWriteValue
-                        >> List.ofSeq))
+                        >> Array.ofSeq))
                 |> MapUtils.fromTuple
                 |> ValueSome
               ConsumedCapacity = ValueNone

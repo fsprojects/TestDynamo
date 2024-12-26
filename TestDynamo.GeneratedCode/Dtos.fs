@@ -5,8 +5,8 @@ module rec TestDynamo.GeneratedCode.Dtos
 // ############################################################################
 
 open System
-open System.Net
 open System.Runtime.CompilerServices
+open System.Net
 
 #if NETSTANDARD2_0
 type internal IsReadOnlyAttribute() = inherit System.Attribute()
@@ -86,7 +86,7 @@ type AutoScalingSettingsDescription =
       AutoScalingRoleArn: String voption
       MaximumUnits: Int64 voption
       MinimumUnits: Int64 voption
-      ScalingPolicies: List<AutoScalingPolicyDescription> voption }
+      ScalingPolicies: AutoScalingPolicyDescription array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingSettingsUpdate", false, false)>]
 type AutoScalingSettingsUpdate =
@@ -167,12 +167,12 @@ type BackupTypeFilter private (value: string) =
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest", false, false)>]
 type BatchExecuteStatementRequest<'attr> =
     { ReturnConsumedCapacity: ReturnConsumedCapacity voption
-      Statements: List<BatchStatementRequest<'attr>> voption }
+      Statements: BatchStatementRequest<'attr> array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementResponse", false, false)>]
 type BatchExecuteStatementResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      Responses: List<BatchStatementResponse<'attr>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      Responses: BatchStatementResponse<'attr> array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -184,8 +184,8 @@ type BatchGetItemRequest<'attr> =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchGetItemResponse", false, false)>]
 type BatchGetItemResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      Responses: Map<String, List<Map<String, 'attr>>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      Responses: Map<String, Map<String, 'attr> array> voption
       UnprocessedKeys: Map<String, KeysAndAttributes<'attr>> voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -216,7 +216,7 @@ type BatchStatementErrorCodeEnum private (value: string) =
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementRequest", false, false)>]
 type BatchStatementRequest<'attr> =
     { ConsistentRead: Boolean voption
-      Parameters: List<'attr> voption
+      Parameters: 'attr array voption
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
 
@@ -228,15 +228,15 @@ type BatchStatementResponse<'attr> =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemRequest", false, false)>]
 type BatchWriteItemRequest<'attr> =
-    { RequestItems: Map<String, List<WriteRequest<'attr>>> voption
+    { RequestItems: Map<String, WriteRequest<'attr> array> voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       ReturnItemCollectionMetrics: ReturnItemCollectionMetrics voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemResponse", false, false)>]
 type BatchWriteItemResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      ItemCollectionMetrics: Map<String, List<ItemCollectionMetrics<'attr>>> voption
-      UnprocessedItems: Map<String, List<WriteRequest<'attr>>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      ItemCollectionMetrics: Map<String, ItemCollectionMetrics<'attr> array> voption
+      UnprocessedItems: Map<String, WriteRequest<'attr> array> voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -286,7 +286,7 @@ type ComparisonOperator private (value: string) =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.Condition", false, false); Struct; IsReadOnly>]
 type Condition<'attr> =
-    { AttributeValueList: List<'attr> voption
+    { AttributeValueList: 'attr array voption
       ComparisonOperator: ComparisonOperator voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.ConditionalOperator", false, true)>]
@@ -377,7 +377,7 @@ type CreateBackupResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalSecondaryIndexAction", false, false)>]
 type CreateGlobalSecondaryIndexAction =
     { IndexName: String voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
@@ -385,7 +385,7 @@ type CreateGlobalSecondaryIndexAction =
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableRequest", false, false)>]
 type CreateGlobalTableRequest =
     { GlobalTableName: String voption
-      ReplicationGroup: List<Replica> voption }
+      ReplicationGroup: Replica array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableResponse", false, false)>]
 type CreateGlobalTableResponse =
@@ -400,7 +400,7 @@ type CreateReplicaAction =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateReplicationGroupMemberAction", false, false)>]
 type CreateReplicationGroupMemberAction =
-    { GlobalSecondaryIndexes: List<ReplicaGlobalSecondaryIndex> voption
+    { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndex array voption
       KMSMasterKeyId: String voption
       OnDemandThroughputOverride: OnDemandThroughputOverride voption
       ProvisionedThroughputOverride: ProvisionedThroughputOverride voption
@@ -409,12 +409,12 @@ type CreateReplicationGroupMemberAction =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateTableRequest", false, false)>]
 type CreateTableRequest =
-    { AttributeDefinitions: List<AttributeDefinition> voption
+    { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
       DeletionProtectionEnabled: Boolean voption
-      GlobalSecondaryIndexes: List<GlobalSecondaryIndex> voption
-      KeySchema: List<KeySchemaElement> voption
-      LocalSecondaryIndexes: List<LocalSecondaryIndex> voption
+      GlobalSecondaryIndexes: GlobalSecondaryIndex array voption
+      KeySchema: KeySchemaElement array voption
+      LocalSecondaryIndexes: LocalSecondaryIndex array voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughput voption
       ResourcePolicy: String voption
@@ -422,7 +422,7 @@ type CreateTableRequest =
       StreamSpecification: StreamSpecification voption
       TableClass: TableClass voption
       TableName: String voption
-      Tags: List<Tag> voption }
+      Tags: Tag array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.CreateTableResponse", false, false)>]
 type CreateTableResponse =
@@ -434,7 +434,7 @@ type CreateTableResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.CsvOptions", false, false); Struct; IsReadOnly>]
 type CsvOptions =
     { Delimiter: String voption
-      HeaderList: List<String> voption }
+      HeaderList: String array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.Delete", false, false)>]
 type Delete<'attr> =
@@ -547,7 +547,7 @@ type DescribeContributorInsightsRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.DescribeContributorInsightsResponse", false, false)>]
 type DescribeContributorInsightsResponse =
-    { ContributorInsightsRuleList: List<String> voption
+    { ContributorInsightsRuleList: String array voption
       ContributorInsightsStatus: ContributorInsightsStatus voption
       FailureException: FailureException voption
       IndexName: String voption
@@ -563,7 +563,7 @@ type DescribeEndpointsRequest private () =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.DescribeEndpointsResponse", false, false)>]
 type DescribeEndpointsResponse =
-    { Endpoints: List<Endpoint> voption
+    { Endpoints: Endpoint array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -597,7 +597,7 @@ type DescribeGlobalTableSettingsRequest =
 [<DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableSettingsResponse", false, false)>]
 type DescribeGlobalTableSettingsResponse =
     { GlobalTableName: String voption
-      ReplicaSettings: List<ReplicaSettingsDescription> voption
+      ReplicaSettings: ReplicaSettingsDescription array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -619,7 +619,7 @@ type DescribeKinesisStreamingDestinationRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.DescribeKinesisStreamingDestinationResponse", false, false)>]
 type DescribeKinesisStreamingDestinationResponse =
-    { KinesisDataStreamDestinations: List<KinesisDataStreamDestination> voption
+    { KinesisDataStreamDestinations: KinesisDataStreamDestination array voption
       TableName: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -728,14 +728,14 @@ type Endpoint =
 type Endpoint2 =
     { URL: String voption
       Attributes: IPropertyBag voption
-      Headers: Map<String, List<String>> voption }
+      Headers: Map<String, String array> voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementRequest", false, false)>]
 type ExecuteStatementRequest<'attr> =
     { ConsistentRead: Boolean voption
       Limit: Int32 voption
       NextToken: String voption
-      Parameters: List<'attr> voption
+      Parameters: 'attr array voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
@@ -743,7 +743,7 @@ type ExecuteStatementRequest<'attr> =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementResponse", false, false)>]
 type ExecuteStatementResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
-      Items: List<Map<String, 'attr>> voption
+      Items: Map<String, 'attr> array voption
       LastEvaluatedKey: Map<String, 'attr> voption
       NextToken: String voption
       ResponseMetadata: ResponseMetadata voption
@@ -754,19 +754,19 @@ type ExecuteStatementResponse<'attr> =
 type ExecuteTransactionRequest<'attr> =
     { ClientRequestToken: String voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
-      TransactStatements: List<ParameterizedStatement<'attr>> voption }
+      TransactStatements: ParameterizedStatement<'attr> array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteTransactionResponse", false, false)>]
 type ExecuteTransactionResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      Responses: List<ItemResponse<'attr>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      Responses: ItemResponse<'attr> array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ExpectedAttributeValue", false, false)>]
 type ExpectedAttributeValue<'attr> =
-    { AttributeValueList: List<'attr> voption
+    { AttributeValueList: 'attr array voption
       ComparisonOperator: ComparisonOperator voption
       Exists: Boolean voption
       Value: 'attr voption }
@@ -865,7 +865,7 @@ type Get<'attr> =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.GetItemRequest", false, false)>]
 type GetItemRequest<'attr> =
-    { AttributesToGet: List<String> voption
+    { AttributesToGet: String array voption
       ConsistentRead: Boolean voption
       ExpressionAttributeNames: Map<String, String> voption
       Key: Map<String, 'attr> voption
@@ -896,7 +896,7 @@ type GetResourcePolicyResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndex", false, false)>]
 type GlobalSecondaryIndex =
     { IndexName: String voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
@@ -914,7 +914,7 @@ type GlobalSecondaryIndexDescription =
       IndexSizeBytes: Int64 voption
       IndexStatus: IndexStatus voption
       ItemCount: Int64 voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughputDescription voption }
@@ -922,7 +922,7 @@ type GlobalSecondaryIndexDescription =
 [<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexInfo", false, false)>]
 type GlobalSecondaryIndexInfo =
     { IndexName: String voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
@@ -936,7 +936,7 @@ type GlobalSecondaryIndexUpdate =
 [<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTable", false, false); Struct; IsReadOnly>]
 type GlobalTable =
     { GlobalTableName: String voption
-      ReplicationGroup: List<Replica> voption }
+      ReplicationGroup: Replica array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableDescription", false, false)>]
 type GlobalTableDescription =
@@ -944,7 +944,7 @@ type GlobalTableDescription =
       GlobalTableArn: String voption
       GlobalTableName: String voption
       GlobalTableStatus: GlobalTableStatus voption
-      ReplicationGroup: List<ReplicaDescription> voption }
+      ReplicationGroup: ReplicaDescription array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableGlobalSecondaryIndexSettingsUpdate", false, false)>]
 type GlobalTableGlobalSecondaryIndexSettingsUpdate =
@@ -1066,7 +1066,7 @@ type IPropertyBag =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ItemCollectionMetrics", false, false); Struct; IsReadOnly>]
 type ItemCollectionMetrics<'attr> =
     { ItemCollectionKey: Map<String, 'attr> voption
-      SizeEstimateRangeGB: List<Double> voption }
+      SizeEstimateRangeGB: Double array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ItemResponse", false, false); Struct; IsReadOnly>]
 type ItemResponse<'attr> =
@@ -1074,10 +1074,10 @@ type ItemResponse<'attr> =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.KeysAndAttributes", false, false)>]
 type KeysAndAttributes<'attr> =
-    { AttributesToGet: List<String> voption
+    { AttributesToGet: String array voption
       ConsistentRead: Boolean voption
       ExpressionAttributeNames: Map<String, String> voption
-      Keys: List<Map<String, 'attr>> voption
+      Keys: Map<String, 'attr> array voption
       ProjectionExpression: String voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.KeySchemaElement", false, false); Struct; IsReadOnly>]
@@ -1110,7 +1110,7 @@ type ListBackupsRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListBackupsResponse", false, false)>]
 type ListBackupsResponse =
-    { BackupSummaries: List<BackupSummary> voption
+    { BackupSummaries: BackupSummary array voption
       LastEvaluatedBackupArn: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -1124,7 +1124,7 @@ type ListContributorInsightsRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListContributorInsightsResponse", false, false)>]
 type ListContributorInsightsResponse =
-    { ContributorInsightsSummaries: List<ContributorInsightsSummary> voption
+    { ContributorInsightsSummaries: ContributorInsightsSummary array voption
       NextToken: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -1138,7 +1138,7 @@ type ListExportsRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListExportsResponse", false, false)>]
 type ListExportsResponse =
-    { ExportSummaries: List<ExportSummary> voption
+    { ExportSummaries: ExportSummary array voption
       NextToken: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -1152,7 +1152,7 @@ type ListGlobalTablesRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListGlobalTablesResponse", false, false)>]
 type ListGlobalTablesResponse =
-    { GlobalTables: List<GlobalTable> voption
+    { GlobalTables: GlobalTable array voption
       LastEvaluatedGlobalTableName: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -1166,7 +1166,7 @@ type ListImportsRequest =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListImportsResponse", false, false)>]
 type ListImportsResponse =
-    { ImportSummaryList: List<ImportSummary> voption
+    { ImportSummaryList: ImportSummary array voption
       NextToken: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
@@ -1180,7 +1180,7 @@ type ListTablesRequest =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListTablesResponse", false, false)>]
 type ListTablesResponse =
     { LastEvaluatedTableName: String voption
-      TableNames: List<String> voption
+      TableNames: String array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -1193,7 +1193,7 @@ type ListTagsOfResourceRequest =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ListTagsOfResourceResponse", false, false)>]
 type ListTagsOfResourceResponse =
     { NextToken: String voption
-      Tags: List<Tag> voption
+      Tags: Tag array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -1201,7 +1201,7 @@ type ListTagsOfResourceResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndex", false, false)>]
 type LocalSecondaryIndex =
     { IndexName: String voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexDescription", false, false)>]
@@ -1210,13 +1210,13 @@ type LocalSecondaryIndexDescription =
       IndexName: String voption
       IndexSizeBytes: Int64 voption
       ItemCount: Int64 voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexInfo", false, false)>]
 type LocalSecondaryIndexInfo =
     { IndexName: String voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.OnDemandThroughput", false, false); Struct; IsReadOnly>]
@@ -1230,7 +1230,7 @@ type OnDemandThroughputOverride =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ParameterizedStatement", false, false)>]
 type ParameterizedStatement<'attr> =
-    { Parameters: List<'attr> voption
+    { Parameters: 'attr array voption
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
 
@@ -1253,7 +1253,7 @@ type PointInTimeRecoveryStatus private (value: string) =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.Projection", false, false); Struct; IsReadOnly>]
 type Projection =
-    { NonKeyAttributes: List<String> voption
+    { NonKeyAttributes: String array voption
       ProjectionType: ProjectionType voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.ProjectionType", false, true)>]
@@ -1333,7 +1333,7 @@ type PutResourcePolicyResponse =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.QueryRequest", false, false)>]
 type QueryRequest<'attr> =
-    { AttributesToGet: List<String> voption
+    { AttributesToGet: String array voption
       ConditionalOperator: ConditionalOperator voption
       ConsistentRead: Boolean voption
       ExclusiveStartKey: Map<String, 'attr> voption
@@ -1355,7 +1355,7 @@ type QueryRequest<'attr> =
 type QueryResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Count: Int32 voption
-      Items: List<Map<String, 'attr>> voption
+      Items: Map<String, 'attr> array voption
       LastEvaluatedKey: Map<String, 'attr> voption
       ScannedCount: Int32 voption
       ResponseMetadata: ResponseMetadata voption
@@ -1368,7 +1368,7 @@ type Replica =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingDescription", false, false)>]
 type ReplicaAutoScalingDescription =
-    { GlobalSecondaryIndexes: List<ReplicaGlobalSecondaryIndexAutoScalingDescription> voption
+    { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndexAutoScalingDescription array voption
       RegionName: String voption
       ReplicaProvisionedReadCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
       ReplicaProvisionedWriteCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
@@ -1377,12 +1377,12 @@ type ReplicaAutoScalingDescription =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingUpdate", false, false)>]
 type ReplicaAutoScalingUpdate =
     { RegionName: String voption
-      ReplicaGlobalSecondaryIndexUpdates: List<ReplicaGlobalSecondaryIndexAutoScalingUpdate> voption
+      ReplicaGlobalSecondaryIndexUpdates: ReplicaGlobalSecondaryIndexAutoScalingUpdate array voption
       ReplicaProvisionedReadCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaDescription", false, false)>]
 type ReplicaDescription =
-    { GlobalSecondaryIndexes: List<ReplicaGlobalSecondaryIndexDescription> voption
+    { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndexDescription array voption
       KMSMasterKeyId: String voption
       OnDemandThroughputOverride: OnDemandThroughputOverride voption
       ProvisionedThroughputOverride: ProvisionedThroughputOverride voption
@@ -1436,7 +1436,7 @@ type ReplicaGlobalSecondaryIndexSettingsUpdate =
 type ReplicaSettingsDescription =
     { RegionName: String voption
       ReplicaBillingModeSummary: BillingModeSummary voption
-      ReplicaGlobalSecondaryIndexSettings: List<ReplicaGlobalSecondaryIndexSettingsDescription> voption
+      ReplicaGlobalSecondaryIndexSettings: ReplicaGlobalSecondaryIndexSettingsDescription array voption
       ReplicaProvisionedReadCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
       ReplicaProvisionedReadCapacityUnits: Int64 voption
       ReplicaProvisionedWriteCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
@@ -1447,7 +1447,7 @@ type ReplicaSettingsDescription =
 [<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaSettingsUpdate", false, false)>]
 type ReplicaSettingsUpdate =
     { RegionName: String voption
-      ReplicaGlobalSecondaryIndexSettingsUpdate: List<ReplicaGlobalSecondaryIndexSettingsUpdate> voption
+      ReplicaGlobalSecondaryIndexSettingsUpdate: ReplicaGlobalSecondaryIndexSettingsUpdate array voption
       ReplicaProvisionedReadCapacityAutoScalingSettingsUpdate: AutoScalingSettingsUpdate voption
       ReplicaProvisionedReadCapacityUnits: Int64 voption
       ReplicaTableClass: TableClass voption }
@@ -1493,8 +1493,8 @@ type RestoreSummary =
 type RestoreTableFromBackupRequest =
     { BackupArn: String voption
       BillingModeOverride: BillingMode voption
-      GlobalSecondaryIndexOverride: List<GlobalSecondaryIndex> voption
-      LocalSecondaryIndexOverride: List<LocalSecondaryIndex> voption
+      GlobalSecondaryIndexOverride: GlobalSecondaryIndex array voption
+      LocalSecondaryIndexOverride: LocalSecondaryIndex array voption
       OnDemandThroughputOverride: OnDemandThroughput voption
       ProvisionedThroughputOverride: ProvisionedThroughput voption
       SSESpecificationOverride: SSESpecification voption
@@ -1510,8 +1510,8 @@ type RestoreTableFromBackupResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableToPointInTimeRequest", false, false)>]
 type RestoreTableToPointInTimeRequest =
     { BillingModeOverride: BillingMode voption
-      GlobalSecondaryIndexOverride: List<GlobalSecondaryIndex> voption
-      LocalSecondaryIndexOverride: List<LocalSecondaryIndex> voption
+      GlobalSecondaryIndexOverride: GlobalSecondaryIndex array voption
+      LocalSecondaryIndexOverride: LocalSecondaryIndex array voption
       OnDemandThroughputOverride: OnDemandThroughput voption
       ProvisionedThroughputOverride: ProvisionedThroughput voption
       RestoreDateTime: DateTime voption
@@ -1583,7 +1583,7 @@ type ScalarAttributeType private (value: string) =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.ScanRequest", false, false)>]
 type ScanRequest<'attr> =
-    { AttributesToGet: List<String> voption
+    { AttributesToGet: String array voption
       ConditionalOperator: ConditionalOperator voption
       ConsistentRead: Boolean voption
       ExclusiveStartKey: Map<String, 'attr> voption
@@ -1604,7 +1604,7 @@ type ScanRequest<'attr> =
 type ScanResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Count: Int32 voption
-      Items: List<Map<String, 'attr>> voption
+      Items: Map<String, 'attr> array voption
       LastEvaluatedKey: Map<String, 'attr> voption
       ScannedCount: Int32 voption
       ResponseMetadata: ResponseMetadata voption
@@ -1624,7 +1624,7 @@ type Select private (value: string) =
 type SourceTableDetails =
     { BillingMode: BillingMode voption
       ItemCount: Int64 voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughput voption
       TableArn: String voption
@@ -1635,8 +1635,8 @@ type SourceTableDetails =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.SourceTableFeatureDetails", false, false)>]
 type SourceTableFeatureDetails =
-    { GlobalSecondaryIndexes: List<GlobalSecondaryIndexInfo> voption
-      LocalSecondaryIndexes: List<LocalSecondaryIndexInfo> voption
+    { GlobalSecondaryIndexes: GlobalSecondaryIndexInfo array voption
+      LocalSecondaryIndexes: LocalSecondaryIndexInfo array voption
       SSEDescription: SSEDescription voption
       StreamDescription: StreamSpecification voption
       TimeToLiveDescription: TimeToLiveDescription voption }
@@ -1687,7 +1687,7 @@ type StreamViewType private (value: string) =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.TableAutoScalingDescription", false, false)>]
 type TableAutoScalingDescription =
-    { Replicas: List<ReplicaAutoScalingDescription> voption
+    { Replicas: ReplicaAutoScalingDescription array voption
       TableName: String voption
       TableStatus: TableStatus voption }
 
@@ -1705,10 +1705,10 @@ type TableClassSummary =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.TableCreationParameters", false, false)>]
 type TableCreationParameters =
-    { AttributeDefinitions: List<AttributeDefinition> voption
+    { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
-      GlobalSecondaryIndexes: List<GlobalSecondaryIndex> voption
-      KeySchema: List<KeySchemaElement> voption
+      GlobalSecondaryIndexes: GlobalSecondaryIndex array voption
+      KeySchema: KeySchemaElement array voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughput voption
       SSESpecification: SSESpecification voption
@@ -1717,20 +1717,20 @@ type TableCreationParameters =
 [<DynamodbType("Amazon.DynamoDBv2.Model.TableDescription", false, false)>]
 type TableDescription =
     { ArchivalSummary: ArchivalSummary voption
-      AttributeDefinitions: List<AttributeDefinition> voption
+      AttributeDefinitions: AttributeDefinition array voption
       BillingModeSummary: BillingModeSummary voption
       CreationDateTime: DateTime voption
       DeletionProtectionEnabled: Boolean voption
-      GlobalSecondaryIndexes: List<GlobalSecondaryIndexDescription> voption
+      GlobalSecondaryIndexes: GlobalSecondaryIndexDescription array voption
       GlobalTableVersion: String voption
       ItemCount: Int64 voption
-      KeySchema: List<KeySchemaElement> voption
+      KeySchema: KeySchemaElement array voption
       LatestStreamArn: String voption
       LatestStreamLabel: String voption
-      LocalSecondaryIndexes: List<LocalSecondaryIndexDescription> voption
+      LocalSecondaryIndexes: LocalSecondaryIndexDescription array voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughputDescription voption
-      Replicas: List<ReplicaDescription> voption
+      Replicas: ReplicaDescription array voption
       RestoreSummary: RestoreSummary voption
       SSEDescription: SSEDescription voption
       StreamSpecification: StreamSpecification voption
@@ -1761,7 +1761,7 @@ type Tag =
 [<DynamodbType("Amazon.DynamoDBv2.Model.TagResourceRequest", false, false)>]
 type TagResourceRequest =
     { ResourceArn: String voption
-      Tags: List<Tag> voption }
+      Tags: Tag array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.TagResourceResponse", false, false)>]
 type TagResourceResponse =
@@ -1795,12 +1795,12 @@ type TransactGetItem<'attr> =
 [<DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsRequest", false, false)>]
 type TransactGetItemsRequest<'attr> =
     { ReturnConsumedCapacity: ReturnConsumedCapacity voption
-      TransactItems: List<TransactGetItem<'attr>> voption }
+      TransactItems: TransactGetItem<'attr> array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsResponse", false, false)>]
 type TransactGetItemsResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      Responses: List<ItemResponse<'attr>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      Responses: ItemResponse<'attr> array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -1817,12 +1817,12 @@ type TransactWriteItemsRequest<'attr> =
     { ClientRequestToken: String voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       ReturnItemCollectionMetrics: ReturnItemCollectionMetrics voption
-      TransactItems: List<TransactWriteItem<'attr>> voption }
+      TransactItems: TransactWriteItem<'attr> array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItemsResponse", false, false)>]
 type TransactWriteItemsResponse<'attr> =
-    { ConsumedCapacity: List<ConsumedCapacity> voption
-      ItemCollectionMetrics: Map<String, List<ItemCollectionMetrics<'attr>>> voption
+    { ConsumedCapacity: ConsumedCapacity array voption
+      ItemCollectionMetrics: Map<String, ItemCollectionMetrics<'attr> array> voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -1830,7 +1830,7 @@ type TransactWriteItemsResponse<'attr> =
 [<DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceRequest", false, false)>]
 type UntagResourceRequest =
     { ResourceArn: String voption
-      TagKeys: List<String> voption }
+      TagKeys: String array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceResponse", false, false)>]
 type UntagResourceResponse =
@@ -1884,7 +1884,7 @@ type UpdateGlobalSecondaryIndexAction =
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableRequest", false, false)>]
 type UpdateGlobalTableRequest =
     { GlobalTableName: String voption
-      ReplicaUpdates: List<ReplicaUpdate> voption }
+      ReplicaUpdates: ReplicaUpdate array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableResponse", false, false)>]
 type UpdateGlobalTableResponse =
@@ -1896,16 +1896,16 @@ type UpdateGlobalTableResponse =
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsRequest", false, false)>]
 type UpdateGlobalTableSettingsRequest =
     { GlobalTableBillingMode: BillingMode voption
-      GlobalTableGlobalSecondaryIndexSettingsUpdate: List<GlobalTableGlobalSecondaryIndexSettingsUpdate> voption
+      GlobalTableGlobalSecondaryIndexSettingsUpdate: GlobalTableGlobalSecondaryIndexSettingsUpdate array voption
       GlobalTableName: String voption
       GlobalTableProvisionedWriteCapacityAutoScalingSettingsUpdate: AutoScalingSettingsUpdate voption
       GlobalTableProvisionedWriteCapacityUnits: Int64 voption
-      ReplicaSettingsUpdate: List<ReplicaSettingsUpdate> voption }
+      ReplicaSettingsUpdate: ReplicaSettingsUpdate array voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsResponse", false, false)>]
 type UpdateGlobalTableSettingsResponse =
     { GlobalTableName: String voption
-      ReplicaSettings: List<ReplicaSettingsDescription> voption
+      ReplicaSettings: ReplicaSettingsDescription array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
@@ -1957,7 +1957,7 @@ type UpdateKinesisStreamingDestinationResponse =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateReplicationGroupMemberAction", false, false)>]
 type UpdateReplicationGroupMemberAction =
-    { GlobalSecondaryIndexes: List<ReplicaGlobalSecondaryIndex> voption
+    { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndex array voption
       KMSMasterKeyId: String voption
       OnDemandThroughputOverride: OnDemandThroughputOverride voption
       ProvisionedThroughputOverride: ProvisionedThroughputOverride voption
@@ -1966,9 +1966,9 @@ type UpdateReplicationGroupMemberAction =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingRequest", false, false)>]
 type UpdateTableReplicaAutoScalingRequest =
-    { GlobalSecondaryIndexUpdates: List<GlobalSecondaryIndexAutoScalingUpdate> voption
+    { GlobalSecondaryIndexUpdates: GlobalSecondaryIndexAutoScalingUpdate array voption
       ProvisionedWriteCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption
-      ReplicaUpdates: List<ReplicaAutoScalingUpdate> voption
+      ReplicaUpdates: ReplicaAutoScalingUpdate array voption
       TableName: String voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingResponse", false, false)>]
@@ -1980,13 +1980,13 @@ type UpdateTableReplicaAutoScalingResponse =
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableRequest", false, false)>]
 type UpdateTableRequest =
-    { AttributeDefinitions: List<AttributeDefinition> voption
+    { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
       DeletionProtectionEnabled: Boolean voption
-      GlobalSecondaryIndexUpdates: List<GlobalSecondaryIndexUpdate> voption
+      GlobalSecondaryIndexUpdates: GlobalSecondaryIndexUpdate array voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughput voption
-      ReplicaUpdates: List<ReplicationGroupUpdate> voption
+      ReplicaUpdates: ReplicationGroupUpdate array voption
       SSESpecification: SSESpecification voption
       StreamSpecification: StreamSpecification voption
       TableClass: TableClass voption

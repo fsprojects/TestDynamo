@@ -81,6 +81,11 @@ let mutable MaxReplicationTime = TimeSpan.FromSeconds(float 10)
 /// </summary>
 let mutable DefaultRegion = "us-east-1"
 
+/// <summary>
+/// If true, the DynamoDbClient will dispose of any MemoryStreams after reading the stream data
+/// </summary>
+let mutable DisposeOfInputMemoryStreams = false
+
 module TransactReadSettings =
 
     /// <summary>

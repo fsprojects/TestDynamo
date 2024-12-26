@@ -11,8 +11,6 @@ open TestDynamo.Model.ExpressionExecutors.Fetch
 open Utils
 open System.Runtime.CompilerServices
 
-// TODO: scan this file for commented out code
-
 module MultiClientOperations =
 
     let private globalOnly = "Some update table requests only work on GlobalDatabases. Please ensure that this TestDynamoClient was initiated with the correct args"

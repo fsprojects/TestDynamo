@@ -123,7 +123,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req
 
             // assert
-            let actual = response |> itemFromDynamodb "$"
+            let actual = response |> itemFromDynamodb
             let expected =
                 if ``has projections``
                 then 
@@ -168,7 +168,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` false client req
 
             // assert
-            let actual = response |> itemFromDynamodb "$"
+            let actual = response |> itemFromDynamodb
             let expected =
                 let keyCols = if table.hasSk then ["TablePk_Copy"; "IndexSk_Copy"] else ["TablePk"]
                 Map.filter (fun k _ -> List.contains k keyCols)

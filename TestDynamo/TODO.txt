@@ -1,9 +1,8 @@
 
 All todos
-All console.writelines
-Convert all empty strings to nulls/Nones?
 Mock recorder
 ItemCollectionMetrics are implemented in some places (maybe batching or transact ops) but not others
+remove aws from serailziation and lambda projects
 
 
 Features

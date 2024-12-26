@@ -103,8 +103,7 @@
     <PackageReference Include="AWSSDK.Core" Version="3.7.5" />
   </ItemGroup>
 
-  <!--TODO: netstandard only-->
-  <ItemGroup Label="Vulnerability upgrades">
+  <ItemGroup Label="Vulnerability upgrades" Condition="$(TargetFramework) == 'netstandard2.0' Or $(TargetFramework) == 'net9.0'">
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
