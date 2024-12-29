@@ -193,7 +193,7 @@ type DatabaseReplicationTests(output: ITestOutputHelper) =
         task {
             let! actual = client.GetItemAsync(tableName, itemToDynamoDb keys)
             if actual.Item = null then ()
-            else Assert.Empty(actual.Item)
+            else assertNullOrEmpty actual.Item
         }
 
     let assertExists tableName keys = function

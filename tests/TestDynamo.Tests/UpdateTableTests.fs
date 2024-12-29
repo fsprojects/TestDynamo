@@ -19,6 +19,13 @@ open TestDynamo.Utils
 open TestDynamo.Model
 open Tests.Loggers
 
+// warning FS3511: This state machine is not statically compilable.
+// A constrained generic construct occurred in the resumable code
+// specification. An alternative dynamic implementation will be used,
+// which may be slower. Consider adjusting your code to ensure this
+// state machine is statically compilable, or else suppress this warning.
+#nowarn "3511"
+
 type UpdateTableTests(output: ITestOutputHelper) =
 
     let random = randomBuilder output
@@ -35,7 +42,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             return f x'
         }
 
-    let createTable (client: IAmazonDynamoDB) request = function
+    let createTable (client: #IAmazonDynamoDB) request = function
         | true ->
             let r = TableBuilder.req request
             client.CreateTableAsync(
@@ -45,7 +52,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 r.ProvisionedThroughput)
         | false -> client.CreateTableAsync(TableBuilder.req request)
 
-    let basicAdd tableName (client: IAmazonDynamoDB) =
+    let basicAdd tableName (client: #IAmazonDynamoDB) =
         task {
             let item =
                 ItemBuilder.empty
@@ -65,7 +72,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             return ()
         }
 
-    let basicQuery tableName hasSortKey (client: IAmazonDynamoDB) =
+    let basicQuery tableName hasSortKey (client: #IAmazonDynamoDB) =
         task {
             let q1 =
                 QueryBuilder.empty ValueNone
@@ -83,7 +90,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             return! client.QueryAsync q1
         }
 
-    let indexQuery tableName indexName hasSortKey (client: IAmazonDynamoDB) =
+    let indexQuery tableName indexName hasSortKey (client: #IAmazonDynamoDB) =
         task {
             let q1 =
                 QueryBuilder.empty ValueNone
@@ -635,7 +642,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
 
             let dataB4 = dataCount()
 
-            let put (client: IAmazonDynamoDB) =
+            let put (client: #IAmazonDynamoDB) =
                 client.PutItemAsync(
                     ItemBuilder.empty
                     |> ItemBuilder.withTableName defaultTable
@@ -694,7 +701,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<ClassData(typedefof<OneFlag>)>]
     let ``Test deletion protection`` ``deletion protection added at create time`` =
 
-        let tableExists (client: IAmazonDynamoDB) =
+        let tableExists (client: #IAmazonDynamoDB) =
             task {
                 try 
                     let! _ = client.ScanAsync(
@@ -753,7 +760,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update table, delete stream, works correctly`` () =
 
-        let put (host: GlobalDatabase) (client: IAmazonDynamoDB) =
+        let put (host: GlobalDatabase) (client: #IAmazonDynamoDB) =
             let item =
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable
@@ -844,7 +851,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Update table, add stream, works correctly`` () =
 
-        let put (host: GlobalDatabase) (client: IAmazonDynamoDB) =
+        let put (host: GlobalDatabase) (client: #IAmazonDynamoDB) =
             let item =
                 ItemBuilder.empty
                 |> ItemBuilder.withTableName defaultTable

@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2.Model;
 using TestDynamo.Api.FSharp;
 using TestDynamo.Client;
 using TestDynamo.Model;
+using Xunit.Abstractions;
 
 namespace TestDynamo.Tests.CSharp;
 /// <summary>
@@ -113,7 +114,7 @@ public class BillingModeInterceptor : IRequestInterceptor
 /// This class also tests Database.Import method, DatabaseClone.ExtractTables method and
 /// IRequestInterceptor.InterceptResponse which are not tested elsewhere
 /// </summary>
-public class CreateBackupExample
+public class CreateBackupExample(ITestOutputHelper output)
 {
     [Fact]
     public async Task BackupExample()
@@ -158,8 +159,9 @@ public class CreateBackupExample
     [Fact]
     public async Task BillingModeExample()
     {
+        var logger = new SuperBasicTestLogger(output); 
         var interceptor = new BillingModeInterceptor();
-        using var database = new Api.Database(new DatabaseId("us-west-1"));
+        using var database = new Api.Database(new DatabaseId("us-west-1"), logger);
         using var client = database.CreateClient<AmazonDynamoDBClient>(interceptor);
 
         var response = await client.CreateTableAsync(new CreateTableRequest

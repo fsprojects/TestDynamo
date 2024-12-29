@@ -1,6 +1,7 @@
 namespace TestDynamo.Tests
 
 open System.Text
+open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open TestDynamo
@@ -70,30 +71,30 @@ type PagingTests(output: ITestOutputHelper) =
                 return t
             }
 
-    let rec executePagedQuery (client: AmazonDynamoDBClient) req: Task<struct (Dictionary<_, _> list list * int)> =
+    let rec executePagedQuery (client: AmazonDynamoDBClient) (req: Model.QueryRequest): Task<struct (Dictionary<_, _> list list * int)> =
         task {
-            let! results = client.QueryAsync req
-            Assert.Equal(results.Count, results.Items.Count)
+            let! results = client.QueryAsync(req, CancellationToken.None)
+            Assert.Equal(results.Count <!> 0, results.Items.Count)
 
-            if results.LastEvaluatedKey.Count = 0
-            then return List.singleton (results.Items |> List.ofSeq) |> flip tpl results.ScannedCount
+            if results.LastEvaluatedKey = null || results.LastEvaluatedKey.Count = 0
+            then return List.singleton (results.Items |> List.ofSeq) |> flip tpl (results.ScannedCount <!> 0)
             else
                 req.ExclusiveStartKey <- results.LastEvaluatedKey
                 let! struct (next, nextScanned) = executePagedQuery client req
-                return (results.Items |> List.ofSeq)::next |> flip tpl (results.ScannedCount + nextScanned)
+                return (results.Items |> List.ofSeq)::next |> flip tpl ((results.ScannedCount <!> 0) + nextScanned)
         }
 
     let rec executePagedScan (client: AmazonDynamoDBClient) req: Task<struct (Dictionary<_, _> list list * int)> =
         task {
             let! results = client.ScanAsync req
-            Assert.Equal(results.Count, results.Items.Count)
+            Assert.Equal(results.Count <!> 0, results.Items.Count)
 
-            if results.LastEvaluatedKey.Count = 0
-            then return List.singleton (results.Items |> List.ofSeq) |> flip tpl results.ScannedCount
+            if results.LastEvaluatedKey = null || results.LastEvaluatedKey.Count = 0
+            then return List.singleton (results.Items |> List.ofSeq) |> flip tpl (results.ScannedCount <!> 0)
             else
                 req.ExclusiveStartKey <- results.LastEvaluatedKey
                 let! struct (next, nextScanned) = executePagedScan client req
-                return (results.Items |> List.ofSeq)::next |> flip tpl (results.ScannedCount + nextScanned)
+                return (results.Items |> List.ofSeq)::next |> flip tpl ((results.ScannedCount <!> 0) + nextScanned)
         }
 
     [<Theory>]

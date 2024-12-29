@@ -1,5 +1,6 @@
 namespace TestDynamo.Tests
 
+open System.Collections.ObjectModel
 open Amazon.DynamoDBv2.DataModel
 open Amazon.DynamoDBv2.DocumentModel
 open Microsoft.Extensions.Logging
@@ -53,6 +54,37 @@ type SomeKindOfOb() =
         and set value = somethingElseElse <- value
 
 type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
+    
+    static let buildContext client =
+
+#if DYNAMODB_3
+        new DynamoDBContext(client)
+#else
+        DynamoDBContextBuilder()
+            .WithDynamoDBClient(fun _ -> client)
+            .Build()
+#endif
+
+    static let buildSaveConfig() =
+#if DYNAMODB_3
+        new DynamoDBOperationConfig()
+#else
+        SaveConfig()
+#endif
+
+    static let buildScanConfig() =
+#if DYNAMODB_3
+        new DynamoDBOperationConfig()
+#else
+        ScanConfig()
+#endif
+
+    static let buildQueryConfig() =
+#if DYNAMODB_3
+        DynamoDBOperationConfig()
+#else
+        QueryConfig()
+#endif
 
     [<Fact>]
     let ``SmokeTest`` () =
@@ -94,12 +126,15 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                     [ScanCondition("SkCopy", ScanOperator.LessThanOrEqual, "IsTheSk"); notNotSk]
                 ]: ScanCondition list list
 
-            let scansAsOperationConfig =
+            let struct (scansAsSaveConfig, scansAsQueryConfig) =
                 scans
-                |> List.map (fun ss ->
-                    let sc = DynamoDBOperationConfig()
-                    sc.QueryFilter <- MList<_>(ss)
-                    sc)
+                |> Seq.map (fun ss ->
+                    let sc = buildSaveConfig()
+                    
+                    let qc = buildQueryConfig()
+                    qc.QueryFilter <- MList<_>(ss)
+                    struct (sc, qc))
+                |> Collection.unzip
 
             // arrange
             use logger = new TestLogger(output, level = LogLevel.Trace)
@@ -125,7 +160,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                         addDeletionProtection = false }}
                 |> (TestDynamoClient.getDatabase client).AddTable ValueNone
 
-            use context = new DynamoDBContext(client)
+            use context = buildContext client
 
             let obj_diversion = SomeKindOfOb()
             obj_diversion.Pk <- "ThePk"
@@ -145,10 +180,10 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
             let load _ =
                 [
                     context.LoadAsync<SomeKindOfOb>("ThePk", "IsTheSk") |> singleton
-                    context.QueryAsync<SomeKindOfOb>("ThePk", QueryOperator.Equal, ["IsTheSk"]).GetRemainingAsync() |> seq
+                    context.QueryAsync<SomeKindOfOb>("ThePk", QueryOperator.Equal, [box "IsTheSk"]).GetRemainingAsync() |> seq
                 ]
                 @ (scans |> List.map (fun s -> context.ScanAsync<SomeKindOfOb>(s).GetRemainingAsync() |> seq))
-                @ (scansAsOperationConfig |> List.map (fun s -> context.QueryAsync<SomeKindOfOb>("ThePk", s).GetRemainingAsync() |> seq))
+                @ (scansAsQueryConfig |> List.map (fun s -> context.QueryAsync<SomeKindOfOb>("ThePk", s).GetRemainingAsync() |> seq))
                 |> Seq.map Io.fromTask
                 |> Io.traverse
 
@@ -159,7 +194,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                 Assert.Equal(obj.Sk, obj1.Sk)
 
             // act
-            for i, x in Seq.mapi tpl scansAsOperationConfig do
+            for i, x in Seq.mapi tpl scansAsSaveConfig do
                 obj.SomethingElseElse <- i
                 do! context.SaveAsync(obj, x)
                 let! obj2 = context.LoadAsync<SomeKindOfOb>("ThePk", "IsTheSk")
@@ -206,7 +241,7 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
                         addDeletionProtection = false }}
                 |> (TestDynamoClient.getDatabase client).AddTable ValueNone
 
-            use context = new DynamoDBContext(client)
+            use context = buildContext client
 
             let obj_on_index = SomeKindOfOb()
             obj_on_index.Pk <- "ThePk"
@@ -224,11 +259,11 @@ type DynamoDBContextSmokeTests(output: ITestOutputHelper) =
             let! search =
                 if ``is scan``
                 then
-                    let req = DynamoDBOperationConfig()
+                    let req = buildScanConfig()
                     req.IndexName <- "AnIndex"
                     context.ScanAsync<SomeKindOfOb>(Seq.empty, req)
                 else
-                    let req = DynamoDBOperationConfig()
+                    let req = buildQueryConfig()
                     req.IndexName <- "AnIndex"
                     context.QueryAsync(System.Nullable<_>(1), req)
                 |> _.GetRemainingAsync()

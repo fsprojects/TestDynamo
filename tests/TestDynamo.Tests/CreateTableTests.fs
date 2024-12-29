@@ -27,7 +27,7 @@ type CreateTableTests(output: ITestOutputHelper) =
             return f x'
         }
 
-    let createTable (client: IAmazonDynamoDB) request = function
+    let createTable (client: #IAmazonDynamoDB) request = function
         | true ->
             let r = TableBuilder.req request
             client.CreateTableAsync(
@@ -37,7 +37,7 @@ type CreateTableTests(output: ITestOutputHelper) =
                 r.ProvisionedThroughput)
         | false -> client.CreateTableAsync(TableBuilder.req request)
 
-    let basicAdd tableName (client: IAmazonDynamoDB) =
+    let basicAdd tableName (client: #IAmazonDynamoDB) =
         task {
             let item =
                 ItemBuilder.empty
@@ -57,7 +57,7 @@ type CreateTableTests(output: ITestOutputHelper) =
             return ()
         }
 
-    let basicQuery tableName hasSortKey (client: IAmazonDynamoDB) =
+    let basicQuery tableName hasSortKey (client: #IAmazonDynamoDB) =
         task {
             let q1 =
                 QueryBuilder.empty ValueNone
@@ -75,7 +75,7 @@ type CreateTableTests(output: ITestOutputHelper) =
             return! client.QueryAsync q1
         }
 
-    let indexQuery tableName indexName hasSortKey (client: IAmazonDynamoDB) =
+    let indexQuery tableName indexName hasSortKey (client: #IAmazonDynamoDB) =
         task {
             let q1 =
                 QueryBuilder.empty ValueNone
@@ -93,7 +93,7 @@ type CreateTableTests(output: ITestOutputHelper) =
             return! client.QueryAsync q1
         }
 
-    let localIndexQuery tableName indexName (client: IAmazonDynamoDB) =
+    let localIndexQuery tableName indexName (client: #IAmazonDynamoDB) =
         task {
             let q1 =
                 QueryBuilder.empty ValueNone

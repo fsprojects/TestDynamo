@@ -710,7 +710,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             let! response = client.QueryAsync baseReq
 
             // assert
-            Assert.Equal(1, response.Count)
+            Assert.Equal(1, response.Count <!> 0)
         }
 
     [<Theory>]
@@ -768,7 +768,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             else Assert.Equal(1, Seq.length expected)
             Assert.Equal(Seq.length expected, result.Items.Count)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
             assertItems (expected, result.Items, not ``on index``)
         }
 

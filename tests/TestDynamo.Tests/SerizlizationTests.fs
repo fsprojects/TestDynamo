@@ -279,7 +279,7 @@ type SerializationTests(output: ITestOutputHelper) =
             let! items2 = client2.QueryAsync req
             let! items3 = client3.QueryAsync req
 
-            Assert.Equal(2, items1.Count)
-            Assert.Equal(2, items2.Count)
-            Assert.Equal(2, items3.Count)
+            Assert.Equal(2, items1.Count <!> 0)
+            Assert.Equal(2, items2.Count <!> 0)
+            Assert.Equal(2, items3.Count <!> 0)
         }

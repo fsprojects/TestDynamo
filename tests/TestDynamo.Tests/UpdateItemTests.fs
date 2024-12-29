@@ -74,7 +74,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 client.Dispose()
         }
 
-    let put query (client: IAmazonDynamoDB) =
+    let put query (client: #IAmazonDynamoDB) =
         task {
             let! t = table
             let q = ItemBuilder.dynamoDbAttributes query
@@ -92,7 +92,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             return queryBase
         }
 
-    let updateRaw query (client: IAmazonDynamoDB) =
+    let updateRaw query (client: #IAmazonDynamoDB) =
         task {
             let! t = table
             do!
@@ -105,7 +105,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
 
     let update = QueryBuilder.updateRequest >> updateRaw
 
-    let updateExpectErrorAndAssertNotModified query (client: IAmazonDynamoDB) =
+    let updateExpectErrorAndAssertNotModified query (client: #IAmazonDynamoDB) =
         task {
             let! t = table
             let q = QueryBuilder.updateRequest query
@@ -1367,7 +1367,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
     [<InlineData("NONE")>]
     [<InlineData("UPDATED_NEW")>]
     [<InlineData("UPDATED_OLD")>]
-    let ``Update, with projection, behaves correctly`` ``return vaulues`` =
+    let ``Update, with projection, behaves correctly`` ``return values`` =
         task {
             use client = buildClient output
             let client = client.Client
@@ -1392,9 +1392,9 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 updateBase
                 |> QueryBuilder.setUpdateExpression "SET Val1 = :set"
                 |> QueryBuilder.setExpressionAttrValues ":set" newValue
-                |> if ``return vaulues`` = null
+                |> if ``return values`` = null
                     then id
-                    else QueryBuilder.setReturnValues (ReturnValue.FindValue(``return vaulues``))
+                    else QueryBuilder.setReturnValues (ReturnValue.FindValue(``return values``))
                 |> QueryBuilder.updateRequest
                 |> client.UpdateItemAsync
 
@@ -1402,7 +1402,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
             let expected =
                 Map.empty
                 |>
-                    match ``return vaulues`` with
+                    match ``return values`` with
                     | "ALL_NEW"
                     | "ALL_OLD" ->
                         Map.add "TablePk" (AttributeValue.Number (pk |> decimal))
@@ -1413,7 +1413,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     | null -> id
                     | x -> invalidOp x
                 |>
-                    match ``return vaulues`` with
+                    match ``return values`` with
                     | "UPDATED_NEW"
                     | "ALL_NEW" -> Map.add "Val1" newValue
                     | "UPDATED_OLD"
@@ -1422,17 +1422,20 @@ type UpdateItemTests(output: ITestOutputHelper) =
                     | null -> id
                     | x -> invalidOp x
 
-            let actual =
-                response.Attributes
-                |> itemFromDynamodb
+            if ``return values`` = null || ``return values`` = "NONE"
+            then assertNullOrEmpty response.Attributes
+            else
+                let actual =
+                    response.Attributes
+                    |> itemFromDynamodb
 
-            Assert.Equal<Map<string, AttributeValue>>(expected, actual)
+                Assert.Equal<Map<string, AttributeValue>>(expected, actual)
         }
 
     [<Theory>]
     [<InlineData("UPDATED_NEW")>]
     [<InlineData("UPDATED_OLD")>]
-    let ``Update, with projection, special case "Set x.#prop = :p", behaves correctly`` ``return vaulues`` =
+    let ``Update, with projection, special case "Set x.#prop = :p", behaves correctly`` ``return values`` =
         task {
             use client = buildClient output
             let client = client.Client
@@ -1458,13 +1461,13 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression "SET #prop = :prop"
                 |> QueryBuilder.setExpressionAttrValues ":prop" newValue
                 |> QueryBuilder.setExpressionAttrName "#prop" "#prop"
-                |> QueryBuilder.setReturnValues (ReturnValue.FindValue(``return vaulues``))
+                |> QueryBuilder.setReturnValues (ReturnValue.FindValue(``return values``))
                 |> QueryBuilder.updateRequest
                 |> client.UpdateItemAsync
 
             // assert
             let expected =
-                match ``return vaulues`` with
+                match ``return values`` with
                 | "UPDATED_NEW" -> newValue
                 | "UPDATED_OLD" -> oldValue
                 | x -> invalidOp x
@@ -1557,7 +1560,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 then
                     Assert.Equal(pk, response.Attributes["TablePk"].S)
                     Assert.Equal(sk, response.Attributes["TableSk"].N |> decimal)
-                else Assert.Empty(response.Attributes)
+                else assertNullOrEmpty response.Attributes
 
                 let! x = client.GetItemAsync(table.name, keys)
                 Assert.Equal("pp", x.Item["xxx"].S)
@@ -1568,7 +1571,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 let! x = client.GetItemAsync(table.name, keys)
                 if ``item exists``
                 then Assert.False(x.Item.ContainsKey("xxx"))
-                else Assert.True(x.Item.Count = 0)
+                else assertNullOrEmpty x.Item
         }
 
     //[<Fact(Skip = "tmp")>]

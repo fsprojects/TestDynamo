@@ -1,11 +1,10 @@
 using Amazon.DynamoDBv2;
 using TestDynamo.Api;
 using TestDynamo.Model;
-using Xunit.Abstractions;
 
 namespace TestDynamo.Tests.CSharp;
 
-public class UnitTest1(ITestOutputHelper output)
+public class UnitTest1
 {
 
     [Fact]

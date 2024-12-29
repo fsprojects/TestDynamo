@@ -290,7 +290,7 @@ module RequestItemTestUtils =
         aBunchOfNormalItems
         |> List.map TableItem.asItemBuilder
 
-    let newTables (client: IAmazonDynamoDB) =
+    let newTables (client: #IAmazonDynamoDB) =
 
         let table description isBinaryTable hasSk indexHasSk streamsEnabled req =
             let name = sprintf "%s_%s_%i" "QueryAndScanTestUtils" description (uniqueId())

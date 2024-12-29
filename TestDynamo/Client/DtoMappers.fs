@@ -1082,6 +1082,7 @@ module ComplexObjectMapper =
                 | [] -> ValueSome eTo
                 | ps -> Expr.maybeMutate ps eTo) eFrom
 
+    // good logging method, might be handy for debug in future
     // let private printConstructorMap =
     //     let valNoneString = asLazy "Constructor map: ValueNone"
     //
@@ -1142,7 +1143,6 @@ let struct (amzDto, dtoAmz) =
         allTypes
         |> Seq.filter (_.FullName >> (=)name)
         |> Collection.tryHead
-        |> Maybe.expectSomeErr "Unable to find type: %s" name
 
     typeof<DynamodbTypeAttribute>.Assembly.GetTypes()
     |> Seq.map (fun x ->
@@ -1151,7 +1151,10 @@ let struct (amzDto, dtoAmz) =
         ?|> (_.Name >> getType >> tpl (addGenerics x)))
     |> Maybe.traverse
     |> Seq.fold (fun struct (amzDto: Dictionary<_, _>, dtoAmz: Dictionary<_, _>) struct (dto, amz) ->
-        amzDto.Add(amz, dto)
+        match amz with
+        | ValueSome amz -> amzDto.Add(amz, dto)
+        | ValueNone -> ()
+        
         dtoAmz.Add(dto, amz)
         struct (amzDto, dtoAmz)) struct (Dictionary<_, _>(), Dictionary<_, _>())
     |> fun struct (x, y) -> struct (x :> IReadOnlyDictionary<_, _>, y :> IReadOnlyDictionary<_, _>)
@@ -1284,7 +1287,7 @@ let private fromDtoObj' =
                 if amzDto.ContainsKey fromType
                 then amzDto[fromType]
                 elif dtoAmz.ContainsKey fromType
-                then dtoAmz[fromType]
+                then dtoAmz[fromType] |> Maybe.expectSomeErr "Unable to find type: %A" fromType
                 else invalidOp $"Cannot map type {fromType}"
 
             let param = Expr.param fromType

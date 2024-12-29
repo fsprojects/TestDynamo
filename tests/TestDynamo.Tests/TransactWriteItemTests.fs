@@ -153,7 +153,10 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
                     |> Io.fromTask
                     |> Io.map (tpl struct (table, attributeFromDynamodb key["TablePk"])))
                 |> Io.traverse
-                |> Io.map (Seq.map (sndT >> fun x -> x.Item |> itemFromDynamodb) >> List.ofSeq)
+                |> Io.map (
+                    Seq.map (sndT >> fun x -> x.Item |> Maybe.Null.toOption ?|> itemFromDynamodb)
+                    >> Maybe.traverse
+                    >> List.ofSeq)
 
             return! items.AsTask()
         }
@@ -600,7 +603,7 @@ type TransactWriteItemTests(output: ITestOutputHelper) =
             let! e = executeFailedWrite (ValueSome clientContainer.Client) (fun req ->
                 match ``error type`` with
                 | "KEY_ERR" ->
-                    req.delete.Key.Clear()
+                    req.delete.Key <- null
                 | "CONDITION" ->
                     req.condition.ConditionExpression <- "attribute_exists(XXYYZZ)"
                     req.condition.ExpressionAttributeValues.Clear()

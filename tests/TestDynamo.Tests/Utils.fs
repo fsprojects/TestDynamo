@@ -7,6 +7,7 @@ open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open Amazon.Lambda.DynamoDBEvents
+open Microsoft.FSharp.Linq
 open TestDynamo
 open TestDynamo.Data.BasicStructures
 open TestDynamo.GenericMapper
@@ -23,11 +24,32 @@ open Tests.Loggers
 type ApiDb = TestDynamo.Api.FSharp.Database
 let asFunc2 (f: 'a -> 'b -> 'c): System.Func<'a, 'b, 'c> = f 
 
+let assertNullOrEmpty (xs: _ seq) =
+    if xs <> null then Assert.Empty xs
+    
+#if DYNAMODB_3
+let (<!>) x _ = x
+#else
+let (<!>) (x: Nullable<_>) y =
+    if x.HasValue then x.Value
+    else y
+#endif
+
+#if DYNAMODB_3
+let (!<>) x = x
+#else
+let (!<>) x = Nullable<_>(x)
+#endif
+
 let attributeFromDynamodb (attr: DynamoAttributeValue) =
     DtoMappers.mapDto<DynamoAttributeValue, AttributeValue> attr
     
 let itemFromDynamodb (x: Dictionary<string,DynamoAttributeValue>) =
-    x |> Seq.map (fun x -> KeyValuePair<_, _>(x.Key, attributeFromDynamodb x.Value)) |> MapUtils.fromKvp
+    x
+    |> Maybe.Null.toOption
+    |> Maybe.expectSome
+    |> Seq.map (fun x -> KeyValuePair<_, _>(x.Key, attributeFromDynamodb x.Value))
+    |> MapUtils.fromKvp
     
 let attributeToDynamoDb = DtoMappers.mapDto<AttributeValue, DynamoAttributeValue>
 
@@ -266,7 +288,7 @@ let randomBuilder (t: ITestOutputHelper) =
 
     seededRandomBuilder seed t
 
-let addTable (client: IAmazonDynamoDB) enableStreams =
+let addTable<'client when 'client :> IAmazonDynamoDB> (client: 'client) enableStreams =
     task {
         let name = (System.Guid.NewGuid()).ToString()
 
@@ -299,6 +321,20 @@ let assertErrors (output: ITestOutputHelper) msgs (e: exn) =
             output.WriteLine($"Expected: {msg}\nActual: {str}")
             reraise()
         ()) ()
+
+let assertAtLeast1Error (output: ITestOutputHelper) msgs (e: exn) =
+    Assert.NotEmpty(msgs)
+
+    let str = e.ToString()
+
+    match List.filter (fun (msg: string) ->
+        if str.Contains(msg)
+        then true
+        else
+            output.WriteLine($"Expected: {msg}\nActual: {str}")
+            false) msgs with
+    | [] -> Assert.Fail("No errors found")
+    | _ -> ()
 
 let assertError output = List.singleton >> assertErrors output
 
@@ -355,7 +391,7 @@ module LambdaSubscriberUtils =
         | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
         | false, null, null, null, false, true, false, false, false, false ->
             if attr.M = null then ClientError.clientError "Map data not set"
-            itemFromDynamodb' name attr.M |> AttributeValue.HashMap
+            itemFromDynamodb' name attr.M |> Maybe.expectSome |> AttributeValue.HashMap
         | false, null, null, null, false, false, true, false, false, false ->
             sanitizeSeq attr.L 
             |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
@@ -383,8 +419,8 @@ module LambdaSubscriberUtils =
     and private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
         struct (attr.Key, attributeFromDynamodb' $"{name}.{attr.Key}" attr.Value)
     
-    and private itemFromDynamodb' name x = x |> Seq.map (mapAttribute name) |> MapUtils.fromTuple
-    and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$"
+    and private itemFromDynamodb' name x = Maybe.Null.toOption x ?|> Seq.map (mapAttribute name) ?|> MapUtils.fromTuple
+    and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$" >> Maybe.expectSome
     
     let rec attributeToDynamoDbEvent = function
         | AttributeValue.String x ->

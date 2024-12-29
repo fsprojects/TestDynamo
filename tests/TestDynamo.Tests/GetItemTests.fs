@@ -47,6 +47,7 @@ type GetItemTests(output: ITestOutputHelper) =
     let executeAsBatchGet (client: AmazonDynamoDBClient) (req: GetItemRequest) =
         let kAndAttr =
             let op = KeysAndAttributes()
+            op.Keys <- MList<_>()
             op.Keys.Add(req.Key)
             op.ProjectionExpression <- req.ProjectionExpression
             op.AttributesToGet <- req.AttributesToGet
@@ -55,12 +56,19 @@ type GetItemTests(output: ITestOutputHelper) =
 
         let req' =
             let r = BatchGetItemRequest()
+            r.RequestItems <- Dictionary<_, _>()
             r.RequestItems.Add(req.TableName, kAndAttr)
             r
 
         client.BatchGetItemAsync(req')
         |> Io.fromTask
-        |%|> (_.Responses >> Seq.collect _.Value >> List.ofSeq >> function | [] -> Dictionary<_,_>() | [x] -> x | xs -> invalidOp "Expected 1")
+        |%|> (
+            _.Responses
+            >> Maybe.Null.toOption
+            >> Maybe.expectSomeErr "Expected 1%s" ""
+            >> Seq.collect _.Value
+            >> List.ofSeq
+            >> function | [] -> Dictionary<_,_>() | [x] -> x | _ -> invalidOp "Expected 1")
 
     let executeAsTransactGet (client: AmazonDynamoDBClient) (req: GetItemRequest) =
         let kAndAttr =
@@ -74,18 +82,27 @@ type GetItemTests(output: ITestOutputHelper) =
 
         let req' =
             let r = TransactGetItemsRequest()
+            r.TransactItems <- MList<_>()
             r.TransactItems.Add(kAndAttr)
             r
 
         client.TransactGetItemsAsync(req')
         |> Io.fromTask
-        |%|> (_.Responses >> Seq.map _.Item >> List.ofSeq >> function | [] -> Dictionary<_,_>() | [x] -> x | xs -> invalidOp "Expected 1")
+        |%|> (
+            _.Responses
+            >> Maybe.Null.toOption
+            >> Maybe.expectSomeErr "Expected 1%s" ""
+            >> Seq.map _.Item
+            >> List.ofSeq
+            >> function | [] -> Dictionary<_,_>() | [x] -> x | _ -> invalidOp "Expected 1")
 
     let maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` =
-        if ``batch get`` && ``transact get`` then invalidOp ""
-        elif ``batch get`` then executeAsBatchGet
-        elif ``transact get`` then executeAsTransactGet
-        else fun client req -> client.GetItemAsync req |> Io.fromTask |%|> _.Item
+        (if ``batch get`` && ``transact get`` then invalidOp ""
+         elif ``batch get`` then executeAsBatchGet
+         elif ``transact get`` then executeAsTransactGet
+         else (fun client req -> client.GetItemAsync req |> Io.fromTask |%|> _.Item))
+        |%%%|> function | null -> null | x when x.Count = 0 -> null | x -> x
+        |%%%|> Maybe.Null.toOption
 
     [<Theory>]
     [<ClassData(typedefof<ThreeFlags>)>]
@@ -123,7 +140,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req
 
             // assert
-            let actual = response |> itemFromDynamodb
+            let actual = response ?|> itemFromDynamodb |> Maybe.expectSome
             let expected =
                 if ``has projections``
                 then 
@@ -168,7 +185,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` false client req
 
             // assert
-            let actual = response |> itemFromDynamodb
+            let actual = response ?|> itemFromDynamodb |> Maybe.expectSome
             let expected =
                 let keyCols = if table.hasSk then ["TablePk_Copy"; "IndexSk_Copy"] else ["TablePk"]
                 Map.filter (fun k _ -> List.contains k keyCols)
@@ -207,7 +224,7 @@ type GetItemTests(output: ITestOutputHelper) =
 
             // act
             let! response = maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req
-            Assert.True(response = null || response.Count = 0) 
+            Assert.Equal(ValueNone, response) 
         }
 
     [<Theory>]
@@ -279,7 +296,7 @@ type GetItemTests(output: ITestOutputHelper) =
             let! e = Assert.ThrowsAnyAsync(fun () -> (maybeExecuteAsBatchOrTransactGet ``batch get`` ``transact get`` client req).AsTask())
 
             match ``batch get``, ``table has sk``, ``include pk``, ``include sk`` with
-            | false, _, false, false -> assertError output "Key property is mandatory" e
+            | false, _, false, false -> assertAtLeast1Error output ["Could not find partition key attribute"; "Key property is mandatory"] e
             | _, false, true, true -> assertError output "Found non key attributes" e
             |_ -> assertError output "Could not find" e
         }
@@ -317,6 +334,8 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let req =
                 let r = BatchGetItemRequest()
+                r.RequestItems <- Dictionary<_, _>()
+                
                 [1..``req count``]
                 |> Collection.window (``req count`` / 4)
                 |> Collection.zip tableVals
@@ -326,6 +345,7 @@ type GetItemTests(output: ITestOutputHelper) =
                         | true, v -> v
                         | false, _ ->
                             let v = KeysAndAttributes()
+                            v.Keys <- MList<_>()
                             r.RequestItems.Add(name, v)
                             v
 
@@ -360,7 +380,9 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let req =
                 let r = BatchGetItemRequest()
+                r.RequestItems <- Dictionary<_, _>()
                 let k = KeysAndAttributes()
+                k.Keys <- MList<_>()
                 k.Keys.Add(Dictionary<_, _>())
                 r.RequestItems.Add(
                     if ``invalid region``
@@ -403,13 +425,17 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let req =
                 let r = BatchGetItemRequest()
+                r.RequestItems <- Dictionary<_, _>() 
+                
                 let k = KeysAndAttributes()
+                k.Keys <- MList<_>()
                 k.Keys.Add(key)
                 r.RequestItems.Add(
                     $"arn:aws:dynamodb:{host.Id.regionId}:{Settings.DefaultAwsAccountId}:table/{table.name}",
                     k)
 
                 let k = KeysAndAttributes()
+                k.Keys <- MList<_>()
                 k.Keys.Add(key)
                 r.RequestItems.Add(
                     $"arn:aws:dynamodb:new-region:{Settings.DefaultAwsAccountId}:table/{table.name}",
@@ -475,8 +501,10 @@ type GetItemTests(output: ITestOutputHelper) =
 
             let req =
                 let r = BatchGetItemRequest()
+                r.RequestItems <- Dictionary<_, _>()
                 let add arn =
                     let k = KeysAndAttributes()
+                    k.Keys <- MList<_>()
                     k.ConsistentRead <- ``consistant read``
                     k.Keys.AddRange(pks |> Seq.map itemToDynamoDb)
                     r.RequestItems.Add(

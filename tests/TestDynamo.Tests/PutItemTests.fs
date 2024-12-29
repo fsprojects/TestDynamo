@@ -100,7 +100,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 client.Dispose()
         }
 
-    let get index partitionKey sortKey (client: IAmazonDynamoDB) =
+    let get index partitionKey sortKey (client: #IAmazonDynamoDB) =
         task {
             let! t = table
 
@@ -129,13 +129,13 @@ type PutItemTests(output: ITestOutputHelper) =
             return result.Items
         }
 
-    let assertOne index partitionKey sortKey (client: IAmazonDynamoDB) =
+    let assertOne index partitionKey sortKey (client: #IAmazonDynamoDB) =
         task {
             let! x = get index partitionKey sortKey client
             return Assert.Single x
         }
 
-    let assertZero index partitionKey sortKey (client: IAmazonDynamoDB) =
+    let assertZero index partitionKey sortKey (client: #IAmazonDynamoDB) =
         task {
             let! x = get index partitionKey sortKey client
             return Assert.Empty x
@@ -154,7 +154,7 @@ type PutItemTests(output: ITestOutputHelper) =
 
         req2
 
-    let maybeBatch batch (client: IAmazonDynamoDB) (req: PutItemRequest) =
+    let maybeBatch batch (client: #IAmazonDynamoDB) (req: PutItemRequest) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.ignoreTask
         else client.PutItemAsync req |> Io.ignoreTask
@@ -855,7 +855,7 @@ type PutItemTests(output: ITestOutputHelper) =
 
                     let! x = client.GetItemAsync(table.name, keys)
                     Assert.True(x.Item["TablePk_Copy"].S = "override")
-                else Assert.Empty(response.Attributes)
+                else assertNullOrEmpty response.Attributes
             else
                 let! e = Assert.ThrowsAnyAsync(fun _ -> client.PutItemAsync(req))
                 assertError output "ConditionalCheckFailedException" e
@@ -863,7 +863,7 @@ type PutItemTests(output: ITestOutputHelper) =
                 let! x = client.GetItemAsync(table.name, keys)
                 if ``item exists``
                 then Assert.True(x.Item["TablePk_Copy"].S <> "override")
-                else Assert.True(x.Item.Count = 0)
+                else assertNullOrEmpty x.Item
         }
 
     [<Theory>]
@@ -884,6 +884,8 @@ type PutItemTests(output: ITestOutputHelper) =
 
             let req =
                 let r = BatchWriteItemRequest()
+                r.RequestItems <- Dictionary<_, _>()
+                
                 let k = WriteRequest()
                 k.DeleteRequest <- DeleteRequest()
                 k.DeleteRequest.Key <- Dictionary<_, _>()

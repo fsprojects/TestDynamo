@@ -344,7 +344,7 @@ type MappingTests(output: ITestOutputHelper) =
             TestDynamo.GeneratedCode.Dtos.BatchExecuteStatementRequest<AttributeValue>> data
 
         // assert
-        Assert.NotNull(data.Statements)
+        // Assert.NotNull(data.Statements) - todo Dynamodb v3 only
         Assert.Equal(ValueNone, result.Statements)
 
     [<Fact>]
@@ -420,7 +420,7 @@ type MappingTests(output: ITestOutputHelper) =
         // assert
         Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
         Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
-        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit)
+        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit <!> 0)
 
     // particular use case with bug
     [<Theory>]
@@ -455,7 +455,7 @@ type MappingTests(output: ITestOutputHelper) =
         // assert
         Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
         Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
-        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit)
+        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit <!> 0)
 
     // This test can modify the behavior of other tests
     // As far as I can see, it will only break tests in this class, so all good if these are

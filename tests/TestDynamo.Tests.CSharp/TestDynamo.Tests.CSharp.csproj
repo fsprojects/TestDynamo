@@ -10,9 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.0-preview.4" />
     <PackageReference Include="Amazon.Lambda.DynamoDBEvents" Version="3.1.1" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!--
+    Allow compiler to change compiler directives. This is used to test dotnet standard 
+    https://stackoverflow.com/questions/59249847/passing-define-constants-to-dotnet-build-kills-target-framework-symbols
+    -->
+    <DefineConstants Condition=" '$(AdditionalConstants)' != '' ">$(DefineConstants);$(AdditionalConstants)</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />

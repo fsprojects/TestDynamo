@@ -89,10 +89,10 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // assert
             if neq || tab.hasSk then Assert.True((Seq.length expected) > 1)
             else Assert.Equal(1, Seq.length expected)
-            Assert.Equal(Seq.length expected, result.Count)
+            Assert.Equal(Seq.length expected, result.Count <!> 0)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
-            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
+            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount <!> 0)
             assertItems (expected, result.Items, true)
         }
 
@@ -194,7 +194,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> client.QueryAsync
 
             // assert
-            Assert.Equal(1, x.Count)
+            Assert.Equal(1, x.Count <!> 0)
         }
 
     [<Theory>]
@@ -498,8 +498,8 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 |> client.QueryAsync
 
             // assert
-            if found then Assert.Equal(1, result.Count)
-            else Assert.Equal(0, result.Count)
+            if found then Assert.Equal(1, result.Count <!> 0)
+            else Assert.Equal(0, result.Count <!> 0)
         }
 
     [<Fact>]
@@ -711,7 +711,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
 
             item.Items[0].Add("NewItem", DynamoAttributeValue())
             let nested = item.Items[0]["NewItem"] |> addMapWithProp "nested" |> addMapWithProp "boolVal"
-            nested.BOOL <- exists
+            nested.BOOL <- !<> exists
             nested.IsBOOLSet <- true
 
             let value = DynamoAttributeValue()
@@ -1434,10 +1434,10 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
             // assert
             if tab.hasSk then Assert.True((Seq.length expected) > 1)
             else Assert.Equal(1, Seq.length expected)
-            Assert.Equal(Seq.length expected, result.Count)
+            Assert.Equal(Seq.length expected, result.Count <!> 0)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
-            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
+            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount <!> 0)
             assertItems (expected, result.Items, not ``on index``)
         }
 
@@ -1680,10 +1680,10 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
 
             // assert
             Assert.True((Seq.length expected) > 1)
-            Assert.Equal(Seq.length expected, result.Count)
+            Assert.Equal(Seq.length expected, result.Count <!> 0)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
-            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
+            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount <!> 0)
             assertItems (expected, result.Items, not ``on index``)
         }
 
@@ -1731,10 +1731,10 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
 
             // assert
             Assert.True((Seq.length expected) > 1)
-            Assert.Equal(Seq.length expected, result.Count)
+            Assert.Equal(Seq.length expected, result.Count <!> 0)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
-            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
+            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount <!> 0)
             assertItems (expected, result.Items, false)
         }
 
@@ -1780,9 +1780,9 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
 
             // assert
             Assert.True((Seq.length expected) > 1)
-            Assert.Equal(Seq.length expected, result.Count)
+            Assert.Equal(Seq.length expected, result.Count <!> 0)
 
-            Assert.True(result.ScannedCount > result.Items.Count)
-            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount)
+            Assert.True(result.ScannedCount <!> 0 > result.Items.Count)
+            Assert.Equal(Seq.length (allItems tab.hasSk), result.ScannedCount <!> 0)
             assertItems (expected, result.Items, false)
         }

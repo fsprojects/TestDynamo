@@ -55,7 +55,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
         req2
 
-    let maybeBatch batch (client: IAmazonDynamoDB) (req: DeleteItemRequest) =
+    let maybeBatch batch (client: #IAmazonDynamoDB) (req: DeleteItemRequest) =
         if batch
         then asBatchReq req |> client.BatchWriteItemAsync |> Io.fromTask |%|> (asLazy ValueNone)
         else client.DeleteItemAsync req |> Io.fromTask |%|> ValueSome
@@ -236,10 +236,10 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 then
                     Assert.Equal(pk, response.Attributes["TablePk"].S)
                     Assert.Equal(sk, response.Attributes["TableSk"].N |> decimal)
-                else Assert.Empty(response.Attributes)
+                else assertNullOrEmpty response.Attributes
 
                 let! x = client.GetItemAsync(table.name, keys)
-                Assert.Empty(x.Item)
+                assertNullOrEmpty x.Item
             else
                 let! e = Assert.ThrowsAnyAsync(fun _ -> client.DeleteItemAsync(req))
                 assertError output "ConditionalCheckFailedException" e
@@ -247,7 +247,7 @@ type DeleteItemTests(output: ITestOutputHelper) =
                 let! x = client.GetItemAsync(table.name, keys)
                 if ``item exists``
                 then Assert.NotEmpty(x.Item)
-                else Assert.True(x.Item.Count = 0)
+                else assertNullOrEmpty x.Item
         }
 
     [<Theory>]
@@ -302,6 +302,6 @@ type DeleteItemTests(output: ITestOutputHelper) =
 
             match ``table has sk``, ``include pk``, ``include sk`` with
             | false, true, true -> assertError output "Found non key attributes" e
-            | _, false, false -> assertError output "Key property is mandatory" e
+            | _, false, false -> assertAtLeast1Error output ["Could not find partition key attribute"; "Key property is mandatory"] e
             |_ -> assertError output "Could not find" e
         }

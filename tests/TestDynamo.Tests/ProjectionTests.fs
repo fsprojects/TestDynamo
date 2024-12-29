@@ -42,8 +42,8 @@ type ProjectionTests(output: ITestOutputHelper) =
                 |> client.QueryAsync
 
             // assert
-            Assert.Equal(0, result.Items.Count)
-            Assert.True(result.Count > 0)
+            assertNullOrEmpty result.Items
+            Assert.True(result.Count <!> 0 > 0)
         }
 
     [<Fact>]
