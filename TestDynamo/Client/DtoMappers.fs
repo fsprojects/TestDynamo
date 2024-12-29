@@ -128,6 +128,197 @@ module IsSet =
             >> Either.map2Of2 (flip1To3 Expr.call eFrom [])
             >> Either.reduce)
 
+module VOption =
+
+    type private Utils() =
+
+        static member valueOptionOrDefault<'a> (x: 'a voption): 'a =
+            match x with | ValueSome x' -> x' | ValueNone -> Unchecked.defaultof<_>
+            
+        static member nullableOrDefault<'a when 'a: (new : unit -> 'a) and 'a: struct and 'a :> ValueType> (x: Nullable<'a>): 'a =
+            if x.HasValue then x.Value else Unchecked.defaultof<_>
+            
+        static member nullableToOpt<'a when 'a: (new : unit -> 'a) and 'a: struct and 'a :> ValueType> (x: Nullable<'a>) =
+            if x.HasValue then ValueSome x.Value
+            else ValueNone
+            
+        static member optToNullable<'a when 'a: (new : unit -> 'a) and 'a: struct and 'a :> ValueType> (x: 'a voption) =
+            match x with
+            | ValueNone -> Unchecked.defaultof<Nullable<'a>>
+            | ValueSome x -> Nullable<'a> x
+
+        static member toValueOptionR<'a when 'a : null> (x: 'a) =
+            match x with | null -> ValueNone | x -> ValueSome x
+
+        static member toValueOptionV<'a> (x: 'a) = ValueSome x
+
+        static member valueOptionMap<'a, 'b>(f: 'a -> 'b, x: 'a voption) = ValueOption.map f x
+        //
+        static member toNullable<'a when 'a: (new : unit -> 'a) and 'a: struct and 'a :> ValueType>(x: 'a) =
+            Nullable<'a>(x)
+
+    let private vOptionMap (mapper: Expr) (opt: Expr) =
+        let optType = getValueOptionType opt.Type |> Maybe.expectSomeErr "Expected type %O to be a voption" opt.Type
+
+        { isStatic = true
+          t = typeof<Utils>
+          name = nameof Utils.valueOptionMap
+          args = [mapper.Type; opt.Type]
+          returnType = typedefof<_ voption>.MakeGenericType(mapper.Type.GetGenericArguments()[1])
+          methodGenerics = mapper.Type.GetGenericArguments() |> List.ofArray
+          classGenerics = []
+          caseInsensitiveName = false }
+        |> method
+        |> flip Expr.callStatic [mapper; opt]
+
+    let private toValueOption (e: Expr) =
+        match getValueOptionType e.Type with
+        | ValueSome _ -> e
+        | ValueNone ->
+            { isStatic = true
+              t = typeof<Utils>
+              name =
+                  if e.Type.IsValueType
+                  then nameof Utils.toValueOptionV
+                  else nameof Utils.toValueOptionR
+              args = [e.Type]
+              returnType = typedefof<_ voption>.MakeGenericType([|e.Type|])
+              methodGenerics = [e.Type]
+              classGenerics = []
+              caseInsensitiveName = false }
+            |> method
+            |> flip Expr.callStatic [e]
+
+    let private toNullable (e: Expr) =
+        match getNullableType e.Type with
+        | ValueSome _ -> e
+        | ValueNone ->
+            { isStatic = true
+              t = typeof<Utils>
+              name = nameof Utils.toNullable
+              args = [e.Type]
+              returnType = typedefof<Nullable<_>>.MakeGenericType([|e.Type|])
+              methodGenerics = [e.Type]
+              classGenerics = []
+              caseInsensitiveName = false }
+            |> method
+            |> flip Expr.callStatic [e]
+            
+    let valueOptionOrDefault (option: Expr) =
+        let opt = getValueOptionType option.Type |> Maybe.expectSomeErr "Expected type %O to be a voption" option.Type
+
+        { isStatic = true
+          t = typeof<Utils>
+          name = nameof Utils.valueOptionOrDefault
+          args = [option.Type]
+          returnType = opt
+          methodGenerics = [opt]
+          classGenerics = []
+          caseInsensitiveName = false }
+        |> method
+        |> flip Expr.callStatic [option]
+            
+    let nullableOrDefault (nullable: Expr) =
+        let opt = getNullableType nullable.Type |> Maybe.expectSomeErr "Expected type %O to be nullable" nullable.Type
+
+        { isStatic = true
+          t = typeof<Utils>
+          name = nameof Utils.nullableOrDefault
+          args = [nullable.Type]
+          returnType = opt
+          methodGenerics = [opt]
+          classGenerics = []
+          caseInsensitiveName = false }
+        |> method
+        |> flip Expr.callStatic [nullable]
+        
+    let optOrNullable t =
+        getValueOptionType t
+        ?|> Either1
+        ?|> ValueSome
+        ?|? (getNullableType t ?|> Either2)
+    
+    let convertOptToNullable (expr: Expr) =
+        match getValueOptionType expr.Type with
+        | ValueNone -> invalidOp "An unexpected error has occurred"
+        | ValueSome t ->
+            { isStatic = true
+              t = typeof<Utils>
+              name = nameof Utils.optToNullable
+              args = [expr.Type]
+              returnType = typedefof<Nullable<_>>.MakeGenericType([|t|])
+              methodGenerics = [t]
+              classGenerics = []
+              caseInsensitiveName = false }
+            |> method
+            |> flip Expr.callStatic [expr]
+    
+    let convertNullableToOpt (expr: Expr) =
+        match getNullableType expr.Type with
+        | ValueNone -> invalidOp "An unexpected error has occurred"
+        | ValueSome t ->
+            { isStatic = true
+              t = typeof<Utils>
+              name = nameof Utils.nullableToOpt
+              args = [expr.Type]
+              returnType = typedefof<_ voption>.MakeGenericType([|t|])
+              methodGenerics = [t]
+              classGenerics = []
+              caseInsensitiveName = false }
+            |> method
+            |> flip Expr.callStatic [expr]
+    
+    let ensureOpt (eFrom: Expr) =
+        match getNullableType eFrom.Type with
+        | ValueSome _ -> convertNullableToOpt eFrom
+        | ValueNone -> toValueOption eFrom
+        
+    let private toValueOption' = asLazy toValueOption
+    let private toNullable' = asLazy toNullable
+
+    let rec mapper buildMapperDelegate invokeMap (eFrom: Expr) (tTo: Type) =
+        match getNullableType eFrom.Type with
+        | ValueSome _ -> mapper buildMapperDelegate invokeMap (ensureOpt eFrom) tTo
+        | ValueNone ->
+            match struct (getValueOptionType eFrom.Type, optOrNullable tTo) with
+            | ValueNone, ValueNone -> ValueNone
+            | ValueSome optFrom, ValueNone ->
+                let innerMapper =
+                    buildMapperDelegate struct (optFrom, tTo)
+                    |> fromFunc
+                    |> Expr.constant
+
+                vOptionMap innerMapper eFrom
+                |> valueOptionOrDefault
+                |> ValueSome
+            | ValueNone, ValueSome ``to`` ->
+                
+                let optTo = Either.reduce ``to``
+                let mapperOut =
+                    Either.map1Of2 toValueOption' ``to``
+                    |> Either.map2Of2 toNullable'
+                    |> Either.reduce
+                    
+                invokeMap eFrom optTo
+                |> mapperOut
+                |> ValueSome
+            | ValueSome optFrom, ValueSome ``to`` ->
+                
+                let optTo = Either.reduce ``to``
+                let mapperOut =
+                    Either.map1Of2 (asLazy id) ``to``
+                    |> Either.map2Of2 (asLazy convertOptToNullable)
+                    |> Either.reduce
+                    
+                let innerMapper =
+                    buildMapperDelegate struct (optFrom, optTo)
+                    |> fromFunc
+                    |> Expr.constant
+                    
+                vOptionMap innerMapper eFrom
+                |> mapperOut
+                |> ValueSome
+
 module ToAttributeValue =
     type private AttributeValueBuilder<'a>(
           S: 'a -> string voption,
@@ -187,9 +378,13 @@ module ToAttributeValue =
             |> Seq.filter (fun x ->
                 "Null".Equals(x.Name, StringComparison.OrdinalIgnoreCase)
                 || "IsNull".Equals(x.Name, StringComparison.OrdinalIgnoreCase))
-            |> Seq.filter (_.PropertyType >> (=) typeof<bool>)
+            |> Seq.filter (fun x -> x.PropertyType = typeof<bool> || x.PropertyType = typeof<Nullable<bool>>)
             |> Seq.filter _.CanRead
-            |> Seq.map (_.Name >> flip Expr.prop arg)
+            |> Seq.map (fun x ->
+                let getter = Expr.prop x.Name arg 
+                if x.PropertyType = typeof<Nullable<bool>>
+                then getter |> VOption.nullableOrDefault // converts null to false
+                else getter)
             |> Collection.tryHead
             |> Maybe.expectSomeErr "Expected property Null or IsNull on type %A" t)
         |> Expr.compile
@@ -307,13 +502,12 @@ module FromAttributeValue =
                 typedefof<Map<_, _>>.MakeGenericType(kvpType.GetGenericArguments())
             else inputType
 
-        // S: string -> 'a,
         Expr.lambda1 inputType (fun mapFromParam ->
 
             let convertedParam =
                 if mapToProp.Name = "NULL"
                 // Constant true works because IsNULLSet will turn this on or off
-                then Expr.constant true
+                then invokePropMap mapFromProp (Expr.constant true) mapToProp.PropertyType
                 else invokePropMap mapFromProp mapFromParam mapToProp.PropertyType
 
             let assignValue =
@@ -385,92 +579,6 @@ module FromAttributeValue =
         |> Expr.constant
         |> flip (Expr.call attributeValue) [eFrom]
         |> ValueSome
-
-module VOption =
-
-    type private Utils() =
-
-        static member valueOptionOrDefault<'a> (x: 'a voption): 'a =
-            match x with | ValueSome x' -> x' | ValueNone -> Unchecked.defaultof<_>
-
-        static member toValueOptionR<'a when 'a : null> (x: 'a) =
-            match x with | null -> ValueNone | x -> ValueSome x
-
-        static member toValueOptionV<'a> (x: 'a) = ValueSome x
-
-        static member valueOptionMap<'a, 'b>(f: 'a -> 'b, x: 'a voption) = ValueOption.map f x
-
-    let private vOptionMap (tTo: Type) (mapper: Expr) (opt: Expr) =
-        let optType = getValueOptionType opt.Type |> Maybe.expectSomeErr "Expected type %O to be a voption" opt.Type
-
-        { isStatic = true
-          t = typeof<Utils>
-          name = nameof Utils.valueOptionMap
-          args = [mapper.Type; opt.Type]
-          returnType = typedefof<_ voption>.MakeGenericType(mapper.Type.GetGenericArguments()[1])
-          methodGenerics = mapper.Type.GetGenericArguments() |> List.ofArray
-          classGenerics = []
-          caseInsensitiveName = false }
-        |> method
-        |> flip Expr.callStatic [mapper; opt]
-
-    let private toValueOption (e: Expr) =
-        match getValueOptionType e.Type with
-        | ValueSome _ -> e
-        | ValueNone ->
-            { isStatic = true
-              t = typeof<Utils>
-              name =
-                  if e.Type.IsValueType
-                  then nameof Utils.toValueOptionV
-                  else nameof Utils.toValueOptionR
-              args = [e.Type]
-              returnType = typedefof<_ voption>.MakeGenericType([|e.Type|])
-              methodGenerics = [e.Type]
-              classGenerics = []
-              caseInsensitiveName = false }
-            |> method
-            |> flip Expr.callStatic [e]
-
-    let unwrapOption (option: Expr) =
-        let opt = getValueOptionType option.Type |> Maybe.expectSomeErr "Expected type %O to be a voption" option.Type
-
-        // 'a voption -> 'a
-        { isStatic = true
-          t = typeof<Utils>
-          name = nameof Utils.valueOptionOrDefault
-          args = [option.Type]
-          returnType = opt
-          methodGenerics = [opt]
-          classGenerics = []
-          caseInsensitiveName = false }
-        |> method
-        |> flip Expr.callStatic [option]
-
-    let mapper buildMapperDelegate invokeMap (eFrom: Expr) (tTo: Type) =
-        match struct (getValueOptionType eFrom.Type, getValueOptionType tTo) with
-        | ValueNone, ValueNone -> ValueNone
-        | ValueSome optFrom, ValueNone ->
-            let innerMapper =
-                buildMapperDelegate struct (optFrom, tTo)
-                |> fromFunc
-                |> Expr.constant
-
-            vOptionMap tTo innerMapper eFrom
-            |> unwrapOption
-            |> ValueSome
-        | ValueNone, ValueSome optTo ->
-            invokeMap eFrom optTo
-            |> toValueOption
-            |> ValueSome
-        | ValueSome optFrom, ValueSome optTo ->
-            let innerMapper =
-                buildMapperDelegate struct (optFrom, tTo)
-                |> fromFunc
-                |> Expr.constant
-
-            vOptionMap tTo innerMapper eFrom
-            |> ValueSome
 
 module ByteStream =
 
@@ -692,6 +800,14 @@ module EnumerableMapper =
         static member buildArray<'a>(x: 'a seq) = Array.ofSeq x
 
         static member buildMList<'a>(x: 'a seq) = Enumerable.ToList x
+        
+        static member buildIList<'a>(x: 'a seq) = Enumerable.ToList x :> IList<'a>
+        
+        static member buildIReadOnlyList<'a>(x: 'a seq) = Enumerable.ToList x :> IReadOnlyList<'a>
+        
+        static member buildICollection<'a>(x: 'a seq) = Enumerable.ToList x :> ICollection<'a>
+        
+        static member buildIReadOnlyCollection<'a>(x: 'a seq) = Enumerable.ToList x :> IReadOnlyCollection<'a>
 
     let private wrapInThrowIfNull tFrom tTo (message: string) mapper =
         
@@ -770,8 +886,20 @@ module EnumerableMapper =
 
         elif tTo.GetGenericTypeDefinition() = typedefof<MList<_>>
         then { m' with name = nameof Utils.buildMList; returnType = typedefof<MList<_>>.MakeGenericType([|enmType|]) } |> ValueSome
+            
+        elif tTo.GetGenericTypeDefinition() = typedefof<IList<_>>
+        then { m' with name = nameof Utils.buildIList; returnType = typedefof<IList<_>>.MakeGenericType([|enmType|]) } |> ValueSome
+            
+        elif tTo.GetGenericTypeDefinition() = typedefof<IReadOnlyList<_>>
+        then { m' with name = nameof Utils.buildIReadOnlyList; returnType = typedefof<IReadOnlyList<_>>.MakeGenericType([|enmType|]) } |> ValueSome
+            
+        elif tTo.GetGenericTypeDefinition() = typedefof<ICollection<_>>
+        then { m' with name = nameof Utils.buildICollection; returnType = typedefof<ICollection<_>>.MakeGenericType([|enmType|]) } |> ValueSome
+            
+        elif tTo.GetGenericTypeDefinition() = typedefof<IReadOnlyCollection<_>>
+        then { m' with name = nameof Utils.buildIReadOnlyCollection; returnType = typedefof<IReadOnlyCollection<_>>.MakeGenericType([|enmType|]) } |> ValueSome
 
-        else invalidOp $"UnExpected generic enumerable type {tTo}"
+        else invalidOp $"Unexpected generic enumerable type {tTo}"
         ?|> method
         ?|> flip Expr.callStatic [seq]
         ?|? seq

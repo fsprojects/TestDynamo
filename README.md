@@ -193,8 +193,9 @@ To subscribe to changes with a lambda stream subscription syntax you can import 
 ```C#
 using TestDynamo;
 using TestDynamo.Lambda;
+using Amazon.Lambda.DynamoDBEvents;
 
-var subscription = database.AddSubscription(
+var subscription = database.AddSubscription<DynamoDBEvent>(
    "Beatles",
    (dynamoDbStreamsEvent, cancellationToken) =>
    {

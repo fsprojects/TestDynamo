@@ -1,17 +1,13 @@
 ﻿namespace TestDynamo.Lambda
 
-open System
-open System.Collections.Generic
-open System.IO
-open System.Linq
 open System.Runtime.CompilerServices
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
-open Amazon.DynamoDBv2
-open Amazon.Lambda.DynamoDBEvents
 open TestDynamo
 open TestDynamo.Data.BasicStructures
+open TestDynamo.GeneratedCode.Dtos
+open TestDynamo.GenericMapper
 open TestDynamo.Model
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Utils
@@ -32,117 +28,6 @@ module LambdaSubscriberUtils =
     /// </summary>
     let private sanitizeSeq xs = orEmpty xs |> Seq.filter ((<>)null)
 
-    let rec private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
-        match struct (
-            attr.BOOL.HasValue,
-            attr.S,
-            attr.N,
-            attr.B,
-            attr.NULL.HasValue && attr.NULL.Value,
-            attr.M <> null,
-            attr.L <> null,
-            attr.SS <> null,
-            attr.NS <> null,
-            attr.BS <> null
-            ) with
-        | true, null, null, null, false, false, false, false, false, false -> attr.BOOL.Value |> AttributeValue.Boolean
-        | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> AttributeValue.String
-        | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> AttributeValue.Number
-        | false, null, null, bin, false, false, false, false, false, false when bin <> null ->
-            bin.ToArray() |> AttributeValue.Binary
-        | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
-        | false, null, null, null, false, true, false, false, false, false ->
-            if attr.M = null then ClientError.clientError "Map data not set"
-            itemFromDynamodb' name attr.M |> AttributeValue.HashMap
-        | false, null, null, null, false, false, true, false, false, false ->
-            sanitizeSeq attr.L 
-            |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
-        | false, null, null, null, false, false, false, true, false, false ->
-            sanitizeSeq attr.SS
-            |> Seq.map String
-            |> AttributeSet.create
-            |> HashSet
-        | false, null, null, null, false, false, false, false, true, false ->
-
-            sanitizeSeq attr.NS
-            |> Seq.map (Decimal.Parse >> Number)
-            |> AttributeSet.create
-            |> HashSet
-        | false, null, null, null, false, false, false, false, false, true ->
-
-            sanitizeSeq attr.BS
-            |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
-            |> AttributeSet.create
-            |> HashSet
-        | pp -> ClientError.clientError $"Unknown attribute type for \"{name}\""
-
-    and attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
-
-    and private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
-        struct (attr.Key, attributeFromDynamodb' $"{name}.{attr.Key}" attr.Value)
-
-    and private itemFromDynamodb' name x = x |> Seq.map (mapAttribute name) |> MapUtils.fromTuple
-    and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$"
-
-    let rec attributeToDynamoDbEvent = function
-        | AttributeValue.String x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.S <- x
-            attr
-        | AttributeValue.Number x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.N <- x.ToString()
-            attr
-        | AttributeValue.Binary x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.B <- new MemoryStream(x)
-            attr
-        | AttributeValue.Boolean x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.BOOL <- x
-            attr
-        | AttributeValue.Null ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.NULL <- true
-            attr
-        | AttributeValue.HashMap x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.M <- itemToDynamoDbEvent x
-            attr
-        | AttributeValue.HashSet x ->
-            let attr = DynamoDBEvent.AttributeValue()
-            match AttributeSet.getSetType x with
-            | AttributeType.Binary ->
-                attr.BS <-
-                    AttributeSet.asBinarySeq x
-                    |> Seq.map (fun x -> new MemoryStream(x))
-                    |> Enumerable.ToList
-
-            | AttributeType.String ->
-                attr.SS <-
-                    AttributeSet.asStringSeq x
-                    |> Enumerable.ToList
-
-            | AttributeType.Number ->
-                attr.NS <-
-                    AttributeSet.asNumberSeq x
-                    |> Seq.map _.ToString()
-                    |> Enumerable.ToList
-
-            | x -> ClientError.clientError $"Unknown set type {x}"
-
-            attr
-        | AttributeValue.AttributeList xs ->
-            let attr = DynamoDBEvent.AttributeValue()
-            attr.L <- xs |> AttributeListType.asSeq |> Seq.map attributeToDynamoDbEvent |> Enumerable.ToList
-            attr
-
-    and itemToDynamoDbEvent =
-        Seq.map kvpToTuple
-        >> Collection.mapSnd attributeToDynamoDbEvent
-        >> Seq.map tplToKvp
-        >> kvpToDictionary
-
     let private getEventNameAndKeyConfig keyConfig (x: ChangeResult) =
         match struct (x.Put, x.Deleted) with
         | ValueNone, ValueNone -> ValueNone
@@ -155,42 +40,36 @@ module LambdaSubscriberUtils =
         | ValueSome x -> Item.size x
         | ValueNone -> 0
 
-    let private mapItem =
-        ValueOption.map (Item.attributes >> itemToDynamoDbEvent) >> Maybe.Null.fromOption
-
     let private mapChange awsAccountId regionId (streamViewType: StreamViewType) (ch: DatabaseSynchronizationPacket<TableCdcPacket>) (result: ChangeResult) =
 
         getEventNameAndKeyConfig ch.data.packet.changeResult.KeyConfig result
-        ?|> (fun struct (evName, keys) -> 
-            let r = DynamoDBEvent.DynamodbStreamRecord()
-            r.EventSourceArn <- ch.data.tableArn struct (awsAccountId, regionId)
-            r.AwsRegion <- ch.synchronizationPacketPath |> NonEmptyList.head |> _.regionId
-            r.EventID <- result.UniqueEventId |> toString
-            r.EventName <- evName
-            r.EventSource <- "aws:dynamodb"
-
-            r.Dynamodb <-
-                let ddb = DynamoDBEvent.StreamRecord()
-                ddb.ApproximateCreationDateTime <- System.DateTime.UtcNow
-                ddb.Keys <- itemToDynamoDbEvent keys
-                ddb.SequenceNumber <- result.Id.Value.ToString()
-                ddb.SizeBytes <- (size result.Deleted + size result.Put) |> int64
-                ddb.StreamViewType <- streamViewType.Value
-                ddb.OldImage <- mapItem result.Deleted
-                ddb.NewImage <- mapItem result.Put
-                ddb
-
-            r)
+        ?|> (fun struct (evName, keys) ->
+            
+            { EventSourceArn = ch.data.tableArn struct (awsAccountId, regionId) |> ValueSome
+              AwsRegion = ch.synchronizationPacketPath |> NonEmptyList.head |> _.regionId |> ValueSome
+              EventID = result.UniqueEventId |> toString |> ValueSome
+              EventName = evName |> ValueSome
+              EventSource = "aws:dynamodb" |> ValueSome
+              EventVersion = ValueNone
+              UserIdentity = ValueNone 
+              Dynamodb =
+                  { ApproximateCreationDateTime = System.DateTime.UtcNow |> ValueSome
+                    Keys = keys |> ValueSome
+                    SequenceNumber = result.Id.Value.ToString() |> ValueSome
+                    SizeBytes = (size result.Deleted + size result.Put) |> int64 |> ValueSome
+                    StreamViewType = streamViewType.Value |> ValueSome
+                    OldImage = result.Deleted ?|> Item.attributes
+                    NewImage = result.Put ?|> Item.attributes } |> ValueSome }: DynamodbStreamRecord<AttributeValue>)
 
     let mapCdcPacket awsAccountId regionId dataType (x: DatabaseSynchronizationPacket<TableCdcPacket>) =
         let changes =
             x.data.packet.changeResult.OrderedChanges
             |> Seq.map (mapChange awsAccountId regionId dataType x)
             |> Maybe.traverse
+            |> Array.ofSeq
+            |> ValueSome
 
-        let record = DynamoDBEvent()
-        record.Records <- List(changes)
-        record
+        { Records = changes }: DynamoDBEvent<_>
 
     let parseStreamConfig = function
         | (x: StreamViewType) when x.Value = StreamViewType.KEYS_ONLY.Value -> StreamDataType.KeysOnly
@@ -201,9 +80,10 @@ module LambdaSubscriberUtils =
 
     let completedTask = ValueTask<_>(()).Preserve()
 
-    let build (subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>) (streamViewType: StreamViewType) =
+    let build<'DynamoDBEvent> (subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>) (streamViewType: StreamViewType) =
 
         mapCdcPacket
+        >>>>> DtoMappers.mapDto<DynamoDBEvent<AttributeValue>, 'DynamoDBEvent>
         >>> fun mapper changeData c ->
             let funcInput = mapper streamViewType changeData
 
@@ -212,115 +92,182 @@ module LambdaSubscriberUtils =
             then completedTask
             else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
 
-[<Extension>]
 type Subscriptions() =
 
+    static member private addSubscription<'DynamoDBEvent>
+        (database: Either<TestDynamo.Api.Database, TestDynamo.Api.FSharp.Database>)
+        tableName
+        (subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>)
+        behaviour
+        (streamViewType: StreamViewType voption)
+        (awsAccountId: string voption) =
+
+        let awsAccountId = awsAccountId ?|? Settings.DefaultAwsAccountId
+        let streamViewType = streamViewType ?|? StreamViewType.NEW_AND_OLD_IMAGES
+        let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
+        
+        database
+        |> Either.map1Of2 (fun db ->
+            let f = LambdaSubscriberUtils.build subscriber streamViewType awsAccountId db.Id.regionId
+            db.SubscribeToStream(tableName, struct (behaviour, streamConfig), f))
+        |> Either.map2Of2 (fun db ->
+            LambdaSubscriberUtils.build subscriber streamViewType awsAccountId db.Id.regionId
+            |> db.SubscribeToStream ValueNone tableName struct (behaviour, streamConfig))
+        |> Either.reduce
+
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
     /// </summary>
     [<Extension>]
-    static member AddSubscription (
+    static member AddSubscription<'DynamoDBEvent> (
         database: TestDynamo.Api.FSharp.Database,
         tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.AddSubscription(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.addSubscription
+            (Either2 database)
+            tableName
+            subscriber
+            SubscriberBehaviour.defaultOptions
+            ValueNone
+            (awsAccountId |> Maybe.Null.toOption)
 
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
     /// </summary>
-    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     [<Extension>]
-    static member AddSubscription (
+    static member AddSubscription<'DynamoDBEvent> (
         database: TestDynamo.Api.FSharp.Database,
         tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
-        behaviour,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        let awsAccountId =
-            match awsAccountId with
-            | null -> Settings.DefaultAwsAccountId
-            | x -> x
+        Subscriptions.addSubscription
+            (Either2 database)
+            tableName
+            subscriber
+            SubscriberBehaviour.defaultOptions
+            (ValueSome streamViewType)
+            (awsAccountId |> Maybe.Null.toOption)
 
-        let streamViewType =
-            streamViewType
-            |> Maybe.Null.toOption
-            ?|? StreamViewType.NEW_AND_OLD_IMAGES
+    /// <summary>
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
+    /// </summary>
+    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
+    [<Extension>]
+    static member AddSubscription<'DynamoDBEvent> (
+        database: TestDynamo.Api.FSharp.Database,
+        tableName,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        behaviour,
+        streamViewType: StreamViewType,
+        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
+        Subscriptions.addSubscription
+            (Either2 database)
+            tableName
+            subscriber
+            behaviour
+            (ValueSome streamViewType)
+            (awsAccountId |> Maybe.Null.toOption)
 
-        LambdaSubscriberUtils.build subscriber streamViewType awsAccountId database.Id.regionId
-        |> database.SubscribeToStream ValueNone tableName struct (behaviour, streamConfig)
+    /// <summary>
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
+    /// </summary>
+    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
+    [<Extension>]
+    static member AddSubscription<'DynamoDBEvent> (
+        database: TestDynamo.Api.FSharp.Database,
+        tableName,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        behaviour,
+        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
+
+        Subscriptions.addSubscription
+            (Either2 database)
+            tableName
+            subscriber
+            behaviour
+            ValueNone
+            (awsAccountId |> Maybe.Null.toOption)
+    
+    /// <summary>
+    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// </summary>
+    [<Extension>]
+    static member AddSubscription<'DynamoDBEvent> (
+        database: TestDynamo.Api.Database,
+        tableName,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
+
+        Subscriptions.addSubscription
+            (Either1 database)
+            tableName
+            subscriber
+            SubscriberBehaviour.defaultOptions
+            ValueNone
+            (awsAccountId |> Maybe.Null.toOption)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     [<Extension>]
-    static member AddSubscription (
-        client: AmazonDynamoDBClient,
+    static member AddSubscription<'DynamoDBEvent> (
+        database: TestDynamo.Api.Database,
         tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.AddSubscription(client, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.addSubscription
+            (Either1 database)
+            tableName
+            subscriber
+            SubscriberBehaviour.defaultOptions
+            (ValueSome streamViewType)
+            (awsAccountId |> Maybe.Null.toOption)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     [<Extension>]
-    static member AddSubscription (
-        client: AmazonDynamoDBClient,
-        tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
-        behaviour,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
-        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-
-        Subscriptions.AddSubscription(TestDynamoClient.GetDatabase client, tableName, subscriber, behaviour, streamViewType, awsAccountId)
-
-    /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
-    /// </summary>
-    [<Extension>]
-    static member AddSubscription (
+    static member AddSubscription<'DynamoDBEvent> (
         database: TestDynamo.Api.Database,
         tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
+        behaviour,
+        streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        Subscriptions.AddSubscription(database, tableName, subscriber, SubscriberBehaviour.defaultOptions, streamViewType, awsAccountId)
+        Subscriptions.addSubscription
+            (Either1 database)
+            tableName
+            subscriber
+            behaviour
+            (ValueSome streamViewType)
+            (awsAccountId |> Maybe.Null.toOption)
 
     /// <summary>
     /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     [<Extension>]
-    static member  AddSubscription (
+    static member AddSubscription<'DynamoDBEvent> (
         database: TestDynamo.Api.Database,
         tableName,
-        subscriber: System.Func<DynamoDBEvent, CancellationToken, ValueTask>,
+        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
         behaviour,
-        [<Optional; DefaultParameterValue(null: StreamViewType)>] streamViewType: StreamViewType,
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
-        let awsAccountId =
-            match awsAccountId with
-            | null -> Settings.DefaultAwsAccountId
-            | x -> x
-
-        let streamViewType =
-            streamViewType
-            |> Maybe.Null.toOption
-            ?|? StreamViewType.NEW_AND_OLD_IMAGES
-
-        let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
-
-        let f = LambdaSubscriberUtils.build subscriber streamViewType awsAccountId database.Id.regionId
-        database.SubscribeToStream(tableName, struct (behaviour, streamConfig), f)
+        Subscriptions.addSubscription
+            (Either1 database)
+            tableName
+            subscriber
+            behaviour
+            ValueNone
+            (awsAccountId |> Maybe.Null.toOption)
+            

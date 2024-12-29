@@ -6,7 +6,9 @@ open System.Text
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
+open Amazon.Lambda.DynamoDBEvents
 open TestDynamo
+open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.Lambda
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -820,7 +822,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.AddSubscription(host, table.name, sub)
+                host.AddSubscription(table.name, sub)
 
             do! invalidPut1()
             do! invalidPut2()
@@ -871,18 +873,18 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let recordNew = System.Collections.Generic.List<_>()
             let recordOld = System.Collections.Generic.List<_>()
             use _ =
-                let sub = asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun (x: DynamoDBEvent) _ ->
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.NEW_IMAGE)
+                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = StreamViewType.NEW_IMAGE)
 
             use _ =
                 let sub = asFunc2 (fun x _ ->
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 
-                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = Amazon.DynamoDBv2.StreamViewType.OLD_IMAGE)
+                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = StreamViewType.OLD_IMAGE)
 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
@@ -924,7 +926,7 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // act
             let record = System.Collections.Generic.List<_>()
             use subscription =
-                let sub = asFunc2 (fun x _ ->
+                let sub = asFunc2 (fun (x: DynamoDBEvent) _ ->
                     record.Add(struct (DateTimeOffset.UtcNow, x))
                     ValueTask.CompletedTask)
 

@@ -190,7 +190,6 @@ module Option =
         override _.CanConvert x = cache.canConvert x
         override _.CreateConverter (typ, _) = cache.getConverter typ
         
-    //TODO: test
     type RefFactory() =
         inherit JsonConverterFactory()
         static let cache = ConverterCache.build "Option" canConvertRef createForRefOpt

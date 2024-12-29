@@ -101,6 +101,11 @@ module Reflection =
     let piName (p: PropertyInfo) = p.Name
 
     module Elevated =
+        let getNullableType (t: Type) =
+            if t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<Nullable<_>>
+            then t.GetGenericArguments() |> Array.head |> ValueSome
+            else ValueNone
+            
         let getValueOptionType (t: Type) =
             if t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<_ voption>
             then t.GetGenericArguments() |> Array.head |> ValueSome

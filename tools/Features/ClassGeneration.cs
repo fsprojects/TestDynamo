@@ -1,5 +1,6 @@
 ﻿
 using Amazon.DynamoDBv2;
+using Amazon.Lambda.DynamoDBEvents;
 using Amazon.Runtime;
 using System.Collections.Frozen;
 using System.Reflection;
@@ -14,12 +15,15 @@ public static class ClassGeneration
 
     private static readonly IReadOnlyDictionary<Type, string> _requiredGenerics = new Dictionary<Type, string>
     {
-        [typeof(Amazon.DynamoDBv2.Model.AttributeValue)] = "'attr"
+        [typeof(Amazon.DynamoDBv2.Model.AttributeValue)] = "'attr",
+        [typeof(DynamoDBEvent.AttributeValue)] = "'attr"
     };
 
     private static bool RequiresDefinition(Type t) =>
-        (t.Assembly == typeof(IAmazonDynamoDB).Assembly || t.Assembly == typeof(AmazonWebServiceRequest).Assembly)
-            && !_requiredGenerics.ContainsKey(t);
+        (t.Assembly == typeof(IAmazonDynamoDB).Assembly 
+            || t.Assembly == typeof(AmazonWebServiceRequest).Assembly
+            || t.Assembly == typeof(DynamoDBEvent.DynamodbStreamRecord).Assembly)
+        && !_requiredGenerics.ContainsKey(t);
 
     private static IEnumerable<Type> DeepTypes(Type t, HashSet<Type>? done = null)
     {
@@ -100,7 +104,8 @@ public static class ClassGeneration
             .SelectMany(x => x.GetParameters().Select(x => x.ParameterType))
             .Concat(typeof(IAmazonDynamoDB)
                 .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .Select(x => UnTaskify(x.ReturnType))));
+                .Select(x => UnTaskify(x.ReturnType)))
+            .Concat([typeof(DynamoDBEvent.DynamodbStreamRecord), typeof(DynamoDBEvent)]));
 
         var customParsers = string.Join("\n", new List<string>
         {

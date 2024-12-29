@@ -20,6 +20,8 @@ open TestDynamo.Tests.RequestItemTestUtils
 
 #nowarn "0025"
 
+type LambdaAttributeValue = Amazon.Lambda.DynamoDBEvents.DynamoDBEvent.AttributeValue
+
 module MappingTestGenerator =
 
     let rec attributeValue' (random: Random) depth (fixture: Fixture): DynamoAttributeValue voption =
@@ -71,6 +73,39 @@ module MappingTestGenerator =
         | x -> invalidOp (x.ToString())
         ?|> fun _ -> attr
 
+    let rec attributeValue2' (random: Random) depth (fixture: Fixture): LambdaAttributeValue voption =
+        if depth <= 0
+        then ValueNone
+        else
+
+        let attr = LambdaAttributeValue()
+        match random.Next 3 with
+        | 0 ->
+            attributeValue2' random (depth - 1) fixture
+            ?|> fun v ->
+                attr.M <- Dictionary()
+                attr.M.Add(fixture.Create<string>(), v)
+
+        | 1 ->
+            attributeValue2' random (depth - 1) fixture
+            ?|> fun v ->
+                attr.L <- MList()
+                attr.L.Add v
+
+        | 2 ->
+            match random.Next 8 with
+            | 0 -> attr.S <- fixture.Create<string>()
+            | 1 -> attr.N <- fixture.Create<decimal>() |> toString
+            | 2 -> attr.B <- fixture.Create<MemoryStream>()
+            | 3 -> attr.NULL <- true
+            | 4 -> attr.BOOL <- fixture.Create<bool>()
+            | 5 -> attr.SS <- fixture.Create<MList<string>>()
+            | 6 -> attr.BS <- fixture.Create<MList<MemoryStream>>()
+            | 7 -> attr.NS <- fixture.Create<MList<decimal>>() |> Seq.map toString |> Enumerable.ToList
+            |> ValueSome
+        | x -> invalidOp (x.ToString())
+        ?|> fun _ -> attr
+
     let attributeValue (random: Random) (fixture: Fixture) =
 
         [1..10]
@@ -79,6 +114,17 @@ module MappingTestGenerator =
         |> Collection.tryHead
         ?|>? fun _ ->
             let attr = DynamoAttributeValue()
+            attr.S <- fixture.Create<string>()
+            attr
+
+    let attributeValue2 (random: Random) (fixture: Fixture) =
+
+        [1..10]
+        |> Seq.map (fun _ -> attributeValue2' random 6 fixture)
+        |> Maybe.traverse
+        |> Collection.tryHead
+        ?|>? fun _ ->
+            let attr = LambdaAttributeValue()
             attr.S <- fixture.Create<string>()
             attr
 
@@ -92,6 +138,7 @@ module MappingTestGenerator =
             let fixture = Fixture()
             fixture.Register<MemoryStream>(fun _ -> new MemoryStream(fixture.Create<byte array>()))
             fixture.Register<Amazon.DynamoDBv2.Model.AttributeValue>(fun _ -> attributeValue random fixture)
+            fixture.Register<LambdaAttributeValue>(fun _ -> attributeValue2 random fixture)
 
             [S3SseAlgorithm.AES256; S3SseAlgorithm.KMS] |> registerConst random fixture
             [ScalarAttributeType.B; ScalarAttributeType.N; ScalarAttributeType.S] |> registerConst random fixture
@@ -142,6 +189,7 @@ module MappingTestGenerator =
                 typeof<DynamodbTypeAttribute>.Assembly
                 typeof<Amazon.DynamoDBv2.AmazonDynamoDBRequest>.Assembly
                 typeof<Amazon.Runtime.AmazonWebServiceRequest>.Assembly
+                typeof<Amazon.Lambda.DynamoDBEvents.DynamoDBEvent>.Assembly
             |]
 
         let allTypes =
@@ -154,7 +202,7 @@ module MappingTestGenerator =
             |> Seq.map (fun a -> a.GetType t)
             |> Seq.filter ((<>) null)
             |> Collection.tryHead
-            |> Maybe.expectSomeErr "Can't find %s" t
+            |> Maybe.expectSomeErr "Cannot find type %s to map to" t
 
         let types =
             allTypes
@@ -282,7 +330,7 @@ type MappingTests(output: ITestOutputHelper) =
 
         output.WriteLine($"{tFrom} {tTo}")
         m.MakeGenericMethod([|tFrom; tTo|]).Invoke(null, [|random |> box|])
-        |> fun x -> x :?> unit
+        |> ignoreTyped<obj>
 
     [<Fact>]
     let ``Test from is set method`` () =

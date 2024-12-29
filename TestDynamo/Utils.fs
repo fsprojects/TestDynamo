@@ -18,6 +18,8 @@ type IEnumerator<'a> =  System.Collections.Generic.IEnumerator<'a>
 type IEqualityComparer<'a> =  System.Collections.Generic.IEqualityComparer<'a>
 type IComparer<'a> =  System.Collections.Generic.IComparer<'a>
 type IReadOnlyList<'a> =  System.Collections.Generic.IReadOnlyList<'a>
+type ICollection<'a> =  System.Collections.Generic.ICollection<'a>
+type IReadOnlyCollection<'a> =  System.Collections.Generic.IReadOnlyCollection<'a>
 type IList<'a> =  System.Collections.Generic.IList<'a>
 
 #if NETSTANDARD2_0

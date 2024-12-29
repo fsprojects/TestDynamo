@@ -1,9 +1,12 @@
 module Tests.Utils
 
 open System
+open System.IO
+open System.Linq
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
+open Amazon.Lambda.DynamoDBEvents
 open TestDynamo
 open TestDynamo.Data.BasicStructures
 open TestDynamo.GenericMapper
@@ -316,3 +319,128 @@ type ScanBuilder =
         req.IndexName <- sb.indexName |> ValueOption.defaultValue null
 
         req
+
+module LambdaSubscriberUtils =
+    
+    /// <summary>
+    /// Converts a null seq to empty and removes any null values
+    /// </summary>
+    let private orEmpty = function
+        | null -> Seq.empty
+        | xs -> xs
+        
+    /// <summary>
+    /// Converts a null seq to empty and removes any null values
+    /// </summary>
+    let private sanitizeSeq xs = orEmpty xs |> Seq.filter ((<>)null)
+
+    let rec private attributeFromDynamodb' name (attr: DynamoDBEvent.AttributeValue) =
+        match struct (
+            attr.BOOL.HasValue,
+            attr.S,
+            attr.N,
+            attr.B,
+            attr.NULL.HasValue && attr.NULL.Value,
+            attr.M <> null,
+            attr.L <> null,
+            attr.SS <> null,
+            attr.NS <> null,
+            attr.BS <> null
+            ) with
+        | true, null, null, null, false, false, false, false, false, false -> attr.BOOL.Value |> AttributeValue.Boolean
+        | false, str, null, null, false, false, false, false, false, false when str <> null -> str |> AttributeValue.String
+        | false, null, num, null, false, false, false, false, false, false when num <> null -> num |> Decimal.Parse |> AttributeValue.Number
+        | false, null, null, bin, false, false, false, false, false, false when bin <> null ->
+            bin.ToArray() |> AttributeValue.Binary
+        | false, null, null, null, true, false, false, false, false, false -> AttributeValue.Null
+        | false, null, null, null, false, true, false, false, false, false ->
+            if attr.M = null then ClientError.clientError "Map data not set"
+            itemFromDynamodb' name attr.M |> AttributeValue.HashMap
+        | false, null, null, null, false, false, true, false, false, false ->
+            sanitizeSeq attr.L 
+            |> Seq.mapi (fun i -> attributeFromDynamodb' $"{name}[{i}]") |> Array.ofSeq |> CompressedList |> AttributeValue.AttributeList
+        | false, null, null, null, false, false, false, true, false, false ->
+            sanitizeSeq attr.SS
+            |> Seq.map String
+            |> AttributeSet.create
+            |> HashSet
+        | false, null, null, null, false, false, false, false, true, false ->
+    
+            sanitizeSeq attr.NS
+            |> Seq.map (Decimal.Parse >> Number)
+            |> AttributeSet.create
+            |> HashSet
+        | false, null, null, null, false, false, false, false, false, true ->
+    
+            sanitizeSeq attr.BS
+            |> Seq.map (fun (b: MemoryStream) -> b.ToArray() |> Binary)
+            |> AttributeSet.create
+            |> HashSet
+        | pp -> ClientError.clientError $"Unknown attribute type for \"{name}\""
+    
+    and attributeFromDynamodb (attr: DynamoDBEvent.AttributeValue) = attributeFromDynamodb' "$"
+    
+    and private mapAttribute name (attr: KeyValuePair<string, DynamoDBEvent.AttributeValue>) =
+        struct (attr.Key, attributeFromDynamodb' $"{name}.{attr.Key}" attr.Value)
+    
+    and private itemFromDynamodb' name x = x |> Seq.map (mapAttribute name) |> MapUtils.fromTuple
+    and itemFromDynamoDb: Dictionary<string,DynamoDBEvent.AttributeValue> -> Map<string,AttributeValue> = itemFromDynamodb' "$"
+    
+    let rec attributeToDynamoDbEvent = function
+        | AttributeValue.String x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.S <- x
+            attr
+        | AttributeValue.Number x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.N <- x.ToString()
+            attr
+        | AttributeValue.Binary x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.B <- new MemoryStream(x)
+            attr
+        | AttributeValue.Boolean x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.BOOL <- x
+            attr
+        | AttributeValue.Null ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.NULL <- true
+            attr
+        | AttributeValue.HashMap x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.M <- itemToDynamoDbEvent x
+            attr
+        | AttributeValue.HashSet x ->
+            let attr = DynamoDBEvent.AttributeValue()
+            match AttributeSet.getSetType x with
+            | AttributeType.Binary ->
+                attr.BS <-
+                    AttributeSet.asBinarySeq x
+                    |> Seq.map (fun x -> new MemoryStream(x))
+                    |> Enumerable.ToList
+    
+            | AttributeType.String ->
+                attr.SS <-
+                    AttributeSet.asStringSeq x
+                    |> Enumerable.ToList
+    
+            | AttributeType.Number ->
+                attr.NS <-
+                    AttributeSet.asNumberSeq x
+                    |> Seq.map _.ToString()
+                    |> Enumerable.ToList
+    
+            | x -> ClientError.clientError $"Unknown set type {x}"
+    
+            attr
+        | AttributeValue.AttributeList xs ->
+            let attr = DynamoDBEvent.AttributeValue()
+            attr.L <- xs |> AttributeListType.asSeq |> Seq.map attributeToDynamoDbEvent |> Enumerable.ToList
+            attr
+    
+    and itemToDynamoDbEvent =
+        Seq.map kvpToTuple
+        >> Collection.mapSnd attributeToDynamoDbEvent
+        >> Seq.map tplToKvp
+        >> kvpToDictionary

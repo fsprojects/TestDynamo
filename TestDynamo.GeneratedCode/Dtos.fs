@@ -699,6 +699,21 @@ type DisableKinesisStreamingDestinationResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
+[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent", false, false)>]
+type DynamoDBEvent<'attr> =
+    { Records: DynamodbStreamRecord<'attr> array voption }
+
+[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+DynamodbStreamRecord", false, false)>]
+type DynamodbStreamRecord<'attr> =
+    { EventSourceArn: String voption
+      AwsRegion: String voption
+      Dynamodb: StreamRecord<'attr> voption
+      EventID: String voption
+      EventName: String voption
+      EventSource: String voption
+      EventVersion: String voption
+      UserIdentity: Identity voption }
+
 [<DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingConfiguration", false, false); Struct; IsReadOnly>]
 type EnableKinesisStreamingConfiguration =
     { ApproximateCreationDateTimePrecision: ApproximateCreationDateTimePrecision voption }
@@ -960,6 +975,11 @@ type GlobalTableStatus private (value: string) =
     static member DELETING = GlobalTableStatus("DELETING")
     static member UPDATING = GlobalTableStatus("UPDATING")
     override this.ToString() = this.Value
+
+[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+Identity", false, false); Struct; IsReadOnly>]
+type Identity =
+    { PrincipalId: String voption
+      Type: String voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.IDynamoDBv2PaginatorFactory", true, false)>]
 type IDynamoDBv2PaginatorFactory private () =
@@ -1670,6 +1690,16 @@ type SSEType private (value: string) =
     static member AES256 = SSEType("AES256")
     static member KMS = SSEType("KMS")
     override this.ToString() = this.Value
+
+[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+StreamRecord", false, false)>]
+type StreamRecord<'attr> =
+    { ApproximateCreationDateTime: DateTime voption
+      Keys: Map<String, 'attr> voption
+      NewImage: Map<String, 'attr> voption
+      OldImage: Map<String, 'attr> voption
+      SequenceNumber: String voption
+      SizeBytes: Int64 voption
+      StreamViewType: String voption }
 
 [<DynamodbType("Amazon.DynamoDBv2.Model.StreamSpecification", false, false); Struct; IsReadOnly>]
 type StreamSpecification =
