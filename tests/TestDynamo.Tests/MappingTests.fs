@@ -416,12 +416,11 @@ type MappingTests(output: ITestOutputHelper) =
     [<ClassData(typeof<OneFlag>)>]
     let ``Test MemoryStream disposal`` ``should dispose`` =
 
-        use _ = new ConsoleLogger(output)
         let disp = Settings.DisposeOfInputMemoryStreams
         try
             // arrange
             Settings.DisposeOfInputMemoryStreams <- ``should dispose``
-            Console.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
+            output.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
             
             let attr = DynamoAttributeValue()
             use ms = new MonitoredMemoryStream()
@@ -432,7 +431,7 @@ type MappingTests(output: ITestOutputHelper) =
             |> ignoreTyped<AttributeValue>
                 
             // assert
-            Console.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
+            output.WriteLine $"{``should dispose``}, {Settings.DisposeOfInputMemoryStreams}"
             Assert.Equal(``should dispose``, ms.Disposed)
         finally
             Settings.DisposeOfInputMemoryStreams <- disp

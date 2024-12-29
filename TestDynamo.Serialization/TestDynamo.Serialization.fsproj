@@ -26,6 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="ConverterFramework.fs" />
+    <Compile Include="CopiedConverters.fs" />
     <Compile Include="Converters.fs" />
     <Compile Include="Data.Version1.fs" />
     <Compile Include="DatabaseSerializer.fs" />
@@ -38,7 +40,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.305" />
   </ItemGroup>
 
 </Project>

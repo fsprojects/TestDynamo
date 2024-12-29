@@ -1255,6 +1255,16 @@ module Io =
     let inline ignoreTask<'a> (x: Task<^a>): Task = x
 
 module Comparison =
+    
+    let propertyComparer<'a, 'prop> prop (eq: IEqualityComparer<'prop>) =
+        
+        { new IEqualityComparer<'a> with
+            override this.Equals(x, y) = eq.Equals(prop x, prop y)
+
+            override this.GetHashCode(obj) = eq.GetHashCode(prop obj) }
+    
+    let tplFstComparer (eq: IEqualityComparer<'a>) = propertyComparer fstT eq
+    let tplSndComparer (eq: IEqualityComparer<'a>) = propertyComparer sndT eq
 
     let rec compareArrays fromI toI xs ys =
         match struct (xs, ys) with

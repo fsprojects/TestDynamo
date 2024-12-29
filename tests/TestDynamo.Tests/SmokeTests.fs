@@ -10,6 +10,7 @@ open TestDynamo
 open TestDynamo.Api.FSharp
 open TestDynamo.Client
 open TestDynamo.Model
+open TestDynamo.Serialization
 open TestDynamo.Utils
 open Tests.Items
 open Tests.Requests.Queries
@@ -18,6 +19,9 @@ open Xunit
 open Xunit.Abstractions
 
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
+
+type AThing<'a> =
+    { theThing : 'a }
 
 type SmokeTests(output: ITestOutputHelper) =
 
@@ -474,3 +478,31 @@ type SmokeTests(output: ITestOutputHelper) =
         Assert.NotEqual(req1, fn 1)
         Assert.NotEqual(req2, fn 2)
         Assert.NotEqual(req3, fn 3)
+
+    [<Theory>]
+    [<InlineData(true)>]
+    [<InlineData(false)>]
+    let ``Some serializer opt tests`` some =
+        
+        // arrange - VOpt
+        let expected = if some then ValueSome 2 else ValueNone
+        
+        // act - VOpt
+        let actual =
+            RawSerializers.Strings.write false ({ theThing = expected }: AThing<int voption>)
+            |> RawSerializers.Strings.read<AThing<int voption>>
+
+        // assert - VOpt
+        Assert.Equal(expected, actual.theThing)
+        
+        
+        // arrange - Opt
+        let expected = if some then Some 2 else Option.None
+        
+        // act - Opt
+        let actual =
+            RawSerializers.Strings.write false ({ theThing = expected }: AThing<int option>)
+            |> RawSerializers.Strings.read<AThing<int option>>
+
+        // assert - Opt
+        Assert.Equal(expected, actual.theThing)

@@ -3,6 +3,9 @@ All todos
 Mock recorder
 ItemCollectionMetrics are implemented in some places (maybe batching or transact ops) but not others
 remove aws from serailziation and lambda projects
+CopiedConverters: 
+	are inefficient. Use reflection
+	old code, could be optimized by removing some inline functions/re-using standard functions
 
 
 Features

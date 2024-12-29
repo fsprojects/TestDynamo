@@ -17,7 +17,7 @@ type ApiDb = TestDynamo.Api.FSharp.Database
 type AmazonWebServiceResponse = Amazon.Runtime.AmazonWebServiceResponse
 type Stream = System.IO.Stream
 
-module private ObjPipelineInterceptorUtils =
+module ObjPipelineInterceptorUtils =
 
     type ObjPipelineInterceptorState =
         { db: ApiDb
@@ -63,7 +63,7 @@ module private ObjPipelineInterceptorUtils =
 
     let private eitherDatabase state = state.parent ?|> Either2 ?|? Either1 state.db
 
-    let private invoke'' state overrideDelay (c: CancellationToken): obj -> ValueTask<obj> =
+    let invokeFromMapped state overrideDelay (c: CancellationToken): obj -> ValueTask<obj> =
         c.ThrowIfCancellationRequested()
         function
         | :? BatchGetItemRequest<AttributeValue> as request ->
@@ -166,12 +166,17 @@ module private ObjPipelineInterceptorUtils =
 
     let private invoke' state overrideDelay c x =
         DtoMappers.fromDtoObj x
-        |> invoke'' state overrideDelay c
+        |> invokeFromMapped state overrideDelay c
         |%|> DtoMappers.fromDtoObj
 
     let invoke = flip invoke' ValueNone
 
     let invokeWithoutDelay = flip invoke' (ValueSome TimeSpan.Zero)
+
+module DbCommandExecutor =
+    let execute state overrideDelay c input =
+        ObjPipelineInterceptorUtils.invokeFromMapped state overrideDelay c input
+        
 
 type ObjPipelineInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,

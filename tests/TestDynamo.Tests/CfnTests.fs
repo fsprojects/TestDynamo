@@ -103,7 +103,7 @@ type CfnTests(output: ITestOutputHelper) =
     static let cfnTable' attributesOnly name =
         let opn = if attributesOnly then "" else "{"
         let close = if attributesOnly then "" else "}"
-        sprintf """%s"AttributeDefinitions":[{"AttributeName":"IndexPk","AttributeType":{"Value":"N"}},{"AttributeName":"IndexSk","AttributeType":{"Value":"N"}},{"AttributeName":"TablePk","AttributeType":{"Value":"N"}},{"AttributeName":"TableSk","AttributeType":{"Value":"N"}}],"BillingMode":null,"DeletionProtectionEnabled":false,"GlobalSecondaryIndexes":[{"IndexName":"IndexName","KeySchema":[{"AttributeName":"IndexPk","KeyType":{"Value":"HASH"}},{"AttributeName":"IndexSk","KeyType":{"Value":"RANGE"}}],"OnDemandThroughput":null,"Projection":{"NonKeyAttributes":[],"ProjectionType":{"Value":"ALL"}},"ProvisionedThroughput":null}],"KeySchema":[{"AttributeName":"TablePk","KeyType":{"Value":"HASH"}},{"AttributeName":"TableSk","KeyType":{"Value":"RANGE"}}],"LocalSecondaryIndexes":[],"OnDemandThroughput":null,"ProvisionedThroughput":{"ReadCapacityUnits":0,"WriteCapacityUnits":0},"ResourcePolicy":null,"SSESpecification":null,"StreamSpecification":null,"TableClass":null,"TableName":"%s","Tags":[]%s""" opn name close
+        sprintf """%s"AttributeDefinitions":[{"AttributeName":"IndexPk","AttributeType":"N"},{"AttributeName":"IndexSk","AttributeType":"N"},{"AttributeName":"TablePk","AttributeType":"N"},{"AttributeName":"TableSk","AttributeType":"N"}],"BillingMode":null,"DeletionProtectionEnabled":false,"GlobalSecondaryIndexes":[{"IndexName":"IndexName","KeySchema":[{"AttributeName":"IndexPk","KeyType":"HASH"},{"AttributeName":"IndexSk","KeyType":"RANGE"}],"OnDemandThroughput":null,"Projection":{"NonKeyAttributes":[],"ProjectionType":"ALL"},"ProvisionedThroughput":null}],"KeySchema":[{"AttributeName":"TablePk","KeyType":"HASH"},{"AttributeName":"TableSk","KeyType":"RANGE"}],"LocalSecondaryIndexes":[],"OnDemandThroughput":null,"ProvisionedThroughput":{"ReadCapacityUnits":0,"WriteCapacityUnits":0},"ResourcePolicy":null,"SSESpecification":null,"StreamSpecification":null,"TableClass":null,"TableName":"%s","Tags":[]%s""" opn name close
 
     static let cfnTable = cfnTable' false
 
@@ -176,12 +176,14 @@ type CfnTests(output: ITestOutputHelper) =
             // act
             output.WriteLine file.fileJson
             let! result = CloudFormationParser.buildDatabase settings (ValueSome logger) [file]
+            
+            output.WriteLine $"############## Done"
 
             // assert
             let struct (table1, table2, table3) =
                 match result with
                 | Either1 _  ->
-                    Assert.Fail("Expect local")
+                    Assert.Fail("Expect global")
                     Unchecked.defaultof<_>
                 | Either2 db -> struct (
                     (db.GetDatabase (ValueSome logger) {regionId = "root-region" }).GetTable (ValueSome logger) "Tab11",

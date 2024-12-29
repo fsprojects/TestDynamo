@@ -1,18 +1,20 @@
 namespace TestDynamo.Serialization.CloudFormation
 
+open System
 open System.Runtime.InteropServices
 open System.Text.Json
 open System.Text.Json.Nodes
 open System.Threading
 open System.Threading.Tasks
-open Amazon.DynamoDBv2
-open Amazon.DynamoDBv2.Model
 open Microsoft.Extensions.Logging
 open TestDynamo
+open TestDynamo.Client
 open TestDynamo.Data.Monads.Operators
+open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Api.FSharp
+open TestDynamo.Serialization
 
 type CloudFormationSettings =
     { ignoreUnsupportedResources: bool }
@@ -21,7 +23,7 @@ type CloudFormationSettings =
 type CloudFormationDbSettings =
     { /// <summary>
       /// If true, the builder will always return a global DB. If false, the builder may still
-      /// return a global DB if CFN files target multiple regions of a global table is created
+      /// return a global DB if CFN files target multiple regions
       /// </summary>
       alwaysCreateGlobal: bool
       settings: CloudFormationSettings }
@@ -75,89 +77,106 @@ type ReplicaDetails() =
         and set value = region <- value
 
 type CloudFormationParser() =
-
+    
     static member private noTask = ValueTask<_>(()).Preserve()
 
-    static member private handle<'req, 'resp> (f: 'req -> Task<'resp>) (json: JsonObject) =
-        JsonSerializer.Deserialize<'req>(json)
-        |> f |> Io.fromTask |> Io.ignore<'resp>
+    static member private handle<'req, 'resp> (f: 'req -> ValueTask<'resp>) (json: JsonObject) =
+        RawSerializers.Nodes.read<'req>(json)
+        |> f |> Io.ignore<'resp>
 
-    static member private handleTable' forceEnableStreams logger (client: AmazonDynamoDBClient) =
+    static member private handleTable' forceEnableStreams logger state =
         let logger' = logger ?|? Logger.notAnILogger
         logger'.LogInformation("Creating table")
         CloudFormationParser.handle<CreateTableRequest, CreateTableResponse>(fun c ->
-            match struct (forceEnableStreams, c.StreamSpecification) with
-            | false, _ -> ()
-            | true, null ->
-                c.StreamSpecification <- StreamSpecification()
-                c.StreamSpecification.StreamEnabled <- true
-                c.StreamSpecification.StreamViewType <- Amazon.DynamoDBv2.StreamViewType.NEW_AND_OLD_IMAGES
-            | true, x ->
-                x.StreamEnabled <- true
+            let c =
+                match struct (forceEnableStreams, c.StreamSpecification) with
+                | false, _ -> c
+                | true, ValueNone ->
+                    { c with StreamSpecification = ValueSome { StreamEnabled = ValueSome true; StreamViewType = ValueSome StreamViewType.NEW_AND_OLD_IMAGES } }
+                | true, ValueSome x -> { c with StreamSpecification = ValueSome { x with StreamEnabled = ValueSome true } }
 
-            client.CreateTableAsync(c))
+            DbCommandExecutor.execute state ValueNone CancellationToken.None c
+            |%|> fun x -> x :?> CreateTableResponse)
 
     static member private handleTable = CloudFormationParser.handleTable' false
 
-    static member private addReplicasAndGetDeletionProtection (logger: ILogger) (client: AmazonDynamoDBClient) (json: JsonObject) =
+    static member private addReplicasAndGetDeletionProtection (logger: ILogger) state (json: JsonObject) =
         let replicaDetails =
             match json.TryGetPropertyValue("Replicas") with
             | false, _ -> Seq.empty
             | true, json when json.GetValueKind() = JsonValueKind.Null -> Seq.empty
             | true, json when json.GetValueKind() <> JsonValueKind.Array -> invalidOp "Invalid Replicas property. Expected an array"
             | true, json -> json.AsArray()
-            |> Seq.map JsonSerializer.Deserialize<ReplicaDetails>
+            |> Seq.map RawSerializers.Nodes.read<ReplicaDetails>
             |> Array.ofSeq
 
         let updates =
             replicaDetails
             |> Seq.map (fun x ->
-                let o = ReplicationGroupUpdate()
-                o.Create <- CreateReplicationGroupMemberAction()
-                o.Create.RegionName <- x.Region
-                o.Create.GlobalSecondaryIndexes <- x.GlobalSecondaryIndexes
-                o)
+                { Delete = ValueNone
+                  Update = ValueNone
+                  Create =
+                      ({ RegionName = ValueSome x.Region
+                         GlobalSecondaryIndexes = x.GlobalSecondaryIndexes |> Maybe.Null.toOption ?|> Array.ofSeq
+                         KMSMasterKeyId = ValueNone
+                         OnDemandThroughputOverride = ValueNone
+                         ProvisionedThroughputOverride = ValueNone
+                         TableClassOverride = ValueNone }: CreateReplicationGroupMemberAction) |> ValueSome }: ReplicationGroupUpdate)
 
         let deletionProtection =
             replicaDetails
             |> Seq.map (fun x -> struct (x.DeletionProtectionEnabled, ({ regionId = x.Region }: DatabaseId)))
 
-        let updateReq = JsonSerializer.Deserialize<UpdateTableRequest> json
-        updateReq.DeletionProtectionEnabled <- true
-        updateReq.ReplicaUpdates <- MList<_>(updates)
+        let updateReq =
+            { RawSerializers.Nodes.read<UpdateTableRequest> json with 
+                    DeletionProtectionEnabled = ValueSome true
+                    ReplicaUpdates = updates |> Array.ofSeq |> ValueSome }
 
-        logger.LogInformation("Adding replicas to regions {0}", updates |> Seq.map _.Create.RegionName |> List.ofSeq)
-        client.UpdateTableAsync updateReq
-        |> Io.fromTask
-        |%|> fun _ -> struct (deletionProtection, updateReq.TableName)
+        logger.LogInformation("Adding replicas to regions {0}", updates |> Seq.map (_.Create ??|> _.RegionName) |> List.ofSeq)
+        DbCommandExecutor.execute state ValueNone CancellationToken.None updateReq
+        |%|> fun _ -> struct (deletionProtection, updateReq.TableName |> Maybe.expectSome)
 
-    static member private addDeletionProtection (logger: ILogger) client struct (deletionProtection, tableName) =
-        let db =
-            TestDynamoClient.getGlobalDatabase client
-            ?|>? fun _ -> invalidOp "An unexpected error has occurred"
+    static member private scopeState logger (state: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) id =
+        match state.parent with
+        | ValueNone -> invalidOp "Unexpected error occurred"
+        | ValueSome struct (parent, _) ->
+            { state with parent = ValueSome struct (parent, id); db = parent.GetDatabase (ValueSome logger) id }
+    
+    static member private addDeletionProtection (logger: ILogger) state struct (deletionProtection, tableName) =
 
         deletionProtection
         |> Seq.map (fun struct (deletionProtection, region) ->
             task {
                 logger.LogInformation("Adding deletion protection = {0} to region {1}", deletionProtection, region.regionId)
-                use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) true (ValueSome region) ValueNone (ValueSome db)
-                let req = UpdateTableRequest()
-                req.TableName <- tableName
-                req.DeletionProtectionEnabled <- deletionProtection
+                
+                let req =
+                    { AttributeDefinitions = ValueNone
+                      BillingMode = ValueNone
+                      DeletionProtectionEnabled = ValueSome deletionProtection
+                      GlobalSecondaryIndexUpdates = ValueNone
+                      OnDemandThroughput = ValueNone
+                      ProvisionedThroughput = ValueNone
+                      ReplicaUpdates = ValueNone
+                      SSESpecification = ValueNone
+                      StreamSpecification = ValueNone
+                      TableClass = ValueNone
+                      TableName = ValueSome tableName }: UpdateTableRequest
 
-                do! client.UpdateTableAsync req |> Io.ignoreTask
+                let localState = CloudFormationParser.scopeState logger state region
+                do! DbCommandExecutor.execute localState ValueNone CancellationToken.None req |> Io.ignore<obj>
             } |> Io.fromTask)
         |> Io.traverse
         |> Io.ignore<unit list>
 
-    static member private handleGlobalTable logger (client: AmazonDynamoDBClient) json =
+    static member private handleGlobalTable logger (state: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) json =
         let logger' = logger ?|? Logger.notAnILogger
 
         logger'.LogInformation("Creating global table")
-        logger'.LogInformation("Adding root to region {0}", client.Config.RegionEndpoint.SystemName)
-        CloudFormationParser.handleTable' true logger client json
-        |%>>= fun _ -> CloudFormationParser.addReplicasAndGetDeletionProtection logger' client json
-        |%>>= CloudFormationParser.addDeletionProtection logger' client
+        logger'.LogInformation("Adding root to region {0}", state.db.Id.regionId)
+        
+        CloudFormationParser.handleTable' true logger state json
+        |%>>= fun _ -> CloudFormationParser.addReplicasAndGetDeletionProtection logger' state json
+        |%>>= CloudFormationParser.addDeletionProtection logger' state
 
     static member private handlers =
         Map.empty
@@ -220,7 +239,7 @@ type CloudFormationParser() =
             |> Seq.map (
                 tplDouble
                 >> mapFst (_.region)
-                >> mapSnd (_.fileJson >> JsonSerializer.Deserialize<PartialCloudFormationFile>))
+                >> mapSnd (_.fileJson >> RawSerializers.Strings.read<PartialCloudFormationFile>))
             |> Seq.collect (fun struct (region, json) ->
                 CloudFormationParser.orderJsonObjectDepends json.Resources
                 |> Seq.map (tpl ({regionId = region}: DatabaseId)))
@@ -229,27 +248,40 @@ type CloudFormationParser() =
             |> List.ofSeq
 
         let database = CloudFormationParser.createDatabase settings logger constructs
-        let inline createClient db = TestDynamoClient.createClient<AmazonDynamoDBClient> logger true (ValueSome db) ValueNone
-
-        let applyToClient constructs (client: AmazonDynamoDBClient) =
+        
+        let applyToClient constructs (clientState: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) =
             List.fold (fun (s: ValueTask<unit>) x ->
                 s
-                |%|> fun _ -> client
+                |%|> fun _ -> clientState
                 |%>>= flip (CloudFormationParser.applyCfn settings logger) x) CloudFormationParser.noTask constructs
-
-        let apply struct (dbId, constructs) db =
+        
+        let dbState dbId db =
             match db with
             | Either1 (db': Database) when db'.Id <> dbId -> invalidOp "Unexpected error occurred"
             | Either1 db' ->
-                task {
-                    use client = TestDynamoClient.createClient<AmazonDynamoDBClient> logger true ValueNone (ValueSome db')
-                    return! applyToClient constructs client
-                } |> Io.fromTask |%|> asLazy db
+                { db = db'
+                  parent = ValueNone
+                  artificialDelay = TimeSpan.Zero
+                  loggerOrDevNull = logger ?|? Logger.notAnILogger
+                  defaultLogger = logger
+                  scanSizeLimits =
+                      { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
+                        maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
+                  awsAccountId = Settings.DefaultAwsAccountId}: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
             | Either2 (db': GlobalDatabase) ->
-                task {
-                    use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> logger true (ValueSome dbId) ValueNone (ValueSome db')
-                    return! applyToClient constructs client
-                } |> Io.fromTask |%|> asLazy db
+                { db = db'.GetDatabase ValueNone dbId
+                  parent = ValueSome struct (db', dbId)
+                  artificialDelay = TimeSpan.Zero
+                  loggerOrDevNull = logger ?|? Logger.notAnILogger
+                  defaultLogger = logger
+                  scanSizeLimits =
+                      { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
+                        maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
+                  awsAccountId = Settings.DefaultAwsAccountId}: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
+        
+        let apply struct (dbId, constructs) db =
+            let state = dbState dbId db
+            task { return! applyToClient constructs state } |> Io.fromTask |%|> asLazy db
 
         let execute _ =
             constructs

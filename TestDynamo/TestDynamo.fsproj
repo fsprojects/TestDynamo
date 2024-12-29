@@ -48,6 +48,7 @@
     <Compile Include="Data\Monads.Operators.fs" />
     <Compile Include="Data\Queue.fs" />
     <Compile Include="Data\MutableValue.fs" />
+    <Compile Include="Data\Lookup.fs" />
     <Compile Include="GenericMapper\Utils.fs" />
     <Compile Include="GenericMapper\MappingException.fs" />
     <Compile Include="GenericMapper\Expressions.fs" />

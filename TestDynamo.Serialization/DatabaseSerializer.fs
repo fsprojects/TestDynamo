@@ -1,6 +1,7 @@
 namespace TestDynamo.Serialization
 
 open System.Runtime.InteropServices
+open System.Text.Json.Nodes
 open System.Threading.Tasks
 open TestDynamo.Serialization.Data
 open TestDynamo.Utils
@@ -46,6 +47,23 @@ module RawSerializers =
             JsonSerializer.Serialize(data, opts)
 
         let read<'a> (json: string) =
+            let opts = options false
+            JsonSerializer.Deserialize<'a>(json, opts)
+
+        let internal writeVersioned indent data =
+            VersionedData<_>(data, VersionedData<_>.currentVersion)
+            |> write indent
+
+        let internal readVersioned<'a> x =
+            read<VersionedData<'a>> x |> VersionedData<_>.getData
+
+    module Nodes =
+
+        let write indent data =
+            let opts = options indent
+            JsonSerializer.SerializeToNode(data, opts)
+
+        let read<'a> (json: JsonNode) =
             let opts = options false
             JsonSerializer.Deserialize<'a>(json, opts)
 

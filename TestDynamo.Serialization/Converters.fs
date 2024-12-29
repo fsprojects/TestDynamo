@@ -1,22 +1,58 @@
 module TestDynamo.Serialization.Converters
 
+open TestDynamo.Serialization.ConverterFramework
+open TestDynamo.Serialization.CopiedConverters
 open System
-open System.Collections.Generic
 open System.Text.Json.Serialization
+open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.Model
 open TestDynamo.Utils
 open System.Text.Json
+open TestDynamo.Data
 open TestDynamo.Data.Monads.Operators
 
- // use dictionary as map does not work, System.Type does not compare
-type private GenericConverterFactory(converters: IReadOnlyDictionary<Type, JsonSerializerOptions -> JsonConverter>) =
-    inherit JsonConverterFactory()
+module AwsConst =
+    open System.Reflection
+        
+    type Converter<'a>() =
+        inherit JsonConverter<'a>()
+        
+        static let values =
+            typeof<'a>.GetProperties(BindingFlags.Static ||| BindingFlags.Public)
+            |> Seq.filter (fun p -> p.PropertyType = typeof<'a>)
+            |> Seq.map (fun p -> struct (p.Name, p.GetValue null :?> 'a))
+            |> Lookup.create (ValueSome StringComparer.OrdinalIgnoreCase)
 
-    override this.CreateConverter(typeToConvert: Type, options: JsonSerializerOptions) =
-        converters[typeToConvert] options
+        override _.Read(reader, typeToConvert, options) =
+            if reader.TokenType = JsonTokenType.String
+            then 
+                match reader.GetString() |> flip Lookup.tryGetValue values with
+                | ValueSome x -> x
+                | ValueNone -> ClientError.clientError $"Invalid value for const {typeof<'a>}"
+            else JsonException $"Invalid value for const {typeof<'a>} {reader.TokenType}" |> raise
 
-    override this.CanConvert(typeToConvert: Type) =
-        converters.ContainsKey(typeToConvert)
+        override _.Write(writer, value, options) =
+            writer.WriteStringValue (value.ToString())
+                
+    module private FactoryInternal =
+        
+        let canConvert (typeToConvert: Type) =
+            match typeToConvert.GetCustomAttribute<DynamodbTypeAttribute>() with
+            | null -> false
+            | attr -> attr.Const
+                
+        let createForType (typ: Type) =
+            let converterType = typedefof<Converter<_>>.MakeGenericType typ
+            Activator.CreateInstance converterType :?> JsonConverter
+            
+    let private converterCache = ConverterCache.build "AwsConst" FactoryInternal.canConvert FactoryInternal.createForType
+        
+    type Factory() =
+        inherit JsonConverterFactory()
+
+        override _.CanConvert typeToConvert = converterCache.canConvert typeToConvert
+        
+        override _.CreateConverter (typ, _) = converterCache.getConverter typ
 
 let private tplError = "Invalid JSON. Tuples are represented as arrays"
 
@@ -329,17 +365,6 @@ type private AttributeValueConverter(options: JsonSerializerOptions) =
             | AttributeValue.Null -> invalidOp "Handled in case before"
             writer.WriteEndArray()
 
-type private SurrogateConverter<'a, 'surrogate>(surrogateConverter: JsonConverter<'surrogate>, toSurrogate, fromSurrogate) =
-    inherit System.Text.Json.Serialization.JsonConverter<'a>()
-
-    override this.Read(reader: byref<Utf8JsonReader>, typeToConvert: Type, options: JsonSerializerOptions) =
-        surrogateConverter.Read(&reader, typeToConvert, options)
-        |> fromSurrogate
-
-    override this.Write(writer: Utf8JsonWriter, value: 'a, options: JsonSerializerOptions) =
-        let surrogate = toSurrogate value
-        surrogateConverter.Write(writer, surrogate, options)
-
 let buildDatabaseIdConverter (opts: JsonSerializerOptions): JsonConverter<DatabaseId> =
     let ``to`` dbId = dbId.regionId
     let from dbId = {regionId = dbId}
@@ -361,6 +386,11 @@ addConverter<DatabaseId> buildDatabaseIdConverter
 
 let customConverters: JsonConverter list =
     [
+        Option.ValueFactory()
+        Option.RefFactory()
         GenericConverterFactory(converterDictionary)
         ValueTupleConverterFactory()
+        RecordType.Factory()
+        AwsConst.Factory()
     ]
+
