@@ -43,6 +43,8 @@ type CustomPipelineInterceptor(
 
     static let cast x: AmazonWebServiceResponse = x
 
+    member _.Interceptor = interceptor
+    
     member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
         let c = executionContext.RequestContext.CancellationToken
         interceptor.InterceptRequest db executionContext.RequestContext.OriginalRequest c

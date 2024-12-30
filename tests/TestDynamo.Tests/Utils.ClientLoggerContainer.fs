@@ -10,11 +10,11 @@ open Microsoft.Extensions.Logging
 type Database = TestDynamo.Api.FSharp.Database
 
 type TestDynamoClientBuilder() =
-    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) true (ValueSome id) ValueNone (ValueSome db)
-    static member Create(db, id) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueNone) true (ValueSome id) ValueNone (ValueSome db)
-    static member Create(db, logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueSome db)
-    static member Create(db) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueNone) true ValueNone (ValueSome db)
-    static member Create(logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueNone)
+    static member Create(db, id, logger) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome logger) true (ValueSome id) ValueNone false (ValueSome db)
+    static member Create(db, id) = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueNone) true (ValueSome id) ValueNone false (ValueSome db)
+    static member Create(db, logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone false (ValueSome db)
+    static member Create(db) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueNone) true ValueNone false (ValueSome db)
+    static member Create(logger) = TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone false ValueNone
 
 /// <summary>A wrapper around a database, client and logger which will dispose of items correctly</summary>
 type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logger: ILogger, disposeLogger: bool, disposeHost: bool) =
@@ -26,7 +26,7 @@ type ClientContainer private (host: Database, client: AmazonDynamoDBClient, logg
         | _ -> invalidOp "Logger must be disposable"
 
     do
-        TestDynamo.TestDynamoClient.attach (ValueSome logger) host ValueNone client
+        TestDynamo.TestDynamoClient.attach (ValueSome logger) host ValueNone false client
 
     new(logger: ILogger, disposeLogger) =
         new ClientContainer(new Database(), new AmazonDynamoDBClient(region = RegionEndpoint.GetBySystemName(Settings.DefaultRegion)), logger, disposeLogger, true)

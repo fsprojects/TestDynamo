@@ -237,7 +237,7 @@ let buildTempClient() = new ClientContainer(commonHost, Logger.notAnILogger, fal
 let buildClientWithlogLevel logLevel logger = new ClientContainer(commonHost, new TestLogger(logger, level = logLevel), true)
 
 let buildClientFromLogger logger =
-    TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone (ValueSome commonHost)
+    TestDynamoClient.createClient<AmazonDynamoDBClient> (ValueSome logger) true ValueNone false (ValueSome commonHost)
 let printFullList xs =
     Seq.mapi (fun i -> if i = 0 then id else sprintf "  %s;") xs
     |> Str.join "\n"

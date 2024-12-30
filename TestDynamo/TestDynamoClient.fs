@@ -85,13 +85,7 @@ type private AmazonDynamoDBClientBuilder<'a>() =
             
         Expression.Lambda<Func<'a, string>>(systemName, client).Compile().Invoke
 
-    static member builder withCredentials =
-        if withCredentials then builderWithCredentials.Value
-        else builderWithoutCredentials.Value
-        
-    static member regionName = regionName'
-
-    static member getRuntimePipeline: 'a -> Amazon.Runtime.Internal.RuntimePipeline =
+    static let getRuntimePipeline': 'a -> Amazon.Runtime.Internal.RuntimePipeline =
         let param = System.Linq.Expressions.Expression.Parameter(typeof<'a>)
         let p = System.Linq.Expressions.Expression.PropertyOrField(param, "RuntimePipeline")
 
@@ -100,17 +94,25 @@ type private AmazonDynamoDBClientBuilder<'a>() =
             .Compile()
             .Invoke
 
-    static member getOptionalInterceptor client =
-        let inline cast (x: IPipelineHandler) = x :?> ObjPipelineInterceptor
+    static member builder withCredentials =
+        if withCredentials then builderWithCredentials.Value
+        else builderWithoutCredentials.Value
+        
+    static member regionName = regionName'
 
-        AmazonDynamoDBClientBuilder<'a>.getRuntimePipeline client
+    static member getRuntimePipeline = getRuntimePipeline'
+    
+    static member getOptionalInterceptor<'b when 'b :> IPipelineHandler> client =
+        let inline cast (x: IPipelineHandler) = x :?> 'b
+
+        getRuntimePipeline' client
         |> _.Handlers
-        |> Seq.filter (fun h -> h.GetType() = typeof<ObjPipelineInterceptor>)
+        |> Seq.filter (fun h -> h.GetType() = typeof<'b>)
         |> Collection.tryHead
         ?|> cast
 
-    static member getRequiredInterceptor client =
-        AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor client
+    static member getRequiredInterceptor<'b when 'b :> IPipelineHandler> client =
+        AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor<'b> client
         ?|>? fun _ -> invalidOp "Client does not have a database attached"
 
 /// <summary>
@@ -118,7 +120,6 @@ type private AmazonDynamoDBClientBuilder<'a>() =
 /// an existing dynamodb client.
 /// Methods targeting C# have upper case names, methods targeting F# have lower case names
 /// </summary>
-[<Extension>]
 type TestDynamoClient =
 
     static let defaultLogger: Either<Database,struct (GlobalDatabase * _)> -> _ =
@@ -131,8 +132,25 @@ type TestDynamoClient =
         if clRegion <> db.Id.regionId
         then invalidOp $"Cannot attach client from region {clRegion} to database from region {db.Id.regionId}. The regions must match"
         else db
-
-    static member private attach'<'a> (logger: ILogger voption) struct (db, disposeDb) interceptor (client: 'a) =
+        
+    static member private hasHandler<'a> (pipeline: Internal.RuntimePipeline) =
+        let t = typeof<'a>
+        
+        pipeline.Handlers
+        |> Seq.filter (fun h -> t.IsAssignableFrom(h.GetType()))
+        |> Seq.isEmpty
+        |> not
+        
+    static member private verifyExisting<'interceptor, 'client when 'interceptor :> IPipelineHandler> (name: string) (client: 'client) eq =
+        ValueSome tpl
+        <|? AmazonDynamoDBClientBuilder<'client>.getOptionalInterceptor<'interceptor> client
+        <|? eq
+        ?|> (fun struct (x, eq) ->
+            if eq x then true
+            else invalidOp $"Client already has a different {name} attached")
+        ?|? false
+        
+    static member private attach'<'a> (logger: ILogger voption) struct (db, disposeDb) interceptor (addRecorder: bool) (client: 'a) =
 
         let regionId = AmazonDynamoDBClientBuilder.regionName client
         let db =
@@ -146,34 +164,61 @@ type TestDynamoClient =
             |> Either.map2Of2 sndT
             |> Either.reduce
 
-        let attachedAlready =
-            // TODO: there are now 2 interceptors to test against
-            AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor client
-            ?|> (fun db' ->
-                match db with
-                | Either1 db when db'.Database = db -> true
-                | Either1 db when db'.GlobalDatabase ?|> (fun x -> x.GetDatabase ValueNone id) = ValueSome db -> true
-                | Either2 (db, _) when db'.GlobalDatabase = ValueSome db -> true
-                | _ -> invalidOp "Client already has a TestDynamo database attached")
-            ?|? false
-
-        if not attachedAlready
+        let dbAttachedAlready =
+            TestDynamoClient.verifyExisting<DbInterceptor, 'a>
+                "TestDynamo database"
+                client
+                (fun (db': DbInterceptor) ->
+                    match db with
+                    | Either1 db when db'.Database = db -> true
+                    | Either1 db when db'.GlobalDatabase ?|> (fun x -> x.GetDatabase ValueNone id) = ValueSome db -> true
+                    | Either2 (db, _) when db'.GlobalDatabase = ValueSome db -> true
+                    | _ -> invalidOp "Client already has a different TestDynamo database attached"
+                |> ValueSome)
+        
+        let interceptorAttachedAlready =
+            TestDynamoClient.verifyExisting<CustomPipelineInterceptor, 'a>
+                (nameof CustomPipelineInterceptor)
+                client
+                (interceptor ?|> fun input existing -> input = existing.Interceptor)
+        
+        let recorderAttachedAlready =
+            TestDynamoClient.verifyExisting<RecordingInterceptor, 'a>
+                (nameof RecordingInterceptor)
+                client
+                (if addRecorder then asLazy true |> ValueSome else ValueNone)
+        
+        let runtimePipeline = AmazonDynamoDBClientBuilder<'a>.getRuntimePipeline client
+        if not dbAttachedAlready
         then
-            let runtimePipeline = AmazonDynamoDBClientBuilder<'a>.getRuntimePipeline client
-            runtimePipeline.AddHandler(
-                new ObjPipelineInterceptor(
+            let interceptor =
+                new DbInterceptor(
                     db,
                     Settings.DefaultClientResponseDelay,
                     logger ?|> ValueSome ?|? defaultLogger db,
-                    disposeDb))
-
+                    disposeDb)
+            
+            if TestDynamoClient.hasHandler<CustomPipelineInterceptor> runtimePipeline
+            then runtimePipeline.AddHandlerAfter<CustomPipelineInterceptor>(interceptor)
+            elif TestDynamoClient.hasHandler<RecordingInterceptor> runtimePipeline
+            then runtimePipeline.AddHandlerAfter<RecordingInterceptor>(interceptor)
+            else runtimePipeline.AddHandler(interceptor)
+        
+        if not interceptorAttachedAlready
+        then
             match interceptor with
             | ValueNone -> ()
             | ValueSome i ->
                 let db =  db |> Either.map2Of2 (fun struct (db, id) -> db.GetDatabase ValueNone id) |> Either.reduce
-                runtimePipeline.AddHandler(
-                    CustomPipelineInterceptor(db, i))
-
+                let interceptor = CustomPipelineInterceptor(db, i)
+                
+                if TestDynamoClient.hasHandler<RecordingInterceptor> runtimePipeline
+                then runtimePipeline.AddHandlerAfter<RecordingInterceptor>(interceptor)
+                else runtimePipeline.AddHandler(interceptor)
+        
+        if not recorderAttachedAlready && addRecorder
+        then runtimePipeline.AddHandler(RecordingInterceptor())
+    
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database
     /// </summary>
@@ -191,11 +236,12 @@ type TestDynamoClient =
     static member CreateClient<'a>(
         database: CsApiDb,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
-        TestDynamoClient.Attach(database, client, interceptor, logger)
+        TestDynamoClient.Attach(database, client, interceptor, recordCalls, logger)
         client
 
     /// <summary>
@@ -216,11 +262,12 @@ type TestDynamoClient =
         database: GlobalCsApiDb,
         databaseId: TestDynamo.Model.DatabaseId,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(databaseId.regionId))
-        TestDynamoClient.Attach(database, client, interceptor, logger)
+        TestDynamoClient.Attach(database, client, interceptor, recordCalls, logger)
         client
 
     /// <summary>
@@ -240,9 +287,10 @@ type TestDynamoClient =
     static member CreateClient<'a>(
         database: GlobalCsApiDb,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
-        TestDynamoClient.CreateClient<'a>(database, {regionId = Settings.DefaultRegion}, interceptor, logger, addAwsCredentials)
+        TestDynamoClient.CreateClient<'a>(database, {regionId = Settings.DefaultRegion}, interceptor, recordCalls, logger, addAwsCredentials)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new Database
@@ -259,12 +307,13 @@ type TestDynamoClient =
     /// </param>
     static member CreateClient<'a>(
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let database = new ApiDb()
         let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
-        TestDynamoClient.attach' (Maybe.Null.toOption logger) struct (Either1 database, true) (interceptor |> Maybe.Null.toOption) client
+        TestDynamoClient.attach' (Maybe.Null.toOption logger) struct (Either1 database, true) (interceptor |> Maybe.Null.toOption) recordCalls client
         client
 
     /// <summary>
@@ -273,12 +322,13 @@ type TestDynamoClient =
     static member CreateGlobalClient<'a>(
         databaseId: TestDynamo.Model.DatabaseId,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool) =
 
         let database = new GlobalApiDb()
         let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(databaseId.regionId))
-        TestDynamoClient.attachGlobal' (logger |> Maybe.Null.toOption) struct (database, true) (interceptor |> Maybe.Null.toOption) client
+        TestDynamoClient.attachGlobal' (logger |> Maybe.Null.toOption) struct (database, true) (interceptor |> Maybe.Null.toOption) recordCalls client
         client
 
     /// <summary>
@@ -296,9 +346,10 @@ type TestDynamoClient =
     /// </param>
     static member CreateGlobalClient<'a>(
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger,
         [<Optional; DefaultParameterValue(true)>] addAwsCredentials: bool): 'a =
-        TestDynamoClient.CreateGlobalClient<'a>({regionId = Settings.DefaultRegion}, interceptor, logger, addAwsCredentials)
+        TestDynamoClient.CreateGlobalClient<'a>({regionId = Settings.DefaultRegion}, interceptor, recordCalls, logger, addAwsCredentials)
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database or a new Database
@@ -313,17 +364,17 @@ type TestDynamoClient =
     /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
     /// </para>
     /// </param>
-    static member createClient<'a> logger addAwsCredentials (interceptor: IRequestInterceptor voption) (database: ApiDb voption) =
+    static member createClient<'a> logger addAwsCredentials (interceptor: IRequestInterceptor voption) recordCalls (database: ApiDb voption) =
 
         match database with
         | ValueSome database ->
             let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
-            TestDynamoClient.attach logger database interceptor client
+            TestDynamoClient.attach logger database interceptor recordCalls client
             client
         | ValueNone ->
             let database = new ApiDb()
             let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials (RegionEndpoint.GetBySystemName(database.Id.regionId))
-            TestDynamoClient.attach' logger (Either1 database, true) interceptor client
+            TestDynamoClient.attach' logger (Either1 database, true) interceptor recordCalls client
             client
 
     /// <summary>
@@ -339,25 +390,25 @@ type TestDynamoClient =
     /// If false, the typeof 'a does not need to have a constructor which accepts AwsCredentials
     /// </para>
     /// </param>
-    static member createGlobalClient<'a> logger addAwsCredentials (dbId: TestDynamo.Model.DatabaseId voption) (interceptor: IRequestInterceptor voption) (database: GlobalApiDb voption) =
-
+    static member createGlobalClient<'a> logger addAwsCredentials (dbId: TestDynamo.Model.DatabaseId voption) (interceptor: IRequestInterceptor voption) recordCalls (database: GlobalApiDb voption) =
+    
         let regionId = dbId ?|> _.regionId ?|? Settings.DefaultRegion |> RegionEndpoint.GetBySystemName
         match database with
         | ValueSome database ->
             let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials regionId
-            TestDynamoClient.attachGlobal logger database interceptor client
+            TestDynamoClient.attachGlobal logger database interceptor recordCalls client
             client
         | ValueNone ->
             let database = new GlobalApiDb()
             let client = AmazonDynamoDBClientBuilder<'a>.builder addAwsCredentials regionId
-            TestDynamoClient.attachGlobal' logger struct (database, true) interceptor client
+            TestDynamoClient.attachGlobal' logger struct (database, true) interceptor recordCalls client
             client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given Database  
     /// </summary>
-    static member attach<'a> (logger: ILogger voption) (db: Database) (interceptor: IRequestInterceptor voption) (client: 'a): unit =
-        TestDynamoClient.attach' logger (Either1 db, false) interceptor client
+    static member attach<'a> (logger: ILogger voption) (db: Database) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
+        TestDynamoClient.attach'<'a> logger (Either1 db, false) interceptor recordCalls client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given Database
@@ -367,18 +418,20 @@ type TestDynamoClient =
         db: TestDynamo.Api.Database,
         client: 'a,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger) =
 
-        TestDynamoClient.attach (Maybe.Null.toOption logger) db.CoreDb (Maybe.Null.toOption interceptor) client
+        TestDynamoClient.attach (Maybe.Null.toOption logger) db.CoreDb (Maybe.Null.toOption interceptor) recordCalls client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
     /// </summary>
-    static member attachGlobal<'a> (logger: ILogger voption) (db: GlobalDatabase) (interceptor: IRequestInterceptor voption) (client: 'a): unit =
-        struct (Either2 db, false) |> flip1To3 (TestDynamoClient.attach'<'a> logger) interceptor client
+    static member attachGlobal<'a> (logger: ILogger voption) (db: GlobalDatabase) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
+        struct (Either2 db, false) |> flip1To4 (TestDynamoClient.attach'<'a> logger) interceptor recordCalls client
 
-    static member private attachGlobal'<'a> (logger: ILogger voption) (db: struct (GlobalDatabase * bool)) (interceptor: IRequestInterceptor voption) (client: 'a): unit =
-        db |> mapFst Either2 |> flip1To3 (TestDynamoClient.attach'<'a> logger) interceptor client
+    // ILogger voption -> struct (Either<ApiDb,GlobalDatabase> * bool) -> IRequestInterceptor voption -> bool -> 'a -> unit
+    static member private attachGlobal'<'a> (logger: ILogger voption) (db: struct (GlobalDatabase * bool)) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
+        db |> mapFst Either2 |> flip1To4 (TestDynamoClient.attach'<'a> logger) interceptor recordCalls client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
@@ -388,15 +441,16 @@ type TestDynamoClient =
         db: TestDynamo.Api.GlobalDatabase,
         client: 'a,
         [<Optional; DefaultParameterValue(null: IRequestInterceptor)>] interceptor: IRequestInterceptor,
+        [<Optional; DefaultParameterValue(false)>] recordCalls: bool,
         [<Optional; DefaultParameterValue(null: ILogger)>] logger: ILogger): unit =
 
-        TestDynamoClient.attachGlobal<'a> (Maybe.Null.toOption logger) db.CoreDb (Maybe.Null.toOption interceptor) client
+        TestDynamoClient.attachGlobal<'a> (Maybe.Null.toOption logger) db.CoreDb (Maybe.Null.toOption interceptor) recordCalls client
 
     /// <summary>
     /// Set an artificial delay on all requests.  
     /// </summary>
     static member setProcessingDelay<'a> delay client =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.ProcessingDelay <- delay
 
     /// <summary>
@@ -408,7 +462,7 @@ type TestDynamoClient =
     /// Set limits on how much data can be scanned in a single page
     /// </summary>
     static member setScanLimits<'a> scanLimits client =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.SetScanLimits scanLimits
 
     /// <summary>
@@ -420,7 +474,7 @@ type TestDynamoClient =
     /// Set the aws account id for an AmazonDynamoDBClient
     /// </summary>
     static member setAwsAccountId<'a> awsAccountId client =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.AwsAccountId <- awsAccountId
 
     /// <summary>
@@ -432,7 +486,7 @@ type TestDynamoClient =
     /// Set the aws account id for an AmazonDynamoDBClient
     /// </summary>
     static member getAwsAccountId<'a> client =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.AwsAccountId
 
     /// <summary>
@@ -441,10 +495,23 @@ type TestDynamoClient =
     static member GetAwsAccountId<'a>(client) = TestDynamoClient.getAwsAccountId<'a> client
 
     /// <summary>
+    /// Get recordings of calls to this client
+    /// </summary>
+    static member getRecordings<'a> (client: 'a) =
+        AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor<RecordingInterceptor> client
+        ?|> _.Requests
+        |> Maybe.expectSomeErr "Recordings are not enabled for this client. Recordings myst be enabled when the client is created%s" ""
+
+    /// <summary>
+    /// Get the underlying database from an AmazonDynamoDBClient
+    /// </summary>
+    static member GetRecordings<'a>(client: 'a) = TestDynamoClient.getRecordings<'a> client
+
+    /// <summary>
     /// Get the underlying database from an AmazonDynamoDBClient
     /// </summary>
     static member getDatabase<'a> (client: 'a) =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.Database
 
     /// <summary>
@@ -459,7 +526,7 @@ type TestDynamoClient =
     /// Returns None if this client is attached to a non global database
     /// </summary>
     static member getGlobalDatabase<'a>(client: 'a) =
-        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor client
+        let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
         interceptor.GlobalDatabase
 
     /// <summary>

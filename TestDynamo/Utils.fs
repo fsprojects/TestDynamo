@@ -960,6 +960,9 @@ module Either =
         match x with
         | Either1 x -> x
         | Either2 x -> x
+        
+    let inline expect1 x = match x with | Either1 x -> x | Either2 _ -> invalidOp "Expected 1"
+    let inline expect2 x = match x with | Either2 x -> x | Either1 _ -> invalidOp "Expected 2" 
 
     let partition xs =
         Collection.partition (function

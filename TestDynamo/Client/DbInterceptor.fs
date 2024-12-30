@@ -17,9 +17,9 @@ type ApiDb = TestDynamo.Api.FSharp.Database
 type AmazonWebServiceResponse = Amazon.Runtime.AmazonWebServiceResponse
 type Stream = System.IO.Stream
 
-module ObjPipelineInterceptorUtils =
+module DbInterceptorUtils =
 
-    type ObjPipelineInterceptorState =
+    type DbInterceptorState =
         { db: ApiDb
           parent: struct (GlobalDatabase * DatabaseId) voption
           artificialDelay: TimeSpan
@@ -175,10 +175,10 @@ module ObjPipelineInterceptorUtils =
 
 module DbCommandExecutor =
     let execute state overrideDelay c input =
-        ObjPipelineInterceptorUtils.invokeFromMapped state overrideDelay c input
+        DbInterceptorUtils.invokeFromMapped state overrideDelay c input
         
 
-type ObjPipelineInterceptor(
+type DbInterceptor(
     database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>,
     artificialDelay: TimeSpan,
     defaultLogger: ILogger voption,
@@ -199,7 +199,7 @@ type ObjPipelineInterceptor(
           scanSizeLimits =
             { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
               maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
-          awsAccountId = Settings.DefaultAwsAccountId }: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
+          awsAccountId = Settings.DefaultAwsAccountId }: DbInterceptorUtils.DbInterceptorState
 
     let mutable awsLogger = Unchecked.defaultof<Amazon.Runtime.Internal.Util.ILogger>
     let mutable innerHandler = Unchecked.defaultof<IPipelineHandler>
@@ -218,7 +218,7 @@ type ObjPipelineInterceptor(
 
     // exposed to test specific edge case
     member _.InvokeSync useDelay request c =
-        (if useDelay then ObjPipelineInterceptorUtils.invoke else ObjPipelineInterceptorUtils.invokeWithoutDelay) state c request
+        (if useDelay then DbInterceptorUtils.invoke else DbInterceptorUtils.invokeWithoutDelay) state c request
         |> Io.execute
 
     interface IDisposable with
@@ -251,7 +251,7 @@ type ObjPipelineInterceptor(
                 :?> Amazon.Runtime.AmazonWebServiceResponse
 
         member _.InvokeAsync<'a when 'a : (new : unit -> 'a) and 'a :> AmazonWebServiceResponse>(executionContext: IExecutionContext) =
-            ObjPipelineInterceptorUtils.invoke
+            DbInterceptorUtils.invoke
                 state
                 executionContext.RequestContext.CancellationToken
                 executionContext.RequestContext.OriginalRequest
@@ -259,4 +259,4 @@ type ObjPipelineInterceptor(
                 let r = r :?> 'a
                 executionContext.ResponseContext.Response <- r
                 r
-            |> ObjPipelineInterceptorUtils.asTask
+            |> DbInterceptorUtils.asTask

@@ -136,7 +136,7 @@ type CloudFormationParser() =
         DbCommandExecutor.execute state ValueNone CancellationToken.None updateReq
         |%|> fun _ -> struct (deletionProtection, updateReq.TableName |> Maybe.expectSome)
 
-    static member private scopeState logger (state: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) id =
+    static member private scopeState logger (state: DbInterceptorUtils.DbInterceptorState) id =
         match state.parent with
         | ValueNone -> invalidOp "Unexpected error occurred"
         | ValueSome struct (parent, _) ->
@@ -168,7 +168,7 @@ type CloudFormationParser() =
         |> Io.traverse
         |> Io.ignore<unit list>
 
-    static member private handleGlobalTable logger (state: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) json =
+    static member private handleGlobalTable logger (state: DbInterceptorUtils.DbInterceptorState) json =
         let logger' = logger ?|? Logger.notAnILogger
 
         logger'.LogInformation("Creating global table")
@@ -249,7 +249,7 @@ type CloudFormationParser() =
 
         let database = CloudFormationParser.createDatabase settings logger constructs
         
-        let applyToClient constructs (clientState: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState) =
+        let applyToClient constructs (clientState: DbInterceptorUtils.DbInterceptorState) =
             List.fold (fun (s: ValueTask<unit>) x ->
                 s
                 |%|> fun _ -> clientState
@@ -267,7 +267,7 @@ type CloudFormationParser() =
                   scanSizeLimits =
                       { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
                         maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
-                  awsAccountId = Settings.DefaultAwsAccountId}: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
+                  awsAccountId = Settings.DefaultAwsAccountId}: DbInterceptorUtils.DbInterceptorState
             | Either2 (db': GlobalDatabase) ->
                 { db = db'.GetDatabase ValueNone dbId
                   parent = ValueSome struct (db', dbId)
@@ -277,7 +277,7 @@ type CloudFormationParser() =
                   scanSizeLimits =
                       { maxScanItems = Settings.ScanSizeLimits.DefaultMaxScanItems
                         maxPageSizeBytes = Settings.ScanSizeLimits.DefaultMaxPageSizeBytes }
-                  awsAccountId = Settings.DefaultAwsAccountId}: ObjPipelineInterceptorUtils.ObjPipelineInterceptorState
+                  awsAccountId = Settings.DefaultAwsAccountId}: DbInterceptorUtils.DbInterceptorState
         
         let apply struct (dbId, constructs) db =
             let state = dbState dbId db

@@ -29,8 +29,8 @@ type Exploration(output: ITestOutputHelper) =
                   subscriberTimeout = System.TimeSpan.FromSeconds(float 2) }
 
             use host = new GlobalDatabase(logger = writer)
-            use clientFrom = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome dbFrom) ValueNone (ValueSome host)
-            use clientTo = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient>(ValueSome writer) true (ValueSome dbTo) ValueNone (ValueSome host)
+            use clientFrom = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome dbFrom) ValueNone false (ValueSome host)
+            use clientTo = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient>(ValueSome writer) true (ValueSome dbTo) ValueNone false (ValueSome host)
             TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientFrom
             TestDynamoClient.setProcessingDelay System.TimeSpan.Zero clientTo
 

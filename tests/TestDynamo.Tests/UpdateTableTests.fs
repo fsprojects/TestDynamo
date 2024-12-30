@@ -165,7 +165,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
                 use writer = new TestLogger(collector)
 
                 use host = new GlobalDatabase(logger = writer)
-                use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone (ValueSome host)
+                use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone false (ValueSome host)
                 let! _ =                    
                     TableBuilder.empty
                     |> TableBuilder.withTableName defaultTable
@@ -218,7 +218,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
         task {
             // arrange
             let! host = baseTableWithStream (ValueSome output)
-            use originalClient = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone (ValueSome host)
+            use originalClient = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone false (ValueSome host)
 
             do!
                 ItemBuilder.empty
@@ -251,7 +251,7 @@ type UpdateTableTests(output: ITestOutputHelper) =
             // arrange
             use writer = new TestLogger(output)
             use! host = baseTableWithStream (ValueSome output)
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone (ValueSome host)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> (ValueSome writer) true (ValueSome defaultDbId) ValueNone false (ValueSome host)
 
             // act
             // assert

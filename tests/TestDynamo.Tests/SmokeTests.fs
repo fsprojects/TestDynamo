@@ -123,12 +123,12 @@ type SmokeTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]        
-    let ``ObjPipelineInterceptor force synchronous test`` () =
+    let ``DbInterceptor force synchronous test`` () =
         task {
             // arrange
             let db = new ApiDb()
             let delay = TimeSpan.FromSeconds(0.2)
-            use subject = new ObjPipelineInterceptor(db |> Either1, delay, ValueNone, true)
+            use subject = new DbInterceptor(db |> Either1, delay, ValueNone, true)
             let request =
                 let r = CreateTableRequest()
                 r.TableName <- "NewTable"
@@ -160,7 +160,7 @@ type SmokeTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]
-    let ``ObjPipelineInterceptor is disposed correctly`` () =
+    let ``DbInterceptor is disposed correctly`` () =
 
         // arrange
         use db1 = new Api.Database()
@@ -256,7 +256,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
         task {
             use host = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome host)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone false (ValueSome host)
 
             // arrange
             let! tableName1 = addGlobalTable client
@@ -315,7 +315,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone false (ValueSome commonHost)
 
             let! tableName = addTable client true
             let req = CreateGlobalTableRequest()
@@ -345,7 +345,7 @@ type SmokeTests(output: ITestOutputHelper) =
         task {
             // arrange
             use commonHost = new GlobalDatabase()
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) ValueNone false (ValueSome commonHost)
             let! tableName = addTable client true
 
             let r =
@@ -391,7 +391,7 @@ type SmokeTests(output: ITestOutputHelper) =
 
                         }
 
-            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) (ValueSome interceptor) (ValueSome commonHost)
+            use client = TestDynamoClient.createGlobalClient<AmazonDynamoDBClient> ValueNone true (ValueSome {regionId = "r1" }) (ValueSome interceptor) false (ValueSome commonHost)
 
             let r =
                 let rr = DescribeTableRequest()
@@ -409,6 +409,85 @@ type SmokeTests(output: ITestOutputHelper) =
             // act 2
             let! e = Assert.ThrowsAnyAsync(fun _ -> client.DescribeTableAsync(r))
             assertError output "Table uuu not found" e
+        }
+
+    [<Fact>]
+    let ``Recorder test, recordings not enabled`` () =
+
+        // arrange
+        use client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>()
+        
+        // act
+        // assert
+        let e = Assert.ThrowsAny(fun () -> TestDynamoClient.getRecordings client |> ignore)
+        assertError output "Recordings are not enabled" e
+
+    [<Fact>]
+    let ``Recorder tests`` () =
+
+        task {
+            // arrange
+            use client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>(recordCalls = true)
+            TestDynamoClient.getRecordings client
+            |> Assert.Empty
+            
+            let createReq tableName =
+                let r = CreateTableRequest()
+                r.TableName <- tableName
+                r.AttributeDefinitions <- MList<_>([
+                    let d = AttributeDefinition()
+                    d.AttributeName <- "N"
+                    d.AttributeType <- "N"
+                    d
+                ])
+                r.KeySchema <- MList<_>([
+                    let k = KeySchemaElement()
+                    k.AttributeName <- "N"
+                    k.KeyType <- KeyType.HASH
+                    k
+                ])
+                r
+            
+            // act
+            let! createTable = client.CreateTableAsync(createReq "t11")
+            let! e = Assert.ThrowsAnyAsync(fun _ -> client.CreateTableAsync(createReq null) |> Io.ignoreTask)
+            let! listTables = client.ListTablesAsync()
+            
+            // assert
+            assertError output "TableName property is mandatory" e
+            match TestDynamoClient.getRecordings client |> List.ofSeq with
+            | [ {request = :? CreateTableRequest as req1; response = Either1 (:? CreateTableResponse as res1)} & r1
+                {request = :? CreateTableRequest as req2; response = Either2 res2} & r2
+                {request = :? ListTablesRequest as _; response = Either1 (:? ListTablesResponse as res3)} & r3 ] ->
+                
+                Assert.True(r1.startTime < r2.startTime)
+                Assert.True(r2.startTime < r3.startTime)
+                
+                Assert.True(r1.startTime < r1.endTime)
+                Assert.True(r2.startTime < r2.endTime)
+                Assert.True(r3.startTime < r3.endTime)
+                
+                Assert.True(r1.IsSuccess)
+                Assert.False(r1.IsException)
+                Assert.False(r2.IsSuccess)
+                Assert.True(r2.IsException)
+                Assert.True(r3.IsSuccess)
+                Assert.False(r3.IsException)
+                
+                Assert.Equal("t11", req1.TableName)
+                Assert.Null(req2.TableName)
+                
+                Assert.Equal(createTable, res1)
+                Assert.Equal<Amazon.Runtime.AmazonWebServiceResponse>(createTable, r1.SuccessResponse)
+                Assert.Equal(e, res2)
+                Assert.Equal<Exception>(e, r2.Exception)
+                Assert.Equal(listTables, res3)
+                Assert.Equal<Amazon.Runtime.AmazonWebServiceResponse>(listTables, r3.SuccessResponse)
+                
+                Assert.ThrowsAny(fun _ -> r1.Exception |> ignore) |> assertError output "This response was not a failure"
+                Assert.ThrowsAny(fun _ -> r2.SuccessResponse |> ignore) |> assertError output "This response was a failure"
+                Assert.ThrowsAny(fun _ -> r3.Exception |> ignore) |> assertError output "This response was not a failure"
+            | _ -> Assert.Fail("Expected 3 recordings")
         }
 
     [<Theory>]
