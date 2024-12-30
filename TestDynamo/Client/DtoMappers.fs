@@ -48,20 +48,11 @@ type private DebugUtils() =
         Console.WriteLine($"DtoMap {f x}")
         x
 
-    static member debug<'a, 's> (f: struct ('s * 'a) -> string) (s: 's) (x: 'a) =
-#if DEBUG
-        if traceDtoMapping then DebugUtils.debug'(f, struct (s, x)) |> sndT
-        else x
-#else
-        x
-#endif
-
-    static member debugExpression<'a> (f: 'a -> string) (expr: Expr) =
-#if DEBUG
-        if not traceDtoMapping then expr
-        elif (expr.Type <> typeof<'a>) then expr
+    // keep private. Does not have any traceDtoMapping protection
+    static member private debugExpression'<'a> (f: 'a -> string) (expr: Expr) =
+        if (expr.Type <> typeof<'a>) then expr
         else
-
+            
         let m =
             { isStatic = true
               t = typeof<DebugUtils>
@@ -74,6 +65,19 @@ type private DebugUtils() =
 
         [Expr.constant f; expr]
         |> Expr.callStatic m
+
+    static member inline debug<'a, 's> (f: struct ('s * 'a) -> string) (s: 's) (x: 'a) =
+#if DEBUG
+        if traceDtoMapping then DebugUtils.debug'(f, struct (s, x)) |> sndT
+        else x
+#else
+        x
+#endif
+
+    static member inline debugExpression<'a> (f: 'a -> string) (expr: Expr) =
+#if DEBUG
+        if traceDtoMapping then DebugUtils.debugExpression' f expr
+        else expr
 #else
         expr
 #endif
@@ -957,6 +961,9 @@ module ComplexObjectMapper =
         |> Maybe.traverse
         |> Seq.sortBy (sndT >> _.Length >> (*)-1)
         |> Collection.tryHead
+        
+    let private debugProp struct (_, struct (x, y: PropertyInfo)) =
+        $"{y.Name} {ValueOption.isSome x}"
 
     let private propMappings (mapFromProperty: string -> PropertyInfo voption) (toProperties: PropertyInfo seq) =
 
@@ -965,8 +972,14 @@ module ComplexObjectMapper =
         |> Seq.map (
             tplDouble
             >> mapFst (_.Name >> mapFromProperty)
+            >> DebugUtils.debug debugProp ()
             >> traverseTpl1)
-        |> allOrNone
+        |> Maybe.traverse
+        
+    let private debugConstructor =
+        sndT
+        >> fun (struct (ctr: ConstructorInfo, _) & x) -> $"{ctr.DeclaringType.Name}({ctr.GetParameters().Length})"
+        |> flip DebugUtils.debug ()
 
     let private compileConstructorMapParts (tFrom: Type) (tTo: Type) =
 
@@ -980,19 +993,23 @@ module ComplexObjectMapper =
             |> Collection.tryHead
 
         getBestConstructor readProp tTo
-        ?>>= fun constructor ->
-            let propNotSetInConstructor =
-                sndT constructor
-                |> List.map fstT
-                |> flip List.contains
-                >> not
+        ?|> (
+            debugConstructor
+            >> fun constructor ->
+            
+                let propNotSetInConstructor =
+                    sndT constructor
+                    |> List.map fstT
+                    |> flip List.contains
+                    >> not
 
-            tTo.GetProperties()
-            |> Seq.filter _.CanWrite
-            |> Seq.filter propNotSetInConstructor
-            |> Seq.filter (_.Name >> IsSet.isIsSet >> not)
-            |> propMappings readProp
-            ?|> tpl constructor
+                tTo.GetProperties()
+                |> Seq.filter _.CanWrite
+                |> Seq.filter propNotSetInConstructor
+                |> Seq.filter (_.Name >> IsSet.isIsSet >> not)
+                |> propMappings readProp
+                |> List.ofSeq
+                |> tpl constructor)
 
     let private maybeInjectConstructorArg struct (eFrom: Expr, pFrom: PropertyInfo) (ctrArg: Expr) =
         IsSet.ifSetExpression struct (eFrom, pFrom)
@@ -1083,26 +1100,38 @@ module ComplexObjectMapper =
                 | ps -> Expr.maybeMutate ps eTo) eFrom
 
     // good logging method, might be handy for debug in future
-    // let private printConstructorMap =
-    //     let valNoneString = asLazy "Constructor map: ValueNone"
-    //
-    //     let valSomeString struct (state, struct (struct (constructor: ConstructorInfo, args), propSetters)) =
-    //         let argStr =
-    //             List.map (fun struct (prop: PropertyInfo, param: ParameterInfo) ->
-    //                 sprintf "\n  %s: %s = %s: %s" param.Name (typeName param.ParameterType) prop.Name (typeName prop.PropertyType)) args
-    //             |> Str.join ", "
-    //
-    //         let setterStr =
-    //             List.map (fun struct (fromProp: PropertyInfo, toProp: PropertyInfo) ->
-    //                 sprintf "\n  %s: %s = %s: %s" toProp.Name (typeName toProp.PropertyType) fromProp.Name (typeName fromProp.PropertyType)) propSetters
-    //             |> Str.join ", "
-    //
-    //         let setterStr = if setterStr = "" then "" else sprintf "\n  %s" setterStr
-    //         sprintf "Constructor map: %s(%s)%s" constructor.DeclaringType.Name argStr setterStr
-    //
-    //     function
-    //     | ValueNone -> DebugUtils.debug valNoneString () ValueNone
-    //     | ValueSome x -> DebugUtils.debug valSomeString () x |> ValueSome
+    let private printConstructorMap =
+        
+        let valSomeString (t: Type) struct (struct (constructor: ConstructorInfo, args), propSetters) =
+            let argStr =
+                List.map (fun struct (prop: PropertyInfo, param: ParameterInfo) ->
+                    sprintf "\n  %s: %s = %s: %s" param.Name (typeName param.ParameterType) prop.Name (typeName prop.PropertyType)) args
+                |> Str.join ", "
+    
+            let setterStr =
+                List.map (fun struct (fromProp: PropertyInfo, toProp: PropertyInfo) ->
+                    sprintf "\n  %s: %s = %s: %s" toProp.Name (typeName toProp.PropertyType) fromProp.Name (typeName fromProp.PropertyType)) propSetters
+                |> Str.join ", "
+    
+            let setterStr = if setterStr = "" then "" else sprintf "\n  %s" setterStr
+            sprintf "Constructor map: %s(%s)%s" constructor.DeclaringType.Name argStr setterStr
+            
+        let valString struct (t: Type, x) =
+            match x with
+            | ValueNone -> $"Constructor map ({t.Name}): ValueNone"
+            | ValueSome x -> valSomeString t x
+    
+        DebugUtils.debug valString
+        
+    let constructionPassed = asLazy "Construction passed"
+    let constructionFailed = asLazy "Construction failed"
+    let private print someMsg noneMsg x =
+        match x with
+        | ValueNone & x -> DebugUtils.debug constructionFailed () x
+        | ValueSome _ & x -> DebugUtils.debug constructionPassed () x
+        
+    let private printConstructorInvocation = print "Construction passed" "Construction failed"
+    let private printAssignment = print "Assignment passed" "Assignment failed"
 
     let mapper tryInvokePropMap (eFrom: Expr) (tTo: Type): Expr voption =
 
@@ -1115,9 +1144,12 @@ module ComplexObjectMapper =
 
         Expr.maybeCache (fun eFrom ->
             compileConstructorMapParts eFrom.Type tTo
+            |> printConstructorMap eFrom.Type
             ?>>= (fun struct (constructor, propMappings) ->
                 buildComplex tryInvokePropMap eFrom constructor
-                ?>>= (flip (assignProps tryInvokePropMap eFrom) propMappings))) eFrom
+                |> printConstructorInvocation
+                ?>>= (flip (assignProps tryInvokePropMap eFrom) propMappings)
+                |> printAssignment)) eFrom
 
 let private nullProtect (eFrom: Expr) (tTo: Type) (mapper: Expr) =
     if eFrom.Type.IsValueType
@@ -1195,8 +1227,7 @@ module rec CompositeMappers =
 
     let private tryBuildMapperDelegate' struct (tFrom: Type, tTo: Type): AttemptedMapperDelegate =
         try
-            Expr.tryLambda1 tFrom (
-                flip mapper tTo)
+            Expr.tryLambda1 tFrom (flip mapper tTo)
             ?|> (
                 Expr.compile
                 >> fun compiled -> { isValid = true; build = asLazy compiled })

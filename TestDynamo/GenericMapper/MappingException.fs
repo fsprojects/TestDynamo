@@ -3,18 +3,18 @@
 open System
 open TestDynamo.Utils
 
-type MappingException private(path: string list, rootFrom: Type, rootTo: Type, baseFrom: Type, baseTo: Type, inner: exn voption) =
-    inherit Exception(MappingException.msg path rootFrom rootTo baseFrom baseTo, inner |> ValueOption.defaultValue null |> MappingException.innerExn)
+type MappingException private(path: string list, rootFrom: Type, rootTo: Type, baseFrom: Type, baseTo: Type, inner: exn) =
+    inherit Exception(MappingException.msg path rootFrom rootTo baseFrom baseTo, inner |> MappingException.innerExn)
 
     member _.BaseFrom = baseFrom
     member _.BaseTo = baseTo
     member _.Path = path
 
     new(fromT: Type, toT: Type, inner: Exception) =
-        MappingException ([], fromT, toT, fromT, toT, ValueSome inner)
+        MappingException ([], fromT, toT, fromT, toT, inner)
 
     new(property: string, fromT: Type, toT: Type, inner: MappingException) =
-        MappingException (property::inner.Path, fromT, toT, inner.BaseFrom, inner.BaseTo, ValueSome inner.InnerException)
+        MappingException (property::inner.Path, fromT, toT, inner.BaseFrom, inner.BaseTo, inner.InnerException)
 
     static member private innerExn: exn -> exn = function
         | null -> null

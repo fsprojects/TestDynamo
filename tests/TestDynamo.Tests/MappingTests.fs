@@ -22,6 +22,24 @@ open TestDynamo.Tests.RequestItemTestUtils
 
 type LambdaAttributeValue = Amazon.Lambda.DynamoDBEvents.DynamoDBEvent.AttributeValue
 
+type T1<'a>() =
+    let mutable a = Unchecked.defaultof<'a>
+    member _.A
+        with get () = a
+        and set value = a <- value
+
+type T2<'a, 'b>() =
+    let mutable a = Unchecked.defaultof<'a>
+    let mutable b = Unchecked.defaultof<'b>
+    
+    member _.A
+        with get () = a
+        and set value = a <- value
+        
+    member _.B
+        with get () = b
+        and set value = b <- value
+
 module MappingTestGenerator =
 
     let rec attributeValue' (random: Random) depth (fixture: Fixture): DynamoAttributeValue voption =
@@ -516,4 +534,20 @@ type MappingTests(output: ITestOutputHelper) =
         
         // assert
         assertError output "Found null value in input or output" e
+            
+    [<Fact>]
+    let ``Test missing props`` () =
+        
+        // arrange
+        let t1 = T1()
+        t1.A <- 111
+
+        // act
+        let t2 = DtoMappers.mapDto<T1<int>, T2<int, obj>> t1
+        let t11 = DtoMappers.mapDto<T2<int, obj>, T1<int>> t2
+        
+        // assert
+        Assert.Equal(111, t2.A)
+        Assert.Equal(111, t11.A)
+        Assert.Null(t2.B)
         
