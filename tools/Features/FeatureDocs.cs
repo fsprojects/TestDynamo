@@ -162,6 +162,8 @@ public static class FeatureDocs
 
         Type RefineType(Type type)
         {
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+                return RefineType(type.GenericTypeArguments[0]);
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
                 return RefineType(type.GenericTypeArguments[0]);
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
