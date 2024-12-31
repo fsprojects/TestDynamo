@@ -2,7 +2,8 @@
 # run this from the repo root directory
 # AdditionalConstants is configured to add extra DefineConstants to the build (i.e. more #compiler directives)`
 param(
-    [Parameter(Mandatory=$true)][string]$libVersion) 
+    [Parameter(Mandatory=$true)][string]$libVersion,
+    $cleanUpChanges = $true) 
 
 
 $diff = (git diff)
@@ -22,8 +23,10 @@ function quit() {
     $testProjects |
         ForEach-Object -Process {
         
-        Write-Host "Reverting $_"
-        git checkout "$_"
+        if ($cleanUpChanges) {
+            Write-Host "Reverting $_"
+            git checkout "$_"
+        }
     }
 }
 
