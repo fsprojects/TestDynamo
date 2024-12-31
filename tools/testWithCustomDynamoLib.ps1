@@ -30,7 +30,12 @@ function quit() {
     }
 }
 
-$currentVersion = "4.0.0-preview.4"
+$currentVersion = "$(Get-Content "$rootDir\tests\testVersion.txt")"
+if (!$? || -not $currentVersion) {
+    Write-Error "Expected version file at $rootDir\tests\testVersion.txt"
+    exit 1
+}
+
 $testProjects |
     ForEach-Object -Process {
 

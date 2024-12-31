@@ -19,7 +19,11 @@
     Allow compiler to change compiler directives. This is used to test dotnet standard 
     https://stackoverflow.com/questions/59249847/passing-define-constants-to-dotnet-build-kills-target-framework-symbols
     -->
+    
+    <!-- first add constants from command line-->
     <DefineConstants Condition=" '$(AdditionalConstants)' != '' ">$(DefineConstants);$(AdditionalConstants)</DefineConstants>
+    <!-- then add DYNAMODB_3 and specific version-->
+    <DefineConstants Condition=" '$(DynamoDbVersion)' != '' ">$(DefineConstants);DYNAMODB_3;$(DynamoDbVersion)</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

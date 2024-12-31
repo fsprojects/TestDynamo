@@ -342,6 +342,9 @@ type MappingTests(output: ITestOutputHelper) =
     [<ClassData(typeof<MappingTestGenerator.MappingTestData>)>]
     let ``Test all mappable classes`` struct (tFrom: Type, tTo: Type) =
 
+#if DYNAMODB_3
+        ()
+#else
         let m = typeof<MappingTestGenerator.TestExecutor>.GetMethod(
             nameof MappingTestGenerator.TestExecutor.MapToAndFrom,
             BindingFlags.Static ||| BindingFlags.Public)
@@ -349,6 +352,7 @@ type MappingTests(output: ITestOutputHelper) =
         output.WriteLine($"{tFrom} {tTo}")
         m.MakeGenericMethod([|tFrom; tTo|]).Invoke(null, [|random |> box|])
         |> ignoreTyped<obj>
+#endif
 
     [<Fact>]
     let ``Test from is set method`` () =

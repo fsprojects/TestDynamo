@@ -41,8 +41,21 @@ let (!<>) x = x
 let (!<>) x = Nullable<_>(x)
 #endif
 
+let rec private slnRoot' (cwd: DirectoryInfo) =
+    
+    if cwd.GetFiles() |> Seq.filter (fun f -> f.Name = "TestDynamo.sln") |> Seq.isEmpty |> not
+    then cwd
+    elif cwd.Parent = null
+    then invalidOp "Could not find sln root"
+    else slnRoot' cwd.Parent
+    
+let slnRoot = DirectoryInfo(Directory.GetCurrentDirectory()) |> slnRoot'
+
 let attributeFromDynamodb (attr: DynamoAttributeValue) =
     DtoMappers.mapDto<DynamoAttributeValue, AttributeValue> attr
+
+let normalizeVersion(v: Version) =
+    Version(Math.Max(0, v.Major), Math.Max(0, v.Minor), Math.Max(0, v.Build), Math.Max(0, int v.MinorRevision))
     
 let itemFromDynamodb (x: Dictionary<string,DynamoAttributeValue>) =
     x

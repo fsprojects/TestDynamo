@@ -2,6 +2,7 @@
 namespace TestDynamo.Tests
 
 open System
+open System.Text.RegularExpressions
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
@@ -43,6 +44,20 @@ type SmokeTests(output: ITestOutputHelper) =
 
         Assert.Equal(4, ItemSize.countDigits 0.45M)
         Assert.Equal(5, ItemSize.countDigits -0.45M)
+
+    [<Fact>]
+    let ``Verify dynamodb version`` () =
+        
+        if not DynamoDbVersion.isLatestVersion then ()
+        else
+            let slnRoot = slnRoot
+            use vFile = System.IO.File.OpenRead($@"{slnRoot.FullName}\tests\testVersion.txt");
+            use vData = new System.IO.StreamReader(vFile);
+
+            let target = Version.Parse(Regex.Replace(vData.ReadToEnd(), @"[^\d\.].*", "")) |> normalizeVersion;
+            let actual = typeof<AmazonDynamoDBClient>.Assembly.GetName().Version |> normalizeVersion;
+
+            Assert.Equal(target, actual)
 
     [<Fact>]
     let ``Create table, put item, query smoke tests`` () =
