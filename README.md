@@ -391,7 +391,7 @@ DatabaseSerializer.Database.ToFile(db1, @"TestData.json");
 using var db2 = DatabaseSerializer.Database.FromFile(@"TestData.json");
 
 // there are also tools to serialize and deserialze global databases
-var json = DatabaseSerializer.GlobalDatabase.ToString(globalDb, @"TestData.json");
+var json = DatabaseSerializer.GlobalDatabase.ToString(globalDb);
 ```
 
 Serialization is designed to share data between test runs, but ultimately, it scales with the number of items in the database. This means
