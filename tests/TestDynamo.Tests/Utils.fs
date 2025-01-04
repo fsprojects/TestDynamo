@@ -227,11 +227,15 @@ type NineFlags private(filter: (bool list -> bool) voption) =
     new() = NineFlags(ValueNone)
     new(filter: bool list -> bool) = NineFlags(ValueSome filter)
 
-type EnumValues<'a when 'a :> Enum and 'a : (new: unit -> 'a) and 'a : struct>() =
+type EnumValues<'a when 'a :> Enum and 'a : (new: unit -> 'a) and 'a : struct>(?filter: 'a -> bool) =
+    static let noFilter = asLazy true
+    let filter = filter |> Maybe.fromRef ?|? noFilter
+    
     interface IEnumerable<obj array> with
         member this.GetEnumerator(): IEnumerator<obj array> =
             let values =
                 Enum.GetValues<'a>()
+                |> Seq.filter filter
                 |> Seq.map (box >> Array.singleton)
 
             values.GetEnumerator()

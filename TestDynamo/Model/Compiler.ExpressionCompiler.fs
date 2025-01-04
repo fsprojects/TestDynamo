@@ -155,6 +155,7 @@ module ExpressionCompiler =
 
         with
         static member writer x = x.asWriter
+        static member reader x = x.asReader
 
     module private Build =
         let private expandOpt = ValueOption.map AstNode.expand >> ValueOption.defaultValue []
@@ -366,21 +367,19 @@ module ExpressionCompiler =
 
         let stateMutatorInit = State.retn []
         let inline private buildWriterResult struct (result, mutatedPaths) = { result = result; mutatedPaths = mutatedPaths }
-        let private buildWriter' struct (settings, lookups, mutations: ItemMutation list) =
+        let private buildWriter' struct (settings, lookups, mutations: ItemMutation list) item =
+            let itemData =
+                { item = item
+                  filterParams = lookups }
 
-            fun item ->
-                let itemData =
-                    { item = item
-                      filterParams = lookups }
-
-                mutations
-                |> Seq.map (ItemMutation.executable itemData)
-                |> Seq.fold (flip State.bind) stateMutatorInit
-                |> flip State.execute
-                >> mapSnd (
-                    List.collect id
-                    >> validateMutatedAttributes struct (mutations, settings))
-                >> buildWriterResult
+            mutations
+            |> Seq.map (ItemMutation.executable itemData)
+            |> Seq.fold (flip State.bind) stateMutatorInit
+            |> flip State.execute
+            >> mapSnd (
+                List.collect id
+                >> validateMutatedAttributes struct (mutations, settings))
+            >> buildWriterResult
 
         let private noWriter = Item.attributes >> curry buildWriterResult |> flip |> apply [] |> asLazy |> flip
         let buildWriter settings (lookups: FilterTools) (mutations: ItemMutation list) =
@@ -425,5 +424,5 @@ module ExpressionCompiler =
         |> mapSnd (flip tpl)
         |> applyTpl
         |> Writer.execute
-        |> mapFst (Compile.buildWriter c.settings lookups)
+        |> mapFst (Logger.stackTrace1 "ExpressionCompiler.compile" lookups.logger Compile.buildWriter c.settings lookups)
         |> Compile.asCompiledExpression

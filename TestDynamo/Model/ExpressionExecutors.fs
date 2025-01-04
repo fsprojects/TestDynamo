@@ -337,7 +337,7 @@ module Fetch =
                              invalidIndexKeyAttributes = keys
                              tableScalarAttributes = tableAttributeNames }
                     >> mapFst ValueSome)
-                |> ValueOption.defaultValue struct (ValueNone, returnTrue)
+                ?|? struct (ValueNone, returnTrue)
 
             let updateAst =
                 req.updateExpression

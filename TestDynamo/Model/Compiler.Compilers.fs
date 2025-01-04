@@ -22,6 +22,7 @@ module private CompileUtils =
         fun (logger: Logger) (tableSettings: CompilerSettings) ->
             tplDouble
             >> mapSnd (compiler logger tableSettings)
+            |> Logger.stackTrace1 "CompileUtils.compileAst'" logger
 
     let private compile' astCompiler buildFilterCompiler =
         let compiler = compileAst' buildFilterCompiler
@@ -29,7 +30,7 @@ module private CompileUtils =
         fun (logger: Logger) (tableSettings: CompilerSettings) (expression: string) ->
             expression
             |> astCompiler logger
-            |> compiler logger tableSettings
+            |> Logger.stackTrace1L "CompileUtils.compile'" compiler logger tableSettings
 
     let compile (cacheHitMessage: Printf.StringFormat<CacheHit -> string>) astCompiler buildFilterCompiler =
 
@@ -40,10 +41,11 @@ module private CompileUtils =
         let memoed = uncurry3 compile |> memoize Settings.QueryCacheSize keySelector
 
         let memoedWithLogging struct (logger, settings) expr =
-            try
+            try                
                 memoed struct (logger, settings, expr)
                 |> mapFst (debug logger)
                 |> sndT
+                |> mapSnd (Logger.stackTrace1 "Compiling expr from FilterTools" logger)
             with
             | e -> ClientError.clientErrorWithInnerException $"Error compiling expression: \"{expr}\"" e
 
@@ -172,15 +174,15 @@ module Filters =
         | ValueNone
         | ValueSome _ -> false
 
+    let private reformatAsBoolean = flip (>>) (ExpressionCompiler.CompiledExpression.reader >>> booleanAnswer)
+    
     let compile logger tableSettings =
         let settings =
             { parserSettings = parserSettings
               tableSettings = tableSettings }
 
         compile' struct (logger, settings)
-        >> mapSnd (
-            flip (>>) _.asReader
-            >>>> booleanAnswer)
+        >> mapSnd reformatAsBoolean
 
 module OpenIndex =
 

@@ -4,6 +4,7 @@ open System.Text
 open System.Threading
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
+open Microsoft.Extensions.Logging
 open TestDynamo
 open TestDynamo.Model.ExpressionExecutors.Fetch
 open TestDynamo.Utils
@@ -116,7 +117,8 @@ type PagingTests(output: ITestOutputHelper) =
             | [] -> count
 
         task {
-            use writer = new TestLogger(output)
+            use writer = new TestLogger(output, LogLevel.Trace)
+            writer.Record true
 
             // arrange
             let! struct (table, host) = sharedTestDatabase ValueNone // (ValueSome output)
@@ -166,6 +168,16 @@ type PagingTests(output: ITestOutputHelper) =
 
             Assert.Equal(count, totalCount)
             Assert.Equal(100, resultScanned)
+            
+            // Not related to this test, bug found in query compilation where
+            // mutations were being compiled for each item in a search, instead of just once
+            // at the start
+            let mutationsBuilt =
+                writer.Recorded()
+                |> Seq.filter (sndT >> Str.contains "Building mutations")
+                |> Seq.length
+                
+            Assert.Equal((if ``filter type`` = null then 0 else pageCount), mutationsBuilt)
         }
 
     [<Theory>]

@@ -120,6 +120,36 @@ module Logger =
         trace1 "%O" (f struct (x, arg2)) logger
         x
 
+#if DEBUG
+    /// <summary>
+    /// Adds a debug message before and after a function call to function as a stack trace
+    /// This function is optimized to be invisible when building with a Release flag. 
+    /// </summary>
+    let internal stackTrace1L name f =
+        let f' logger x =
+            trace1 " + %s" name logger
+            let result = f logger x
+            trace1 " - %s" name logger
+            result
+        f'
+        
+    /// <summary>
+    /// Adds a debug message before and after a function call to function as a stack trace
+    /// This function is optimized to be invisible when building with a Release flag.
+    /// *DO NOT* use flip on this function or partially apply the first argument alone 
+    /// </summary>
+    let internal stackTrace1 name (logger: Logger) f =
+        let f' x =
+            trace1 " + %s" name logger
+            let result = f x
+            trace1 " - %s" name logger
+            result
+        f'
+#else
+    let inline internal stackTrace1 name logger = id
+    let inline internal stackTrace1L name = id
+#endif
+
     let debug0 message (L ((gFormat, _), t)) =
         if t.IsEnabled LogLevel.Debug
         then t.LogTrace(String.Format(gFormat, arg0 = message))
