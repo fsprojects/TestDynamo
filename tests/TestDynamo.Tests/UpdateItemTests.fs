@@ -736,6 +736,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
         }
 
     [<Theory>]
+    //[<InlineData(true)>]
     [<ClassData(typedefof<OneFlag>)>]
     let ``Update, REMOVE, multiple nested values`` ``root has value`` =
         task {

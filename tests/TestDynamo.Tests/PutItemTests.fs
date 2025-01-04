@@ -1,8 +1,9 @@
-
 namespace TestDynamo.Tests
 
 open System
 open System.Linq
+open System.Text
+open System.Text.Json
 open System.Threading.Tasks
 open Amazon.DynamoDBv2.Model
 open TestDynamo
@@ -44,7 +45,7 @@ type DataFailureType =
     | InvalidDataTypeIndexSortKey = 22
 
 type DataFailureTypeCases() =
-    inherit EnumValues<DataFailureType>()
+    inherit EnumValues<DataFailureType>() //(fun x -> x = DataFailureType.InvalidDataTypeIndexSortKey)
 
 type PutItemTests(output: ITestOutputHelper) =
 
@@ -430,9 +431,101 @@ type PutItemTests(output: ITestOutputHelper) =
             Assert.Equal(1, indexResult.Items.Count)
         }
 
+    // More a test of AttributeValue mappers than anything else
+    [<Fact>]
+    let ``Put and get, 1 of everything`` () =
+
+        task {
+            use client = buildClient output
+            let client = client.Client
+
+            // arrange
+            let! tableName = table
+
+            let pk1 = (Guid.NewGuid()).ToString()
+            let pk1V = ItemBuilder.buildItemAttribute "S" pk1
+
+            let item =
+                ItemBuilder.empty
+                |> ItemBuilder.withTableName tableName
+                |> ItemBuilder.withAttribute "TablePk" "S" pk1
+                |> ItemBuilder.withAttribute "TableSk" "N" "8"
+                
+                |> ItemBuilder.withAttribute "String" "S" "UU"
+                |> ItemBuilder.withAttribute "Number" "N" "22"
+                |> ItemBuilder.withAttribute "Binary" "UTF8" $"Hello"
+                |> ItemBuilder.withAttribute "True" "BOOL" $"true"
+                |> ItemBuilder.withAttribute "False" "BOOL" $"false"
+                |> ItemBuilder.withNullAttribute "Null"
+                |> ItemBuilder.withSetAttribute "StringSet" "SS" ["S1"]
+                |> ItemBuilder.withSetAttribute "NumberSet" "NS" ["1"]
+                |> ItemBuilder.withSetAttribute "BinarySet" "BS" ["B1"]
+                |> ItemBuilder.withMapAttribute "Map" [
+                    "P1", ("M", """[["P11", "M", "[[\"P111\", \"S\", \"S1\"]]"]]""")
+                    "P2", ("L", """[["L", "[[\"S\", \"S2\"]]"]]""")
+                    "P3", ("S", "S3")
+                ]
+                |> ItemBuilder.withListAttribute "List" [
+                    "M", """[["P11", "M", "[[\"P111\", \"S\", \"S4\"]]"]]"""
+                    "L", """[["L", "[[\"S\", \"S5\"]]"]]"""
+                    "S", "S6"
+                ]
+                |> ItemBuilder.withMapAttribute "EmptyMap" []
+                |> ItemBuilder.withListAttribute "EmptyList" []
+
+            // act
+            do! maybeBatch false client (ItemBuilder.asPutReq item)
+
+            // assert
+            let! saved = assertOne ValueNone (struct ("TablePk", pk1V)) ValueNone client
+            
+            Assert.Equal(15, saved.Count)
+            Assert.Equal("UU", saved["String"].S)
+            Assert.Equal("22", saved["Number"].N)
+            Assert.Equal("Hello", Encoding.UTF8.GetString(saved["Binary"].B.ToArray()))
+            
+            Assert.Equal(1, saved["StringSet"].SS.Count)
+            Assert.Equal("S1", saved["StringSet"].SS[0])
+            Assert.Equal(1, saved["NumberSet"].NS.Count)
+            Assert.Equal("1", saved["NumberSet"].NS[0])
+            Assert.Equal(1, saved["BinarySet"].BS.Count)
+            Assert.Equal("B1", Encoding.UTF8.GetString(saved["BinarySet"].BS[0].ToArray()))
+
+            Assert.True(saved["True"].BOOL)
+            Assert.True(saved["True"].IsBOOLSet)
+            Assert.False(saved["False"].BOOL)
+            Assert.True(saved["False"].IsBOOLSet)
+            
+            Assert.True(saved["Null"].NULL)
+            
+            Assert.True(saved["Map"].IsMSet)
+            Assert.Equal(3, saved["Map"].M.Count)
+            Assert.Equal("S1", saved["Map"].M["P1"].M["P11"].M["P111"].S)
+            Assert.Equal("S2", saved["Map"].M["P2"].L[0].L[0].S)
+            Assert.Equal("S3", saved["Map"].M["P3"].S)
+            
+            Assert.True(saved["List"].IsLSet)
+            Assert.Equal(3, saved["List"].L.Count)
+            Assert.Equal("S4", saved["List"].L[0].M["P11"].M["P111"].S)
+            Assert.Equal("S5", saved["List"].L[1].L[0].L[0].S)
+            Assert.Equal("S6", saved["List"].L[2].S)
+            
+            Assert.True(saved["EmptyMap"].IsMSet)
+            Assert.Equal(0, saved["EmptyMap"].M.Count)
+            
+            Assert.True(saved["EmptyList"].IsLSet)
+            Assert.Equal(0, saved["EmptyList"].L.Count)
+        }
+
     [<Theory>]
     [<ClassData(typedefof<DataFailureTypeCases>)>]
     let ``PutItem, test attribute types`` ``failure type`` =
+        
+        let v370 = DynamoDbVersion.isVersionOrLess DYNAMO_V370
+            
+        let attributeNotSetException msg =
+            if v370 then "AttributeValue object has no data"
+            else msg
 
         task {
             use client = buildClient output
@@ -460,8 +553,8 @@ type PutItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "Bin" "UTF8" $"Hello"
                 |> ItemBuilder.withNullAttribute "NL"
                 |> ItemBuilder.withMapAttribute "Mp" [("v1", ("S", "hi")); ("v1.1", ("S", "")); ("v2", ("UTF8", "something"))]
-                |> ItemBuilder.withMapAttribute "EmptyMp" []
                 |> ItemBuilder.withListAttribute "Lst" [("NULL", "null"); ("BOOL", "true")]
+                |> ItemBuilder.withMapAttribute "EmptyMp" []
                 |> ItemBuilder.withListAttribute "EmptyLst" []
                 |> ItemBuilder.withSetAttribute "StrS" "SS" ["v1"; "v2"; ""]
                 |> ItemBuilder.withSetAttribute "NumS" "NS" ["-88"; "99.55"]
@@ -470,9 +563,9 @@ type PutItemTests(output: ITestOutputHelper) =
             let struct (valid, putItemF, err) = 
                 match ``failure type`` with
                 | DataFailureType.None -> struct (true, id, "")
-                | DataFailureType.EmptyStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" [], "Empty set not supported")
-                | DataFailureType.EmptyNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" [], "Empty set not supported")
-                | DataFailureType.EmptyBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" [], "Empty set not supported")
+                | DataFailureType.EmptyStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" [], attributeNotSetException "Empty set not supported")
+                | DataFailureType.EmptyNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" [], attributeNotSetException "Empty set not supported")
+                | DataFailureType.EmptyBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" [], attributeNotSetException "Empty set not supported")
                 | DataFailureType.DuplicateInStringSet -> struct (false, ItemBuilder.withSetAttribute "StrS" "SS" ["x";"x"], "Duplicate value in String set")
                 | DataFailureType.DuplicateInNumberSet -> struct (false, ItemBuilder.withSetAttribute "NumS" "NS" ["1";"1"], "Duplicate value in Number set")
                 | DataFailureType.DuplicateInBinarySet -> struct (false, ItemBuilder.withSetAttribute "BinS" "BS" ["x";"x"], "Duplicate value in Binary set")
@@ -489,22 +582,22 @@ type PutItemTests(output: ITestOutputHelper) =
                 | DataFailureType.InvalidDataTypeIndexSortKey -> struct (false, ItemBuilder.withAttribute "IndexSk" "N" "8", "Expected attribute \"IndexSk\" to have type: String, got type Number")
                 | DataFailureType.InvalidNumber -> struct (false, ItemBuilder.withAttribute "" "N" "abc", "not in a correct format")
                 | DataFailureType.LoadsOfNesting ->
-
+                
                     let mapHead = buildDeeplyNestedMap() |> fstT
                     let listHead = buildDeeplyNestedList() |> fstT
-
+                
                     struct (true, ItemBuilder.addAttribute "LotsOfNesting1" mapHead >> ItemBuilder.addAttribute "LotsOfNesting2" listHead, "")
-
+                
                 | DataFailureType.LoadsOfNestingWithErrors1 ->
-
+                
                     let mapHead = DynamoAttributeValue()
                     let mapTail = mapHead |> addMapWith0Prop |> addListWith0Element |> addMapWith0Prop
                     mapTail.N <- "Err"
-
+                
                     struct (false, ItemBuilder.addAttribute "LotsOfNesting1" mapHead, "was not in a correct format")
-
+                
                 | DataFailureType.LoadsOfNestingWithErrors2 ->
-
+                
                     let mapHead = DynamoAttributeValue()
                     let mapTail = mapHead |> addMapWith0Prop |> addListWith0Element |> addMapWith0Prop
                     maybeSetProperty "IsMSet" mapTail true
@@ -512,7 +605,6 @@ type PutItemTests(output: ITestOutputHelper) =
                     maybeSetProperty "IsMSet" mapTail true
                     mapTail.M[""] <- DynamoAttributeValue()
                     mapTail.M[""].S <- "x"
-
                     struct (false, ItemBuilder.addAttribute "LotsOfNesting1" mapHead, "Item has map or property attribute with null or empty name: \"LotsOfNesting1.0.[].0\"")
                 | x -> invalidOp $"{x}"
 

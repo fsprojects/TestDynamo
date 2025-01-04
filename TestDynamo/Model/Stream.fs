@@ -632,7 +632,7 @@ module TableStreams =
         |> logOperation "ON DATA CHANGE"
 
     /// <summary>Returns any unhandled errors and a task to wait for streams to complete</summary>
-    let deleteTable table =
+    let tryDeleteTable table =
         fun logger ->
             TableDeleted table
             |> EmergencyBrakeRequest.noBrake
@@ -642,12 +642,12 @@ module TableStreams =
                     MapUtils.tryFind table streams
                     ?|> (
                         ValueOption.map (Stream.await logger ValueNone >> fstT)
-                        >> ValueOption.defaultValue noErrorsL)
+                        ??|? noErrorsL)
                     ?|> (fun x ->
                         Map.remove table streams
                         |> Strs
                         |> tpl x)
-                    |> ValueOption.defaultValue struct (noErrorsL, s)
+                    ?|? struct (noErrorsL, s)
         |> logOperationHalfAsync "REMOVING TABLE STREAM"
 
     type Enable = bool

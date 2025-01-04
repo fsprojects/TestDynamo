@@ -404,7 +404,7 @@ module Table =
                   tableKeyConfig = tableIndex
                   table = s } |> addIndex) afterDeleted req.schemaChange.createGsi
 
-        Logger.trace1 "Setting deletionProtection %A" req.deletionProtection logger
+        Logger.trace1 "Setting deletionProtection?: %A" req.deletionProtection logger
         let deletionProtection = req.deletionProtection ?|? data.info.hasDeletionProtection
         {indexResults with info.hasDeletionProtection = deletionProtection }
         |> tbl req.schemaChange.attributes

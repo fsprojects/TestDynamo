@@ -7,6 +7,7 @@ open System.Reflection
 open AutoFixture
 open Tests.Table
 open TestDynamo
+open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open FluentAssertions
@@ -18,6 +19,7 @@ open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.GenericMapper
 open TestDynamo.GenericMapper.DtoMappers
 open TestDynamo.Tests.RequestItemTestUtils
+open Tests.Table
 
 #nowarn "0025"
 
@@ -180,7 +182,7 @@ module MappingTestGenerator =
             [ExportFormat.ION; ExportFormat.DYNAMODB_JSON] |> registerConst random fixture
             [KeyType.HASH; KeyType.RANGE] |> registerConst random fixture
             [ReplicaStatus.CREATING; ReplicaStatus.UPDATING; ReplicaStatus.INACCESSIBLE_ENCRYPTION_CREDENTIALS] |> registerConst random fixture
-            [DestinationStatus.UPDATING; DestinationStatus.ENABLING; DestinationStatus.ENABLE_FAILED] |> registerConst random fixture
+            [DestinationStatus.DISABLING; DestinationStatus.ACTIVE; DestinationStatus.ENABLE_FAILED] |> registerConst random fixture
             [TimeToLiveStatus.DISABLING; TimeToLiveStatus.ENABLING; TimeToLiveStatus.DISABLED] |> registerConst random fixture
             [ExportStatus.FAILED; ExportStatus.COMPLETED; ExportStatus.IN_PROGRESS] |> registerConst random fixture
             [ProjectionType.ALL;ProjectionType.KEYS_ONLY; ProjectionType.INCLUDE] |> registerConst random fixture
@@ -227,14 +229,16 @@ module MappingTestGenerator =
             |> Seq.map (fun a -> a.GetType t)
             |> Seq.filter ((<>) null)
             |> Collection.tryHead
-            |> Maybe.expectSomeErr "Cannot find type %s to map to" t
+            |> if DynamoDbVersion.isLatestVersion
+               then Maybe.expectSomeErr "Cannot find type %s to map to" t >> ValueSome
+               else id
 
         let types =
             allTypes
             |> Seq.map (fun t ->
                 match t.GetCustomAttribute<DynamodbTypeAttribute>() with
                 | null -> ValueNone
-                | x -> x.Name |> getType |> flip tpl t |> ValueSome)
+                | x -> x.Name |> getType ?|> flip tpl t)
             |> Maybe.traverse
             |> Seq.filter (fun struct (x, y) ->
                 not x.IsInterface
@@ -247,8 +251,8 @@ module MappingTestGenerator =
                 && y <> typeof<AmazonDynamoDBRequest>
                 && x <> typeof<AmazonWebServiceRequest>
                 && y <> typeof<AmazonWebServiceRequest>
-                && x <> typeof<Amazon.Runtime.Endpoints.Endpoint>
-                && y <> typeof<Amazon.Runtime.Endpoints.Endpoint>)
+                && x.FullName <> "Amazon.Runtime.Endpoints.Endpoint"
+                && y.FullName  <> "Amazon.Runtime.Endpoints.Endpoint")
             |> Array.ofSeq
 
         Assert.True(Array.length types > 50)
@@ -301,13 +305,13 @@ module MappingTestGenerator =
                 // set some awkward props
                 match box start with
                 | :? Amazon.DynamoDBv2.Model.ScanRequest as sc ->
-                    sc.IsLimitSet <- true
-                    sc.IsSegmentSet <- true
-                    sc.IsTotalSegmentsSet <- true
+                    maybeSetProperty "IsLimitSet" sc true
+                    maybeSetProperty "IsSegmentSet" sc true
+                    maybeSetProperty "IsTotalSegmentsSet" sc true
                 | :? Amazon.DynamoDBv2.Model.GetItemResponse as ir ->
                     ir.IsItemSet <- true
                 | :? Amazon.DynamoDBv2.Model.QueryRequest as qr ->
-                    qr.IsLimitSet <- true
+                    maybeSetProperty "IsLimitSet" qr true
                 | _ -> ()
 
                 start
@@ -348,18 +352,16 @@ type MappingTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typeof<MappingTestGenerator.MappingTestData>)>]
     let ``Test all mappable classes`` struct (tFrom: Type, tTo: Type) =
-
-#if DYNAMODB_3
-        ()
-#else
+        if not DynamoDbVersion.isLatestVersion && tFrom <> typeof<AttributeValue> && tTo <> typeof<AttributeValue> then ()
+        else
+            
         let m = typeof<MappingTestGenerator.TestExecutor>.GetMethod(
             nameof MappingTestGenerator.TestExecutor.MapToAndFrom,
             BindingFlags.Static ||| BindingFlags.Public)
 
-        output.WriteLine($"{tFrom} {tTo}")
         m.MakeGenericMethod([|tFrom; tTo|]).Invoke(null, [|random |> box|])
         |> ignoreTyped<obj>
-#endif
+
     [<Theory>]
     [<ClassData(typeof<OneFlag>)>]
     let ``Map ToAttributeValue bug, 1`` v =
@@ -454,8 +456,14 @@ type MappingTests(output: ITestOutputHelper) =
             TestDynamo.GeneratedCode.Dtos.ScanRequest<AttributeValue>> data
 
         // assert
-        Assert.Equal(``is set``, data.GetType().GetProperty("IsLimitSet").GetValue(data) :?> bool)
-        Assert.Equal(``is set``, data.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(data, [||]) :?> bool)
+        match result1.GetType().GetProperty("IsLimitSet") with
+        | null -> ()
+        | isLimitSet -> Assert.Equal(``is set``, isLimitSet.GetValue(result1) :?> bool)
+        
+        match result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic) with
+        | null -> ()
+        | isSetLimit -> Assert.Equal(``is set``, isSetLimit.Invoke(result1, [||]) :?> bool)
+        
         Assert.Equal(``is set``, result1.Limit.IsSome)
 
     // particular use case with bug
@@ -489,43 +497,14 @@ type MappingTests(output: ITestOutputHelper) =
             Amazon.DynamoDBv2.Model.ScanRequest> data
 
         // assert
-        Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
-        Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
-        Assert.Equal((if ``is set`` then 1 else 0), result1.Limit <!> 0)
-
-    // particular use case with bug
-    [<Theory>]
-    //[<InlineData(false)>]
-    [<ClassData(typeof<OneFlag>)>]
-    let ``Test ScanRequest, to AWS, is limit set`` ``is set`` =
-
-        // arrange
-        let data =
-            { AttributesToGet = ValueNone
-              ConditionalOperator = ValueNone
-              ConsistentRead = ValueNone
-              ExclusiveStartKey = ValueNone
-              ExpressionAttributeNames = ValueNone
-              ExpressionAttributeValues = ValueNone
-              FilterExpression = ValueNone
-              IndexName = ValueNone
-              Limit = if ``is set`` then ValueSome 1 else ValueNone
-              ProjectionExpression = ValueNone
-              ReturnConsumedCapacity = ValueNone
-              ScanFilter = ValueNone
-              Segment = ValueNone
-              Select = ValueNone
-              TableName = ValueNone
-              TotalSegments = ValueNone }: ScanRequest<AttributeValue>
-
-        // act
-        let result1 = DtoMappers.mapDto<
-            TestDynamo.GeneratedCode.Dtos.ScanRequest<AttributeValue>,
-            Amazon.DynamoDBv2.Model.ScanRequest> data
-
-        // assert
-        Assert.Equal(``is set``, result1.GetType().GetProperty("IsLimitSet").GetValue(result1) :?> bool)
-        Assert.Equal(``is set``, result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic).Invoke(result1, [||]) :?> bool)
+        match result1.GetType().GetProperty("IsLimitSet") with
+        | null -> ()
+        | isLimitSet -> Assert.Equal(``is set``, isLimitSet.GetValue(result1) :?> bool)
+        
+        match result1.GetType().GetMethod("IsSetLimit", BindingFlags.Instance ||| BindingFlags.NonPublic) with
+        | null -> ()
+        | isSetLimit -> Assert.Equal(``is set``, isSetLimit.Invoke(result1, [||]) :?> bool)
+        
         Assert.Equal((if ``is set`` then 1 else 0), result1.Limit <!> 0)
 
     // This test can modify the behavior of other tests

@@ -7,10 +7,11 @@ open TestDynamo.Data.BasicStructures
 open Amazon.DynamoDBv2
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
+open Xunit.Abstractions
 
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
-// should be in Utils. but Utils depends on this file    
+// should be in Utils. but Utils depends on this file
 let maybeGetProperty property obj =
     let t = obj.GetType()
     
@@ -27,6 +28,24 @@ let maybeGetProperty property obj =
     ?|? null
 
 // should be in Utils. but Utils depends on this file
+/// <summary>Set a property if it exists</summary>
+let setPropertyIfExists property obj value =
+    
+    let t = obj.GetType()
+    
+    t.GetProperties()
+    |> Seq.filter _.CanWrite
+    |> Seq.filter (_.Name >> (=) property)
+    |> Collection.tryHead
+    ?|> (_.SetValue(obj, value) >> fun _ -> ValueSome true)
+    ?|>? (fun _ ->
+        t.GetFields()
+        |> Seq.filter (_.Name >> (=) property)
+        |> Collection.tryHead
+        ?|> (_.SetValue(obj, value) >> fun _ -> true))
+    ?|? false
+
+// should be in Utils. but Utils depends on this file
 /// <summary>Set a property if it exists and its value is different to the input</summary>
 let maybeSetProperty property obj value =
     
@@ -34,20 +53,7 @@ let maybeSetProperty property obj value =
     match struct (p, box value) with
     | null, null -> ()
     | x, y when x <> null && x.Equals y -> ()
-    | _, y ->
-        let t = obj.GetType()
-        
-        t.GetProperties()
-        |> Seq.filter _.CanWrite
-        |> Seq.filter (_.Name >> (=) property)
-        |> Collection.tryHead
-        ?|> (_.SetValue(obj, y) >> ValueSome)
-        ?|>? (fun _ ->
-            t.GetFields()
-            |> Seq.filter (_.Name >> (=) property)
-            |> Collection.tryHead
-            ?|> _.SetValue(obj, y))
-        |> ignoreTyped<unit voption>
+    | _, y -> setPropertyIfExists property obj y |> ignoreTyped<bool>
             
 type TableBuilder =
     { tName: string voption
@@ -204,7 +210,7 @@ type TableBuilder =
         output.GlobalSecondaryIndexes <- TableBuilder.gsi x
         output.LocalSecondaryIndexes <- TableBuilder.lsi x
         output.StreamSpecification <- TableBuilder.streamSpecification x
-        x.deletionProtection ?|> (fun x -> output.DeletionProtectionEnabled <- x) |> ValueOption.defaultValue ()
+        x.deletionProtection ?|> (setPropertyIfExists "DeletionProtectionEnabled" output >> ignoreTyped<bool>) ?|? ()
 
         output
 
@@ -254,7 +260,9 @@ type TableBuilder =
                 gsi.Create.Projection <- x.Projection
                 gsi.Create.KeySchema <- x.KeySchema
                 gsi.Create.ProvisionedThroughput <- x.ProvisionedThroughput
-                gsi.Create.OnDemandThroughput <- x.OnDemandThroughput
+                
+                maybeGetProperty "OnDemandThroughput" x
+                |> maybeSetProperty "OnDemandThroughput" gsi.Create
                 gsi)
             |> Collection.concat2 (
                 x.deleteGsis
@@ -266,6 +274,6 @@ type TableBuilder =
             |> CSharp.MList
 
         output.StreamSpecification <- TableBuilder.streamSpecification x
-        x.deletionProtection ?|> (fun x -> output.DeletionProtectionEnabled <- x) |> ValueOption.defaultValue ()
+        x.deletionProtection ?|> (setPropertyIfExists "DeletionProtectionEnabled" output >> ignoreTyped<bool>) ?|? ()
 
         output

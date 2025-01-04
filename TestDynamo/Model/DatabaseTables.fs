@@ -205,8 +205,10 @@ module DatabaseTables =
                 MapUtils.tryFind name tables
                 ?|> (
                     Table.hasDeletionProtection
-                        |?? (fun _ -> ClientError.clientError $"Cannot delete table {name} with deletion protection enabled")
-                        |.. asLazy tables
+                    >> (fun hasProtection ->
+                        if hasProtection
+                        then ClientError.clientError $"Cannot delete table {name} with deletion protection enabled"
+                        else tables)
                     >> Map.remove name
                     >> H
                     >> tpl (ValueSome table))

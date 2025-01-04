@@ -252,7 +252,7 @@ module Database =
               streams = TableStreams.empty
               info =
                   {
-                    databaseId = { regionId = "empty-database" }
+                    databaseId = { regionId = "a-database" }
                     uniqueIdentifier = IncrementingId.next()
                     transactWriteResultCache = Map.empty 
                     errorsFromDeletedStreams = noErrors } }
@@ -789,7 +789,7 @@ module Database =
         Execute.commandHalfAsync "DELETE TABLE" (fun logger name db ->
 
             let struct (table, dbResult) = DatabaseTables.tryDeleteTable name logger db.tables
-            let struct (streamResult, streams) = TableStreams.deleteTable name logger db.streams
+            let struct (streamResult, streams) = TableStreams.tryDeleteTable name logger db.streams
             let streamResult = streamResult.Preserve()
 
             // ignore any errors and just return something that can be awaited

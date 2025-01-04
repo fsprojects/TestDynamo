@@ -98,16 +98,6 @@ let tplToKvp struct (k, v) = KeyValuePair<_, _>(k, v)
 let inline toRefTuple struct (x, y) = (x, y)
 let apply = (|>)
 
-let (|??) ``if`` ``then`` x = //``else`` x =
-    match ``if`` x with
-    | true -> ``then`` x |> ValueSome
-    | false -> ValueNone
-
-let (|..) ``then result`` ``else`` x =
-    match ``then result`` x with
-    | ValueSome x -> x
-    | ValueNone -> ``else`` x
-
 #if DEBUG
 let debug x =
     if System.Diagnostics.Debugger.IsAttached then

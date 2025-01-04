@@ -700,6 +700,9 @@ type UpdateTableTests(output: ITestOutputHelper) =
     [<Theory>]
     [<ClassData(typedefof<OneFlag>)>]
     let ``Test deletion protection`` ``deletion protection added at create time`` =
+        if DynamoDbVersion.isVersionOrLess DYNAMO_V370  // not available in 370
+        then System.Threading.Tasks.Task.FromResult(())
+        else
 
         let tableExists (client: #IAmazonDynamoDB) =
             task {
