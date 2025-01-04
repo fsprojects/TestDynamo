@@ -3,13 +3,16 @@
 # AdditionalConstants is configured to add extra DefineConstants to the build (i.e. more #compiler directives)`
 param(
     [Parameter(Mandatory=$true)][string]$libVersion,
-    $cleanUpChanges = $true) 
+    [Parameter(Mandatory=$true)][string]$libVersionId,
+    $cleanUpChanges = $true,
+    $allowGitChanges = $false) 
 
-
-$diff = (git diff)
-if ($diff) {
-    Write-Error "Repository must not have any changes before this test"
-    exit 1
+if (!$allowGitChanges) {
+    $diff = (git diff)
+    if ($diff) {
+        Write-Error "Repository must not have any changes before this test"
+        exit 1
+    }
 }
 
 # back 2 directories from the current file
@@ -51,15 +54,10 @@ $testProjects |
         Set-Content -Path $_ -Value $content2
     }
 
-$additional = "NOTHING"
-if ($libVersion.StartsWith("3.")) {
-    $additional = "DYNAMODB_3"
-}
-
-dotnet test "-p:AdditionalConstants=$additional"
+dotnet test "-p:DynamoDbVersion=$libVersionId"
 quit
 if ($?) {
-    Write-Host "Successfully tested with version $libVersion"
+    Write-Host "Successfully tested with version $libVersionId/$libVersion"
     exit 0
 } else {
     exit 1

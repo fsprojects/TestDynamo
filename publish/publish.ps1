@@ -1,14 +1,35 @@
 param(
-    [Parameter(Mandatory=$true)][string]$version) 
+    [Parameter(Mandatory=$true)][string]$version,
+    $testOldVersions = $true) 
+
+# back 2 directories from the current file
+$rootDir = ($MyInvocation.MyCommand.Path | Split-Path | Split-Path)
+
+if ($testOldVersions) {
+    $dynamoVersions = @(
+        @("DYNAMO_V379", "3.7.404.11"),   # 2024-12-26
+        @("DYNAMO_V370", "3.7.0")         # 2021-03-06
+        # TODO
+        # @("DYNAMO_V359", "3.5.4.38"),     # 2021-03-25
+        # @("DYNAMO_V350", "3.5.0"),        # 2020-08-20
+        # @("DYNAMO_V339", "3.3.5")         # 2020-08-19
+        )
+
+    $dynamoVersions |
+        ForEach-Object -Process {
+            Write-Host "Testing with dynamodb version $($_[0])/$($_[1])"
+            Invoke-Expression "$rootDir\tools\testWithCustomDynamoLib.ps1 -libVersionId `"$($_[0])`" -libVersion `"$($_[1])`""
+            if (!$?) {
+                exit 1
+            }
+        }
+}
 
 $diff = (git diff)
 if ($diff) {
     Write-Error "Repository must not have any changes before pack"
     exit 1
 }
-
-# back 2 directories from the current file
-$rootDir = ($MyInvocation.MyCommand.Path | Split-Path | Split-Path)
 
 $versionFile = "$rootDir\v$version.txt"
 $versionTag = "v$version"
