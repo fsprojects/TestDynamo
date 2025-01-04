@@ -18,6 +18,7 @@ It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and r
  * Efficient cloning and deep copying of databases for isolation
  * Full database serialization and deserialization for data driven testing
  * Basic cloudformation template support for creating Tables and GlobalTables
+ * Mocking utils
 
 ## Installation
 
@@ -70,6 +71,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [Cloud Formation Templates](#cloud-formation-templates) can be consumed to to initialize databases and global databases
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
  * [Transact write ClientRequestToken](#transact-write-clientrequesttoken)
+ * [Recorders](#recorders) can be used to record the activity on a client which can be asserted on later
  * [Interceptors](#interceptors) can be used to modify the functionality of the database, either to add more traditional mocking or to polyfill unsupported features
  * [Logging](#logging) can be configured at the database level or the `AmazonDynamoDBClient` level
 
@@ -427,6 +429,41 @@ The biggest differences you will see are
 [Client request tokens](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html#API_TransactWriteItems_RequestSyntax) are used in transact write operations as an idempotency key. If 2 requests have the
 same client request token, the second one will not be executed. By default AWS keeps client request tokens for 10 minutes. TestDynamo
 keeps client request tokens for 10 seconds. This cache time can be updated in `Settings`.
+
+### Recorders
+
+Recorders can be added to record all inputs and outputs of a database
+
+```C#
+using TestDynamo;
+
+using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>(recordCalls: true);
+
+// successful request to create a table
+await client.CreateTableAsync(...);
+try
+{
+   // failed request to put an item
+   await client.PutItemAsync(...);
+}
+catch
+{
+   // do nothing
+}
+
+
+var recordings = TestDynamoClient
+    .GetRecordings(client)
+    .ToList();
+
+Assert.True(recordings[0].request is CreateTableRequest);
+Assert.True(recordings[0].IsSuccess);
+Assert.True(recordings[0].SuccessResponse is CreateTableResponse);
+
+Assert.True(recordings[1].request is PutItemRequest);
+Assert.False(recordings[1].IsSuccess);
+Assert.NotNull(recordings[1].Exception);
+```
 
 ### Interceptors
 
