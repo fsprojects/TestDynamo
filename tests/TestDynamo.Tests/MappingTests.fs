@@ -5,6 +5,7 @@ open System.IO
 open System.Linq
 open System.Reflection
 open AutoFixture
+open Tests.Table
 open TestDynamo
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -52,16 +53,18 @@ module MappingTestGenerator =
         | 0 ->
             attributeValue' random (depth - 1) fixture
             ?|> fun v ->
+                maybeSetProperty "IsMSet" attr true
                 attr.M <- Dictionary()
-                attr.IsMSet <- true
+                maybeSetProperty "IsMSet" attr true
 
                 attr.M.Add(fixture.Create<string>(), v)
 
         | 1 ->
             attributeValue' random (depth - 1) fixture
             ?|> fun v ->
+                maybeSetProperty "IsLSet" attr true
                 attr.L <- MList()
-                attr.IsLSet <- true
+                maybeSetProperty "IsLSet" attr true
 
                 attr.L.Add v
 
@@ -72,20 +75,24 @@ module MappingTestGenerator =
             | 2 -> attr.B <- fixture.Create<MemoryStream>()
             | 3 -> attr.NULL <- true
             | 4 ->
+                maybeSetProperty "IsBOOLSet" attr true
                 attr.BOOL <- fixture.Create<bool>()
-                attr.IsBOOLSet <- true
+                maybeSetProperty "IsBOOLSet" attr true
 
             | 5 ->
+                maybeSetProperty "IsSSSet" attr true
                 attr.SS <- fixture.Create<MList<string>>()
-                attr.IsSSSet <- true
+                maybeSetProperty "IsSSSet" attr true
 
             | 6 ->
+                maybeSetProperty "IsBSSet" attr true
                 attr.BS <- fixture.Create<MList<MemoryStream>>()
-                attr.IsBSSet <- true
+                maybeSetProperty "IsBSSet" attr true
 
             | 7 ->
+                maybeSetProperty "IsNSSet" attr true
                 attr.NS <- fixture.Create<MList<decimal>>() |> Seq.map toString |> Enumerable.ToList
-                attr.IsNSSet <- true
+                maybeSetProperty "IsNSSet" attr true
 
             |> ValueSome
         | x -> invalidOp (x.ToString())
@@ -353,6 +360,47 @@ type MappingTests(output: ITestOutputHelper) =
         m.MakeGenericMethod([|tFrom; tTo|]).Invoke(null, [|random |> box|])
         |> ignoreTyped<obj>
 #endif
+    [<Theory>]
+    [<ClassData(typeof<OneFlag>)>]
+    let ``Map ToAttributeValue bug, 1`` v =
+
+        // arrange
+        let data = Amazon.DynamoDBv2.Model.AttributeValue()
+        maybeSetProperty "IsBOOLSet" data true
+        data.BOOL <- v
+        maybeSetProperty "IsBOOLSet" data true
+        
+        output.WriteLine($"VAL IN {data.BOOL}")
+
+        // act
+        let result = DtoMappers.mapDto<
+            Amazon.DynamoDBv2.Model.AttributeValue,
+            AttributeValue> data
+
+        // assert
+        match result with
+        | AttributeValue.Boolean x -> Assert.Equal(v, x)
+        | x -> Assert.Fail($"Expected bool {x}")
+
+    [<Theory>]
+    [<ClassData(typeof<OneFlag>)>]
+    let ``Map FromAttributeValue bug, 2`` v =
+
+        // arrange
+        let data = AttributeValue.Boolean v
+
+        // act
+        let result = DtoMappers.mapDto<
+            AttributeValue,
+            Amazon.DynamoDBv2.Model.AttributeValue> data
+
+        // assert
+        Assert.Equal(v, result.BOOL <!> false)
+        for x in ["IsBOOLSet"; "IsSetBOOL"; "BOOLIsSet"] do
+            match maybeGetProperty x result with
+            | null -> ()
+            | :? bool as b -> Assert.True(b)
+            | x -> Assert.Fail($"Expected bool for IsBOOLSet {x}")
 
     [<Fact>]
     let ``Test from is set method`` () =
@@ -380,10 +428,11 @@ type MappingTests(output: ITestOutputHelper) =
             Amazon.DynamoDBv2.Model.GetItemResponse,
             TestDynamo.GeneratedCode.Dtos.GetItemResponse<AttributeValue>> data
 
-        data.IsItemSet <- true
+        maybeSetProperty "IsItemSet" data true
         let result2 = DtoMappers.mapDto<
             Amazon.DynamoDBv2.Model.GetItemResponse,
             TestDynamo.GeneratedCode.Dtos.GetItemResponse<AttributeValue>> data
+        maybeSetProperty "IsItemSet" data true
 
         // assert
         Assert.True(result1.Item.IsNone)

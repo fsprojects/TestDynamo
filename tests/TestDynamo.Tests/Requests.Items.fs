@@ -9,6 +9,7 @@ open System.Text.Json
 open Amazon.DynamoDBv2
 open Amazon.DynamoDBv2.Model
 open TestDynamo
+open Tests.Table
 open Tests.Utils
 open TestDynamo.Utils
 
@@ -54,13 +55,15 @@ type ItemBuilder =
             |> ItemBuilder.buildAttribute "B"
         | "BOOL", "true" ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsBOOLSet" attrV true
             attrV.BOOL <- true
-            attrV.IsBOOLSet <- true
+            maybeSetProperty "IsBOOLSet" attrV true
             attrV
         | "BOOL", "false" ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsBOOLSet" attrV true
             attrV.BOOL <- false
-            attrV.IsBOOLSet <- true
+            maybeSetProperty "IsBOOLSet" attrV true
             attrV
         | "NULL", _ ->
             let attrV = DynamoAttributeValue()
@@ -68,40 +71,45 @@ type ItemBuilder =
             attrV
         | "SS", set ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsSSSet" attrV true
             attrV.SS <- JsonSerializer.Deserialize<List<string>> set
-            attrV.IsSSSet <- true
+            maybeSetProperty "IsSSSet" attrV true
             attrV
         | "NS", set ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsNSSet" attrV true
             attrV.NS <- JsonSerializer.Deserialize<List<string>> set
-            attrV.IsNSSet <- true
+            maybeSetProperty "IsNSSet" attrV true
             attrV
         | "BS", set ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsBSSet" attrV true
             attrV.BS <-
                 JsonSerializer.Deserialize<List<string>> set
                 |> Seq.map (ItemBuilder.buildAttribute "UTF8" >> _.B)
                 |> Enumerable.ToList
-            attrV.IsBSSet <- true
+            maybeSetProperty "IsBSSet" attrV true
             attrV
         | "L", list ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsLSet" attrV true
             attrV.L <-
                 JsonSerializer.Deserialize<List<List<string>>> list
                 |> Seq.map (fun x -> struct (x[0], x[1]))
                 |> Seq.map (uncurry ItemBuilder.buildAttribute)
                 |> Enumerable.ToList
-            attrV.IsLSet <- true
+            maybeSetProperty "IsLSet" attrV true
             attrV
         | "M", map ->
             let attrV = DynamoAttributeValue()
+            maybeSetProperty "IsMSet" attrV true
             attrV.M <-
                 JsonSerializer.Deserialize<List<List<string>>> map
                 |> Seq.map (fun x -> struct (x[0], struct (x[1], x[2])))
                 |> MapUtils.fromTuple
                 |> Map.map (fun _ -> uncurry ItemBuilder.buildAttribute)
                 |> kvpToDictionary
-            attrV.IsMSet <- true
+            maybeSetProperty "IsMSet" attrV true
             attrV
         | x -> invalidOp $"unknown {x}"
         |> curry

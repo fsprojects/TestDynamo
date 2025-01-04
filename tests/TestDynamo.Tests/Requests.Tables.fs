@@ -10,6 +10,45 @@ open TestDynamo.Data.Monads.Operators
 
 type DynamoAttributeValue = Amazon.DynamoDBv2.Model.AttributeValue
 
+// should be in Utils. but Utils depends on this file    
+let maybeGetProperty property obj =
+    let t = obj.GetType()
+    
+    t.GetProperties()
+    |> Seq.filter _.CanRead
+    |> Seq.filter (_.Name >> (=) property)
+    |> Collection.tryHead
+    ?|> (_.GetValue(obj) >> ValueSome)
+    ?|>? (fun _ ->
+        t.GetFields()
+        |> Seq.filter (_.Name >> (=) property)
+        |> Collection.tryHead
+        ?|> _.GetValue(obj))
+    ?|? null
+
+// should be in Utils. but Utils depends on this file
+/// <summary>Set a property if it exists and its value is different to the input</summary>
+let maybeSetProperty property obj value =
+    
+    let p = maybeGetProperty property obj
+    match struct (p, box value) with
+    | null, null -> ()
+    | x, y when x <> null && x.Equals y -> ()
+    | _, y ->
+        let t = obj.GetType()
+        
+        t.GetProperties()
+        |> Seq.filter _.CanWrite
+        |> Seq.filter (_.Name >> (=) property)
+        |> Collection.tryHead
+        ?|> (_.SetValue(obj, y) >> ValueSome)
+        ?|>? (fun _ ->
+            t.GetFields()
+            |> Seq.filter (_.Name >> (=) property)
+            |> Collection.tryHead
+            ?|> _.SetValue(obj, y))
+        |> ignoreTyped<unit voption>
+            
 type TableBuilder =
     { tName: string voption
       attrs: Map<string, string>

@@ -458,16 +458,18 @@ module RequestItemTestUtils =
         assertModelItems (expected |> Seq.map itemFromDynamodb, actual |> Seq.map itemFromDynamodb, assertOrder)
 
     let addMapWithProp prop (x: DynamoAttributeValue) =
+        maybeSetProperty "IsMSet" x true
         x.M <- Dictionary<string, DynamoAttributeValue>()
-        x.IsMSet <- true
+        maybeSetProperty "IsMSet" x true
         x.M[prop] <- DynamoAttributeValue()
         x.M[prop]
 
     let addMapWith0Prop = addMapWithProp "0"
 
     let addListWith0Element (x: DynamoAttributeValue): DynamoAttributeValue =
+        maybeSetProperty "IsLSet" x true
         x.L <- MList<DynamoAttributeValue>()
-        x.IsLSet <- true
+        maybeSetProperty "IsLSet" x true
         x.L.Add(DynamoAttributeValue())
         x.L[0]
 

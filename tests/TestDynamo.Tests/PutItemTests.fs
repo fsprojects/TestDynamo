@@ -507,10 +507,11 @@ type PutItemTests(output: ITestOutputHelper) =
 
                     let mapHead = DynamoAttributeValue()
                     let mapTail = mapHead |> addMapWith0Prop |> addListWith0Element |> addMapWith0Prop
+                    maybeSetProperty "IsMSet" mapTail true
                     mapTail.M <- Dictionary<string, DynamoAttributeValue>()
+                    maybeSetProperty "IsMSet" mapTail true
                     mapTail.M[""] <- DynamoAttributeValue()
                     mapTail.M[""].S <- "x"
-                    mapTail.IsMSet <- true
 
                     struct (false, ItemBuilder.addAttribute "LotsOfNesting1" mapHead, "Item has map or property attribute with null or empty name: \"LotsOfNesting1.0.[].0\"")
                 | x -> invalidOp $"{x}"

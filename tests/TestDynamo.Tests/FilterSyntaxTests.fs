@@ -7,6 +7,7 @@ open TestDynamo
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
 open Tests.ClientLoggerContainer
+open Tests.Table
 open Tests.Items
 open Tests.Requests.Queries
 open Tests.Utils
@@ -621,24 +622,28 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 buildDeeplyNestedMap
                 >> mapSnd (fun tail ->
                     tail.S <- null
+                    maybeSetProperty "IsMSet" tail true
                     tail.M <- Dictionary<string, DynamoAttributeValue>()
-                    tail.IsMSet <- true
+                    maybeSetProperty "IsMSet" tail true
 
                     tail.M["SS"] <- DynamoAttributeValue()
+                    maybeSetProperty "IsSSSet" tail.M["SS"] true
                     tail.M["SS"].SS <- System.Collections.Generic.List<string>()
+                    maybeSetProperty "IsSSSet" tail.M["SS"] true
                     tail.M["SS"].SS.Add("123")
                     tail.M["SS"].SS.Add("456")
-                    tail.M["SS"].IsSSSet <- true
 
                     tail.M["NS"] <- DynamoAttributeValue()
+                    maybeSetProperty "IsNSSet" tail.M["NS"] true
                     tail.M["NS"].NS <- System.Collections.Generic.List<string>()
+                    maybeSetProperty "IsNSSet" tail.M["NS"] true
                     tail.M["NS"].NS.Add("123")
-                    tail.M["NS"].IsNSSet <- true
 
                     tail.M["BS"] <- DynamoAttributeValue()
+                    maybeSetProperty "IsBSSet" tail.M["BS"] true
                     tail.M["BS"].BS <- System.Collections.Generic.List<MemoryStream>()
+                    maybeSetProperty "IsBSSet" tail.M["BS"] true
                     tail.M["BS"].BS.Add(new MemoryStream([| 123uy |]))
-                    tail.M["BS"].IsBSSet <- true
                     tail)
                 >> fstT
 
@@ -711,8 +716,9 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
 
             item.Items[0].Add("NewItem", DynamoAttributeValue())
             let nested = item.Items[0]["NewItem"] |> addMapWithProp "nested" |> addMapWithProp "boolVal"
+            maybeSetProperty "IsBOOLSet" nested true
             nested.BOOL <- !<> exists
-            nested.IsBOOLSet <- true
+            maybeSetProperty "IsBOOLSet" nested true
 
             let value = DynamoAttributeValue()
             value.N <- "6"
