@@ -26,8 +26,7 @@ type AttributeSet = TestDynamo.Model.AttributeSet
 type AttributeListType = TestDynamo.Model.AttributeListType
 type IReadOnlyDictionary<'a, 'b> = System.Collections.Generic.IReadOnlyDictionary<'a, 'b>
 
-let private none _ = ValueNone    
-let private constTrue = Expr.constant true
+let private none _ = ValueNone
 
 type private DebugUtils() =
 
@@ -131,9 +130,31 @@ module IsSet =
             Either.map1Of2 (piName >> flip Expr.prop eFrom)
             >> Either.map2Of2 (flip1To3 Expr.call eFrom [])
             >> Either.reduce)
+        
+    let ifFalseSetToTrue =
+        Expr.multiUseProp
+        >>> (
+            tplDouble
+            >> mapFst Expr.not
+            >> mapSnd (flip Expr.assign (Expr.constant true))
+            >> uncurry Expr.ifThen)
 
 module VOption =
 
+    type private Utils<'a>() =
+        
+        static let nullableNull' = lazy(
+            let t = typedefof<Nullable<_>>.MakeGenericType([|typeof<'a>|])
+            Activator.CreateInstance t
+            |> Expr.constantT t)
+        
+        static let optNone' =
+            let n: 'a voption = ValueNone
+            Expr.constantT typeof<'a voption> n
+            
+        static member nullableNull() = nullableNull'.Value
+        static member optNone() = optNone'
+    
     type private Utils() =
 
         static member valueOptionOrDefault<'a> (x: 'a voption): 'a =
@@ -276,6 +297,27 @@ module VOption =
         match getNullableType eFrom.Type with
         | ValueSome _ -> convertNullableToOpt eFrom
         | ValueNone -> toValueOption eFrom
+        
+    let private defaultVal name (t: Type) =
+        { isStatic = true
+          t = typedefof<Utils<_>>
+          name = name
+          args = []
+          returnType = typeof<Expr>
+          methodGenerics = []
+          classGenerics = [t]
+          caseInsensitiveName = false }
+        |> method
+        |> _.Invoke(null, [||])
+        :?> Expr
+        
+    let optNone = 
+        let inline k (t: Type) = t
+        memoize ValueNone k (defaultVal (nameof Utils<_>.optNone)) >> sndT
+        
+    let nullableNull = 
+        let inline k (t: Type) = t
+        memoize ValueNone k (defaultVal (nameof Utils<_>.nullableNull)) >> sndT
         
     let private toValueOption' = asLazy toValueOption
     let private toNullable' = asLazy toNullable
@@ -420,7 +462,7 @@ module ToAttributeValue =
         let attributeValue =
             { isStatic = false
               t = builderT
-              name = "attributeValue"
+              name = nameof Unchecked.defaultof<AttributeValueBuilder<_>>.attributeValue
               args = [eFrom.Type]
               returnType = typeof<AttributeValue>
               classGenerics = []
@@ -485,7 +527,6 @@ module FromAttributeValue =
             | AttributeValue.Null -> NULL()
 
     let private restructurePropTpl struct (struct (x, y), z) = struct (x, z, y)
-    let private constTrue = Expr.constant true
 
     let propBuilder invokePropMap mapFromProp (inputType: Type) (mapToProp: PropertyInfo) =
 
@@ -520,14 +561,8 @@ module FromAttributeValue =
 
             let assignIsSet =
                 IsSet.ifSetMember false true mapToProp
-                ?>>= (
-                    Either.map1Of2 ValueSome
-                    >> Either.map2Of2 (fun _ -> ValueNone) 
-                    >> Either.reduce)
-                ?|> (
-                    piName
-                    >> Expr.prop
-                    >>> flip Expr.assign constTrue)
+                ?>>= Either.take1
+                ?|> (piName >> IsSet.ifFalseSetToTrue)
                 ?|? id
 
             mapToProp.DeclaringType.GetConstructors()
@@ -535,7 +570,7 @@ module FromAttributeValue =
             |> Collection.tryHead
             |> Maybe.expectSomeErr "Expected type %A to have a parameterless constructor" mapToProp.DeclaringType
             |> flip Expr.newObj []
-            |> Expr.mutate [ assignValue; assignIsSet ])
+            |> Expr.mutate [ assignIsSet; assignValue; assignIsSet ])
         |> Expr.compile
         |> fromFunc
 
@@ -949,18 +984,40 @@ module ComplexObjectMapper =
     let private isMappableComplexType (t: Type) =
         t.Namespace.StartsWith("Amazon.") || t.Namespace.StartsWith("TestDynamo.")
 
+    let private mapFromProperty' (mapFromProperty: string -> PropertyInfo voption) (param: ParameterInfo) =
+        mapFromProperty param.Name
+        ?|> (Either1 >> ValueSome)
+        ?|>? (fun _ ->
+            match struct (getValueOptionType param.ParameterType, getNullableType param.ParameterType) with
+            | ValueSome t, _ -> VOption.optNone t |> Either2 |> ValueSome
+            | _, ValueSome t -> VOption.nullableNull t |> Either2 |> ValueSome
+            | _ -> ValueNone)
+    
+    let private foundBest = asLazy "Found best"
     let private getBestConstructor (mapFromProperty: string -> PropertyInfo voption) (tTo: Type) =
+        
+        let mapFromProperty = mapFromProperty' mapFromProperty
+        
         tTo.GetConstructors()
+        |> DebugUtils.debug (fun struct (_, x) -> $"{List.ofArray x}") ()
         |> Seq.map (fun c ->
             c.GetParameters()
             |> Seq.map (fun pm ->
-                mapFromProperty pm.Name
+                mapFromProperty pm
                 ?|> flip tpl pm)
             |> allOrNone
             ?|> tpl c)
         |> Maybe.traverse
-        |> Seq.sortBy (sndT >> _.Length >> (*)-1)
+        |> Seq.sortBy (
+            // sort by most properties which do not have default "Expr" expressions
+            sndT
+            >> Seq.map fstT
+            >> Either.partition
+            >> fstT
+            >> List.length
+            >> (*)-1)
         |> Collection.tryHead
+        ?|> DebugUtils.debug foundBest ()
         
     let private debugProp struct (_, struct (x, y: PropertyInfo)) =
         $"{y.Name} {ValueOption.isSome x}"
@@ -1000,6 +1057,8 @@ module ComplexObjectMapper =
                 let propNotSetInConstructor =
                     sndT constructor
                     |> List.map fstT
+                    |> Either.partitionL
+                    |> fstT
                     |> flip List.contains
                     >> not
 
@@ -1023,11 +1082,18 @@ module ComplexObjectMapper =
         Expr.maybeCache (fun eFrom ->
             ps
             |> Seq.map (
-                fun struct (fromProp: PropertyInfo, toParam: ParameterInfo) ->
-                    Expr.prop fromProp.Name eFrom
-                    |> flip (tryInvokePropMap fromProp.Name) toParam.ParameterType
+                fun struct (fromProp: Either<PropertyInfo, Expr>, toParam: ParameterInfo) ->
+                    fromProp
+                    |> Either.map1Of2 (fun fromProp -> Expr.prop fromProp.Name eFrom |> tpl fromProp.Name)
+                    |> Either.map2Of2 (tpl "")
+                    |> Either.reduce
+                    |> uncurry tryInvokePropMap
+                    <| toParam.ParameterType
                     ?|> (
-                        maybeInjectConstructorArg struct (eFrom, fromProp)))
+                        fromProp
+                        |> Either.ignore2
+                        ?|> (tpl eFrom >> maybeInjectConstructorArg)
+                        ?|? id))
             |> allOrNone
             ?|> Expr.newObj c) eFrom
 
@@ -1060,34 +1126,26 @@ module ComplexObjectMapper =
         |> Maybe.traverse
         |> Seq.head
 
-    /// <summary>Assumption that cachedTo can be used multiple times (i.e. is pre cached)</summary>
+    /// <param name="cachedTo">Assumption that cachedTo can be used multiple times (i.e. is pre cached)</param>
     let private buildPropMap tryInvokePropMap (eFrom: Expr) (cachedTo: Expr) struct (pFrom: PropertyInfo, pTo: PropertyInfo) =
-
-        let to' = Expr.prop pTo.Name cachedTo
 
         let assignIsSet =
             IsSet.ifSetMember false true pTo
-            ?>>= (
-                Either.map1Of2 ValueSome
-                >> Either.map2Of2 none
-                >> Either.reduce)
-            ?|> (
-                _.Name
-                >> flip Expr.prop cachedTo
-                >> flip Expr.assign constTrue)
+            ?>>= Either.take1
+            ?|> (piName >> IsSet.ifFalseSetToTrue)
 
         Expr.maybeCache (fun eFrom ->
             Expr.prop pFrom.Name eFrom
             |> flip (tryInvokePropMap pFrom.Name) pTo.PropertyType
             ?|> (fun from' ->
-                let assignValue = Expr.assign to' from'
-
-                assignIsSet
-                ?|> (
-                    Seq.singleton
-                    >> Collection.prepend assignValue
-                    >> Expr.block ValueNone)
-                ?|? assignValue
+                Expr.prop pTo.Name cachedTo
+                |> flip Expr.assign from'
+                |> Expr.cache (fun assignValue ->
+                    assignIsSet
+                    ?|> (fun assign ->
+                        [assign cachedTo; assignValue; assign cachedTo]
+                        |> Expr.block ValueNone)
+                    ?|? assignValue)
                 |> maybeAssign struct (eFrom, pFrom))) eFrom
 
     let private assignProps tryInvokePropMap (eFrom: Expr) (eTo: Expr) props =
@@ -1104,8 +1162,14 @@ module ComplexObjectMapper =
         
         let valSomeString (t: Type) struct (struct (constructor: ConstructorInfo, args), propSetters) =
             let argStr =
-                List.map (fun struct (prop: PropertyInfo, param: ParameterInfo) ->
-                    sprintf "\n  %s: %s = %s: %s" param.Name (typeName param.ParameterType) prop.Name (typeName prop.PropertyType)) args
+                List.map (fun struct (prop: Either<PropertyInfo, Expr>, param: ParameterInfo) ->
+                    let setTo =
+                        prop
+                        |> Either.map1Of2 (fun prop -> sprintf "%s: %s" prop.Name (typeName prop.PropertyType))
+                        |> Either.map2Of2 (fun prop -> sprintf "default %s" prop.Type.Name)
+                        |> Either.reduce
+                        
+                    sprintf "\n  %s: %s = %s" param.Name (typeName param.ParameterType) setTo) args
                 |> Str.join ", "
     
             let setterStr =

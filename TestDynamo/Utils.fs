@@ -44,9 +44,9 @@ let kvpToDictionary (xs: KeyValuePair<_, _> seq) = Dictionary<_, _> xs
 #endif
 
 let shiftRight = (>>>)
-let inline (>>>) f g x y = f x y |> g
-let inline (>>>>) f g x y z = f x y z |> g
-let inline (>>>>>) f g w x y z = f w x y z |> g
+let inline (>>>) f g x = f x >> g
+let inline (>>>>) f g x = f x >>> g
+let inline (>>>>>) f g x = f x >>>> g
 let inline mapFst f struct (x, y) = struct (f x, y)
 let inline mapSnd f struct (x, y) = struct (x, f y)
 let mapFstFst f = mapFst (mapFst f)
@@ -272,9 +272,11 @@ module Str =
         s.Split separator
 #endif
 
-    let join (separator: string) (xs: string seq) = System.String.Join(separator, xs)
+    let inline join (separator: string) (xs: string seq) = System.String.Join(separator, xs)
 
-    let concat (x: string) (y: string) = x + y
+    let inline concat (x: string) (y: string) = x + y
+    
+    let inline contains (search: string) (str: string) = str.Contains search
 
     // adds padding to each element of a list. Each element has more padding than the last
     // paddingF takes in the index of the element and returns the amount of spaces to pad
@@ -292,7 +294,7 @@ module Str =
         |> Seq.mapi (fun i -> sprintf "%s%s" (if i = 0 then firstIndentation else indentation))
         |> join "\n"
 
-    let indent indentation = indentComplex indentation indentation
+    let inline indent indentation = indentComplex indentation indentation
 
     let indentSpace =
         let indentation i =
@@ -960,9 +962,22 @@ module Either =
         match x with
         | Either1 x -> x
         | Either2 x -> x
+
+    let inline ignore1 x = 
+        match x with
+        | Either1 _ -> ValueNone
+        | Either2 x -> ValueSome x
+
+    let inline ignore2 x = 
+        match x with
+        | Either1 x -> ValueSome x
+        | Either2 _ -> ValueNone
         
     let inline expect1 x = match x with | Either1 x -> x | Either2 _ -> invalidOp "Expected 1"
-    let inline expect2 x = match x with | Either2 x -> x | Either1 _ -> invalidOp "Expected 2" 
+    let inline expect2 x = match x with | Either2 x -> x | Either1 _ -> invalidOp "Expected 2"
+    
+    let inline take1 x = match x with | Either1 x -> ValueSome x | Either2 _ -> ValueNone
+    let inline take2 x = match x with | Either1 _ -> ValueNone | Either2 x -> ValueSome x
 
     let partition xs =
         Collection.partition (function
