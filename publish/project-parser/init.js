@@ -11,11 +11,19 @@ async function execute() {
     let args = [...process.argv].slice(2)
     const vFlag = args.indexOf("--version")
     if (vFlag === -1 || vFlag >= args.length) {
-        throw new Error('Input args: --version {version} {file1} {file2} {file3}...');
+        throw new Error('Input args: --version {version} --ignore {ignoreFile1} --ignore {ignoreFile2} {file1} {file2} {file3}...');
     }
 
     const packageVersion = args[vFlag + 1]
     args.splice(vFlag, 2)
+
+    const ignoreFiles = []
+    for (let i = args.length - 2; i >= 0; i--) {
+        if (args[i] === "--ignore") {
+            ignoreFiles.push(args[i + 1])
+            args.splice(i, 2)
+        }
+    }
 
     const files = await Promise.all(args
         .map(x => x.trim())
@@ -38,7 +46,7 @@ async function execute() {
         return
     }
 
-    processFiles(files)
+    processFiles(files, ignoreFiles)
     files.forEach(file => {
         console.log(`Writing file ${file.path}`)
         fs.writeFileSync(file.path, builder.buildObject(file.fileXml))
@@ -164,11 +172,17 @@ function makeProjectReferencesAbsolute(file, packageVersion) {
     return { ...file, dependencies }
 }
 
-function processFiles(files) {
+function remainingFiles(files) {
+    return files
+        .map(f => f.packageName + ": " + f.dependencies.reduce((s ,x) => [...s, x.name], []).join(", "))
+        .join("\n")
+}
+
+function processFiles(files, ignoreFiles) {
     if (!files.length) return
 
-    const head = files.filter(x => !x.dependencies.length)[0]
-    if (!head) throw new Error("Not all dependencies are contained in tree")
+    const head = files.filter(x => !x.dependencies.filter(dep => ignoreFiles.indexOf(dep.name) === -1).length)[0]
+    if (!head) throw new Error("Not all dependencies are contained in tree\n" + remainingFiles(files))
     const tail = files.filter(x => x !== head)
 
     if (head.packageName) {
@@ -185,5 +199,5 @@ function processFiles(files) {
         console.warn(`Skipping project ${head.path} with no package name`);
     }
 
-    processFiles(tail)
+    processFiles(tail, ignoreFiles)
 }
