@@ -1,11 +1,20 @@
 param(
     [Parameter(Mandatory=$true)][string]$version,
-    $testOldVersions = $true) 
+    $testOldVersions = $true)
 
 # back 2 directories from the current file
 $rootDir = ($MyInvocation.MyCommand.Path | Split-Path | Split-Path)
 
-if ($testOldVersions) {
+$versionFile = "$rootDir\v$version.txt"
+$versionTag = "v$version"
+$versionBranch = "working-v$version"
+
+function Mid-Execution {
+    Test-Path $versionFile
+}
+
+$mx = Mid-Execution
+if (!$mx -and $testOldVersions) {
     $dynamoVersions = @(
         @("DYNAMO_V379", "3.7.404.11"),   # 2024-12-26
         @("DYNAMO_V370", "3.7.0")         # 2021-03-06
@@ -23,6 +32,8 @@ if ($testOldVersions) {
                 exit 1
             }
         }
+} elseif ($testOldVersions) {
+    Write-Host "Skipping old version test. Mid execution"
 }
 
 $diff = (git diff)
@@ -31,11 +42,16 @@ if ($diff) {
     exit 1
 }
 
-$versionFile = "$rootDir\v$version.txt"
-$versionTag = "v$version"
-$versionBranch = "working-v$version"
+if (!$mx) {
+    dotnet test "$rootDir" -c Release
+    if (!$?) {
+        Write-Error "Tests failed"
+        exit 1
+    }
+}
 
-if (!(Test-Path $versionFile)) {
+$mx = Mid-Execution
+if (!$mx) {
     git tag "$versionTag"
     git checkout -b "$versionBranch"
     New-Item -path "$rootDir" -name "v$version.txt" -type "file" -value ""
@@ -79,7 +95,7 @@ function handle-pack-errors ($i, $err) {
     Start-Sleep -Seconds 60
 }
 
-$nugetKey = Read-Host "Enter a nuget key" -MaskInput
+$nugetKey = ""
 $publishApps |
     ForEach-Object -Process {
 
@@ -128,6 +144,7 @@ $publishApps |
             exit 1
         }
 
+        if (!$nugetKey) { $nugetKey = Read-Host "Enter a nuget key" -MaskInput }
         @($nugetPackage, $symbolsPackage) | ForEach-Object -Process {
             dotnet nuget push `
                 -s https://api.nuget.org/v3/index.json `
