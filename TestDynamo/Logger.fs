@@ -146,8 +146,8 @@ module Logger =
             result
         f'
 #else
-    let inline internal stackTrace1 name logger = id
-    let inline internal stackTrace1L name = id
+    let inline internal stackTrace1L name f = f
+    let inline internal stackTrace1 name logger f = f
 #endif
 
     let debug0 message (L ((gFormat, _), t)) =
