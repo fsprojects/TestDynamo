@@ -105,7 +105,7 @@ if (!$tmp) {
         Write-Host "### Step 4: test project with older versions of dynamo db" -ForegroundColor Green
 
         $dynamoVersions = @(
-            @("DYNAMO_V379", "3.7.404.11"),   # 2024-12-26
+            @("DYNAMO_V379", "3.7.405.2"),    # 2025-01-09
             @("DYNAMO_V370", "3.7.0"),        # 2021-03-06
             @("DYNAMO_V359", "3.5.4.38"),     # 2021-03-25
             @("DYNAMO_V350", "3.5.0")         # 2020-08-20
