@@ -9,10 +9,23 @@ $versionFile = "$rootDir\v$version.txt"
 $versionTag = "v$version"
 $versionBranch = "working-v$version"
 
+$testDynamoDll = "$rootDir\TestDynamo\TestDynamo.fsproj"
+
+$publishApps = @(
+    $testDynamoDll,
+    "$rootDir\TestDynamo.Lambda\TestDynamo.Lambda.fsproj",
+    "$rootDir\TestDynamo.Serialization\TestDynamo.Serialization.fsproj")
+
+$testApps = @(
+    "$rootDir\tests\TestDynamo.Tests\TestDynamo.Tests.fsproj",
+    "$rootDir\tests\TestDynamo.Tests.CSharp\TestDynamo.Tests.CSharp.csproj")
+
 function Mid-Execution {
     Test-Path $versionFile
 }
 
+Write-Host ""
+Write-Host "### Step 1: test project with older versions of dynamo db" -ForegroundColor Green
 $mx = Mid-Execution
 if (!$mx -and $testOldVersions) {
     $dynamoVersions = @(
@@ -36,6 +49,8 @@ if (!$mx -and $testOldVersions) {
     Write-Host "Skipping old version test. Mid execution"
 }
 
+Write-Host ""
+Write-Host "### Step 2: make sure repo is clean. This process will create tags and branches and commit files" -ForegroundColor Green
 $diff = (git diff)
 if ($diff) {
     Write-Error "Repository must not have any changes before pack"
@@ -43,36 +58,38 @@ if ($diff) {
 }
 
 if (!$mx) {
-    dotnet test "$rootDir" -c Release
-    if (!$?) {
-        Write-Error "Tests failed"
-        exit 1
-    }
-}
 
-$mx = Mid-Execution
-if (!$mx) {
+    Write-Host ""
+    Write-Host "### Step 3: merge GeneratedCode and TestDynamo projects" -ForegroundColor Green
+    node "$rootDir\publish\project-parser\addGeneratedDtosIntoTestDynamo.js" `
+        --testDynamo "$testDynamoDll" `
+        --generatedCode "$rootDir\TestDynamo.GeneratedCode\TestDynamo.GeneratedCode.fsproj"
+    if (!$?) { exit 1 }
+
+    Write-Host ""
+    Write-Host "### Step 4: final test, with merged code, in release mode" -ForegroundColor Green
+    dotnet test "$rootDir" -c Release
+    if (!$?) { exit 1 }
+    
+    Write-Host ""
+    Write-Host "### Step 5: create release state (tag, branch and version file)" -ForegroundColor Green
     git tag "$versionTag"
     git checkout -b "$versionBranch"
     New-Item -path "$rootDir" -name "v$version.txt" -type "file" -value ""
     git add $versionFile
-    git commit -m "Deployed $project"
+    git commit -m "Added version file"
 } elseif ((git branch --show-current) -ne $versionBranch) {
     Write-Error "Incorrect branch"
     exit 1
+} else {
+    Write-Host ""
+    Write-Host "### Skipping steps 3 - 5" -ForegroundColor Green
 }
 
-$publishApps = @(
-    "$rootDir\TestDynamo\TestDynamo.fsproj",
-    "$rootDir\TestDynamo.Lambda\TestDynamo.Lambda.fsproj",
-    "$rootDir\TestDynamo.Serialization\TestDynamo.Serialization.fsproj")
-
-$testApps = @(
-    "$rootDir\tests\TestDynamo.Tests\TestDynamo.Tests.fsproj",
-    "$rootDir\tests\TestDynamo.Tests.CSharp\TestDynamo.Tests.CSharp.csproj")
-
+Write-Host ""
+Write-Host "### Step 6: change dependant projects to reference the new release version of their dependencies" -ForegroundColor Green
 Write-Host "Pre processing project files"
-node "$rootDir\publish\project-parser\init.js" @($testApps + $publishApps) --version "$version"
+node "$rootDir\publish\project-parser\reformatFsProjForRelease.js" @($testApps + $publishApps) --version "$version"
 if (-not $?) { exit 1 }
 
 git add @($testApps + $publishApps)
@@ -109,6 +126,9 @@ $publishApps |
                 return
             }
 
+            Write-Host ""
+            Write-Host "### Step 7: pack and release" -ForegroundColor Green
+            Write-Host "### This tep might take a while, as dependant projects will be bloced while nuget indexes their dependencies"
             $packResult = (dotnet restore $_ --no-cache)
             if (-not $?) {
                 handle-pack-errors $i $packResult
@@ -163,6 +183,8 @@ $publishApps |
         git commit -m "Deployed $project"
     }
 
+Write-Host ""
+Write-Host "### Step 8: run tests a final time, with reference to new deployed versions" -ForegroundColor Green
 $i = 0
 while ($True) {
     Write-Host "Infinite test loop. Will keep going until success"

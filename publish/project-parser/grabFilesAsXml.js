@@ -1,31 +1,13 @@
+
 const fs = require("fs")
 const path = require("path")
 var xml2js = require('xml2js')
 
-execute();
-
-async function execute() {
+async function grabFilesAsXml(absoluteFiles, packageVersion) {
     const parser = new xml2js.Parser(/* options */);
     var builder = new xml2js.Builder({headless: true});
 
-    let args = [...process.argv].slice(2)
-    const vFlag = args.indexOf("--version")
-    if (vFlag === -1 || vFlag >= args.length) {
-        throw new Error('Input args: --version {version} --ignore {ignoreFile1} --ignore {ignoreFile2} {file1} {file2} {file3}...');
-    }
-
-    const packageVersion = args[vFlag + 1]
-    args.splice(vFlag, 2)
-
-    const ignoreFiles = []
-    for (let i = args.length - 2; i >= 0; i--) {
-        if (args[i] === "--ignore") {
-            ignoreFiles.push(args[i + 1])
-            args.splice(i, 2)
-        }
-    }
-
-    const files = await Promise.all(args
+    return Promise.all(absoluteFiles
         .map(x => x.trim())
         .reduce((s, x) => s.indexOf(x) === -1 ? [...s, x] : s, [])
         .map(ensureAbsolute)
@@ -40,17 +22,8 @@ async function execute() {
         .then(xs => xs
             .map(x => makeProjectReferencesAbsolute(x, packageVersion))
             .map(addPackageName)
-            .map(x => addVersion(x, packageVersion)));
-
-    if (!files.length) {
-        return
-    }
-
-    processFiles(files, ignoreFiles)
-    files.forEach(file => {
-        console.log(`Writing file ${file.path}`)
-        fs.writeFileSync(file.path, builder.buildObject(file.fileXml))
-    })
+            .map(x => packageVersion ? addVersion(x, packageVersion) : x)
+            .map(x => addSaveMethod(x, builder)));
 }
 
 function addPackageName(file) {
@@ -60,11 +33,19 @@ function addPackageName(file) {
     return file
 }
 
+function addSaveMethod(file, builder) {
+    
+    file.save = function() {
+        console.log(`Writing file ${file.path}`)
+        fs.writeFileSync(file.path, builder.buildObject(file.fileXml))
+    }
+
+    return file
+}
+
 function addVersion(file, packageVersion) {
     const props = file.fileXml.Project.PropertyGroup[0]
     if (props) props.Version = packageVersion
-    // tool also fixes test projects. These will not have packageNames
-    // if (!file.packageName) throw new Error(`Could not find package name for ${file.path}`);
     return file
 }
 
@@ -97,9 +78,20 @@ function makeProjectReferencesAbsolute(file, packageVersion) {
         return dependencies
 
         function replacer(reference, packageName) {
-            console.log(`Replacing project ref ${reference} to package ref ${packageName} for project ${file.path}`)
+
+            if (packageName) {
+                console.log(`Replacing project ref ${reference} to package ref ${packageName} for project ${file.path}`)
+            } else {
+                console.log(`Deleting project ref ${reference} from project ${file.path}`)
+            }
 
             remover(reference)
+
+            if (!packageName) return
+
+            if (!packageVersion) {
+                throw new Error(`Setting the package name is not supported if package name is not supplied`)
+            }
 
             const ig = newItemGroupFinder()
             ig.PackageReference.push({
@@ -172,32 +164,4 @@ function makeProjectReferencesAbsolute(file, packageVersion) {
     return { ...file, dependencies }
 }
 
-function remainingFiles(files) {
-    return files
-        .map(f => f.packageName + ": " + f.dependencies.reduce((s ,x) => [...s, x.name], []).join(", "))
-        .join("\n")
-}
-
-function processFiles(files, ignoreFiles) {
-    if (!files.length) return
-
-    const head = files.filter(x => !x.dependencies.filter(dep => ignoreFiles.indexOf(dep.name) === -1).length)[0]
-    if (!head) throw new Error("Not all dependencies are contained in tree\n" + remainingFiles(files))
-    const tail = files.filter(x => x !== head)
-
-    if (head.packageName) {
-        tail.forEach(dependant => {
-            for (let i = dependant.dependencies.length - 1; i >= 0; i--) {
-                const dep = dependant.dependencies[i]
-                if (dep.name === head.path) {
-                    dep.setter(head.packageName)
-                    dependant.dependencies.splice(i, 1)
-                }
-            }
-        })
-    } else {
-        console.warn(`Skipping project ${head.path} with no package name`);
-    }
-
-    processFiles(tail, ignoreFiles)
-}
+module.exports = grabFilesAsXml

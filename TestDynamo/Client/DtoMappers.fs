@@ -1244,7 +1244,7 @@ let struct (amzDto, dtoAmz) =
     |> Seq.map (fun x ->
         x.GetCustomAttribute<DynamodbTypeAttribute>()
         |> Maybe.Null.toOption
-        ?|> (_.Name >> getType >> tpl (addGenerics x)))
+        ?|> (fun attr -> attr.Name |> getType |> tpl (addGenerics x)))
     |> Maybe.traverse
     |> Seq.fold (fun struct (amzDto: Dictionary<_, _>, dtoAmz: Dictionary<_, _>) struct (dto, amz) ->
         match amz with
