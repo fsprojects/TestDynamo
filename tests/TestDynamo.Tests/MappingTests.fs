@@ -181,7 +181,7 @@ module MappingTestGenerator =
             [IndexStatus.CREATING; IndexStatus.DELETING; IndexStatus.UPDATING] |> registerConst random fixture
             [ExportFormat.ION; ExportFormat.DYNAMODB_JSON] |> registerConst random fixture
             [KeyType.HASH; KeyType.RANGE] |> registerConst random fixture
-            [ReplicaStatus.CREATING; ReplicaStatus.UPDATING; ReplicaStatus.INACCESSIBLE_ENCRYPTION_CREDENTIALS] |> registerConst random fixture
+            [ReplicaStatus.CREATING; ReplicaStatus.UPDATING; ReplicaStatus.CREATION_FAILED] |> registerConst random fixture
             [DestinationStatus.DISABLING; DestinationStatus.ACTIVE; DestinationStatus.ENABLE_FAILED] |> registerConst random fixture
             [TimeToLiveStatus.DISABLING; TimeToLiveStatus.ENABLING; TimeToLiveStatus.DISABLED] |> registerConst random fixture
             [ExportStatus.FAILED; ExportStatus.COMPLETED; ExportStatus.IN_PROGRESS] |> registerConst random fixture
@@ -408,16 +408,16 @@ type MappingTests(output: ITestOutputHelper) =
     let ``Test from is set method`` () =
 
         // arrange
-        let data = Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest()
+        let data = Amazon.DynamoDBv2.Model.QueryRequest()
 
         // act
         let result = DtoMappers.mapDto<
-            Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest,
-            TestDynamo.GeneratedCode.Dtos.BatchExecuteStatementRequest<AttributeValue>> data
+            Amazon.DynamoDBv2.Model.QueryRequest,
+            TestDynamo.GeneratedCode.Dtos.QueryRequest<AttributeValue>> data
 
         // assert
         // Assert.NotNull(data.Statements) - todo Dynamodb v3 only
-        Assert.Equal(ValueNone, result.Statements)
+        Assert.Equal(ValueNone, result.AttributesToGet)
 
     [<Fact>]
     let ``Test from is set prop`` () =
@@ -537,15 +537,15 @@ type MappingTests(output: ITestOutputHelper) =
     [<Fact>]
     let ``Test null in list, 1`` () =
          
-        let req = Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest()
-        req.Statements <- MList<_>([null])
+        let req = Amazon.DynamoDBv2.Model.ExpectedAttributeValue()
+        req.AttributeValueList <- MList<_>([null])
 
         // act
         let e = Assert.ThrowsAny(fun _ ->
             DtoMappers.mapDto<
-                Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest,
-                BatchExecuteStatementRequest<AttributeValue>> req
-            |> ignoreTyped<BatchExecuteStatementRequest<AttributeValue>>)
+                Amazon.DynamoDBv2.Model.ExpectedAttributeValue,
+                ExpectedAttributeValue<AttributeValue>> req
+            |> ignoreTyped<ExpectedAttributeValue<AttributeValue>>)
         
         // assert
         assertError output "Found null value in input or output" e
@@ -554,15 +554,17 @@ type MappingTests(output: ITestOutputHelper) =
     let ``Test null in list, 2`` () =
          
         let req =
-            { Statements = [|(Unchecked.defaultof<BatchStatementRequest<AttributeValue>>)|] |> ValueSome
-              ReturnConsumedCapacity = ValueNone }: BatchExecuteStatementRequest<AttributeValue>
+            { AttributeValueList = [|(Unchecked.defaultof<AttributeValue>)|] |> ValueSome
+              ComparisonOperator = ValueNone
+              Exists = ValueNone
+              Value = ValueNone }: ExpectedAttributeValue<AttributeValue>
 
         // act
         let e = Assert.ThrowsAny(fun _ ->
             DtoMappers.mapDto<
-                BatchExecuteStatementRequest<AttributeValue>,
-                Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest> req
-            |> ignoreTyped<Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest>)
+                ExpectedAttributeValue<AttributeValue>,
+                Amazon.DynamoDBv2.Model.ExpectedAttributeValue> req
+            |> ignoreTyped<Amazon.DynamoDBv2.Model.ExpectedAttributeValue>)
         
         // assert
         assertError output "Found null value in input or output" e

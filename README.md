@@ -55,6 +55,7 @@ public async Task GetPersonById_WithValidId_ReturnsPerson()
 
 TestDynamo has a suite of features and components to model a dynamodb environment and simplify the process of writing tests.
 
+ * Support for [DynamoDb versions](https://www.nuget.org/packages/AWSSDK.DynamoDBv2#versions-body-tab) >= and 3.5.0
  * [`Api.Database`](#database) contains tables from a single region.
     * [Full expression engine](#using-expressions) so you can test your queries, scans, projections and conditions
     * [Schema and item change](#schema-and-item-change) tools make creating and populating test databases easier

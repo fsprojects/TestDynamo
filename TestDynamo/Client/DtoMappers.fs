@@ -1232,7 +1232,11 @@ let struct (amzDto, dtoAmz) =
 
     let allTypes =
         AppDomain.CurrentDomain.GetAssemblies()
-        |> Seq.collect _.GetTypes()
+        |> Seq.collect (fun x ->
+            try
+                x.GetTypes()
+            with
+            | :? ReflectionTypeLoadException as e -> e.Types |> Array.filter ((<>)null))
         |> Array.ofSeq
 
     let getType name =

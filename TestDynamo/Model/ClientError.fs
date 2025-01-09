@@ -2,6 +2,7 @@
 module TestDynamo.Model.ClientError
 
 open System
+open System.Reflection
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.GenericMapper.Expressions
@@ -9,7 +10,11 @@ open TestDynamo.GenericMapper.Utils
 
 let private amazonDynamoDBException =
     AppDomain.CurrentDomain.GetAssemblies()
-    |> Seq.collect _.GetTypes()
+    |> Seq.collect (fun x ->
+            try
+                x.GetTypes()
+            with
+            | :? ReflectionTypeLoadException as e -> e.Types |> Array.filter ((<>)null))
     |> Seq.filter (_.FullName >> (=)"Amazon.DynamoDBv2.AmazonDynamoDBException")
     |> Collection.tryHead
     |> Maybe.expectSomeErr "Could not find type Amazon.DynamoDBv2.AmazonDynamoDBException%s" ""

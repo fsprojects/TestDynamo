@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--AWS_CORE_PLACEHOLDER-->
     <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.0-preview.4" />
     <PackageReference Include="Amazon.Lambda.DynamoDBEvents" Version="3.1.1" />
   </ItemGroup>
