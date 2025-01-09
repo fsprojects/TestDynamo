@@ -87,5 +87,5 @@ function processFiles(files, ignoreFiles, removeFiles) {
         console.warn(`Skipping project ${head.path} with no package name`);
     }
 
-    processFiles(tail, ignoreFiles)
+    processFiles(tail, ignoreFiles, removeFiles)
 }

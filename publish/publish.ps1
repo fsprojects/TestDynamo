@@ -177,8 +177,8 @@ $publishApps |
             Write-Host "Packing $_, attempt $i"
 
             Write-Host ""
-            Write-Host "### Step 7: pack and release" -ForegroundColor Green
-            Write-Host "### This tep might take a while, as dependant projects will be bloced while nuget indexes their dependencies"
+            Write-Host "### Step 7: pack and release ($projectName)" -ForegroundColor Green
+            Write-Host "### This step might take a while, as dependant projects will be bloced while nuget indexes their dependencies"
             $packResult = (dotnet restore $_ --no-cache)
             if (-not $?) {
                 handle-pack-errors $i $packResult
