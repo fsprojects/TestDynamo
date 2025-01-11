@@ -21,10 +21,6 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="9.0.0" />
-  </ItemGroup>
-
   <PropertyGroup>
     <!--
     Allow compiler to change compiler directives. This is used to test dotnet standard 
