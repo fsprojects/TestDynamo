@@ -1,5 +1,6 @@
 ﻿namespace TestDynamo.Model
 
+open System.Diagnostics.CodeAnalysis
 open System.Threading
 open Microsoft.FSharp.Core
 open System
@@ -162,12 +163,15 @@ module Database =
         let logOperationAsync x = DatabaseLogger.logOperationAsync "Database" x
         let logOperationHalfAsync x = DatabaseLogger.logOperationHalfAsync "Database" x
 
+        [<ExcludeFromCodeCoverage>]
         let inline traceArgs f logger x =
             Logger.traceFn1 "Input: %A" logger x
             |> f logger
             |> Logger.traceFn1 "Output: %A" logger
 
+        [<ExcludeFromCodeCoverage>]
         let inline tupleSecondArg' f x struct (y, z) = f x y z
+        [<ExcludeFromCodeCoverage>]
         let inline logAndInline logOperation f =
             tupleSecondArg' f
             |> traceArgs
@@ -504,6 +508,7 @@ module Database =
         |> tpl req
         |> removeUnWanted
 
+    [<ExcludeFromCodeCoverage>]
     let inline private publishChange logger streams data = TableStreams.onChange data logger streams
 
     let private buildSubscriberMessage logger db tableName synchronizationPath packet =

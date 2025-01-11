@@ -8,7 +8,7 @@ open TestDynamo.Model
 open TestDynamo.Model.Compiler
 open TestDynamo.Model.Compiler.Parser
 open TestDynamo.Utils
-open System.Runtime.CompilerServices
+open System.Diagnostics.CodeAnalysis
 
 module private CompileUtils =
 
@@ -93,6 +93,7 @@ module Updates =
             compileAst
             buildUpdateCompiler
 
+    [<ExcludeFromCodeCoverage>]
     let inline private createItemMutator f item = f item (Item.attributes item)
 
     let compile logger tableKeys =

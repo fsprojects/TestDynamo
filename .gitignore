@@ -6,3 +6,4 @@ obj/
 /BenchmarkDotNet.Artifacts/
 node_modules/
 TestResults/
+coveragereport/

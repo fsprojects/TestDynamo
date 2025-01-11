@@ -4,6 +4,7 @@
 
 namespace TestDynamo.Data
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Utils
 open System
 open System.Collections.Generic
@@ -35,9 +36,11 @@ module public AvlTreeInternal =
 
         let empty = null
 
+        [<ExcludeFromCodeCoverage>]
         let inline isEmpty (m: Tree<'Key, 'Value>) =
             isNull m
 
+        [<ExcludeFromCodeCoverage>]
         let inline private asNode (value: Tree<'Key, 'Value>) : TreeNode<'Key, 'Value> =
             value :?> TreeNode<'Key, 'Value>
 
@@ -53,6 +56,7 @@ module public AvlTreeInternal =
         let size x =
             sizeAux 0 x
 
+        [<ExcludeFromCodeCoverage>]
         let inline height (m: Tree<'Key, 'Value>) =
             if isEmpty m then 0 else m.Height
 
@@ -467,6 +471,7 @@ module private AvlTreeSeek =
                     | _ -> null
         }
 
+    [<ExcludeFromCodeCoverage>]
     let inline returnTrue _ = true
 
     let private includeNodeLess inclusive =

@@ -1,6 +1,7 @@
 namespace TestDynamo
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Text.RegularExpressions
 open TestDynamo.Utils
 open Microsoft.Extensions.Logging
@@ -28,7 +29,9 @@ module Logger =
             override this.IsEnabled(logLevel) = false
             override this.BeginScope(state) = null }
 
+    [<ExcludeFromCodeCoverage>]
     let inline describable<'a> describe (x: 'a) = {describe = describe; table = x}
+    [<ExcludeFromCodeCoverage>]
     let inline undescribe {table = x} = x
 
     let create struct (id, iLogger) =
@@ -146,7 +149,9 @@ module Logger =
             result
         f'
 #else
+    [<ExcludeFromCodeCoverage>]
     let inline internal stackTrace1L name f = f
+    [<ExcludeFromCodeCoverage>]
     let inline internal stackTrace1 name logger f = f
 #endif
 

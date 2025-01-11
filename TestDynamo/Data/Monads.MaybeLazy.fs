@@ -1,5 +1,6 @@
 namespace TestDynamo.Data.Monads
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Data.Monads
 open TestDynamo.Utils
@@ -9,58 +10,74 @@ type MaybeLazy<'env, 'a> = Either<'a, Reader<'env, 'a>>
 [<RequireQualifiedAccess>]    
 module MaybeLazy =
 
+    [<ExcludeFromCodeCoverage>]
     let inline retn (x: 'a): MaybeLazy<'env, 'a> = x |> Either1
 
+    [<ExcludeFromCodeCoverage>]
     let inline ``lazy`` (x: Reader<'env, 'a>): MaybeLazy<'env, 'a> = x |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline execute env (x: MaybeLazy<'env, 'a>) =
         match x with
         | Either1 x -> x
         | Either2 f -> f env
 
+    [<ExcludeFromCodeCoverage>]
     let inline map (f: 'a -> 'b) (x: MaybeLazy<'env, 'a>): MaybeLazy<'env, 'b> =
         match x with
         | Either1 x -> f x |> Either1
         | Either2 x -> (x >> f) |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline bind (f: 'a -> MaybeLazy<'env, 'b>) (x: MaybeLazy<'env, 'a>): MaybeLazy<'env, 'b> =
         match x with
         | Either1 x -> f x
         | Either2 x ->
             Either2 (fun env -> x env |> f |> execute env)
 
+    [<ExcludeFromCodeCoverage>]
     let inline apply (x: MaybeLazy<'env, 'a>) (f: MaybeLazy<'env, 'a -> 'b>): MaybeLazy<'env, 'b> =
         bind (flip map x) f
 
+    [<ExcludeFromCodeCoverage>]
     let inline traverse (x: MaybeLazy<'env, 'a> seq): MaybeLazy<'env, 'a list> =
         Seq.map (map Collection.prependL) x
         |> Collection.foldBack apply (retn [])
 
 type MaybeLazyResult<'env, 'a> = Either<Result<'a, NonEmptyList<string>>, ReaderResult<'env, 'a>>
 module MaybeLazyResult =
+    [<ExcludeFromCodeCoverage>]
     let inline fromReaderResult f: MaybeLazyResult<'env, 'a> = Either2 f
+    [<ExcludeFromCodeCoverage>]
     let inline fromResult (x: Result<'a, NonEmptyList<string>>): MaybeLazyResult<'env, 'a> = Either1 x
+    [<ExcludeFromCodeCoverage>]
     let inline fromReader f: MaybeLazyResult<'env, 'a> = Reader.map Ok f |> fromReaderResult
+    [<ExcludeFromCodeCoverage>]
     let inline retn (x: 'a): MaybeLazyResult<'env, 'a> = x |> Ok |> fromResult
 
+    [<ExcludeFromCodeCoverage>]
     let inline mapEnv f (x: MaybeLazyResult<'env1, 'a>): MaybeLazyResult<'env2, 'a> =
         match x with
         | Either1 x -> Either1 x
         | Either2 x -> ReaderResult.mapEnv f x |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline execute args (x: MaybeLazyResult<'env, 'a>) =
         MaybeLazy.execute args x
 
+    [<ExcludeFromCodeCoverage>]
     let inline private sanitize x =
         match x with
         | Ok x -> x
         | Error err -> err |> Error |> Either1
 
+    [<ExcludeFromCodeCoverage>]
     let inline map (f: 'a -> 'b) (x: MaybeLazyResult<'env, 'a>): MaybeLazyResult<'env, 'b> =
         match x with
         | Either1 x -> Result.map f x |> Either1
         | Either2 x -> x >> Result.map f |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline bind (f: 'a -> MaybeLazyResult<'env, 'b>) (x: MaybeLazyResult<'env, 'a>): MaybeLazyResult<'env, 'b> =        
         match x with
         | Either1 x -> Result.map f x |> sanitize
@@ -84,6 +101,7 @@ module MaybeLazyResult =
             |> Either2
         | _ -> bind (flip map x) f
 
+    [<ExcludeFromCodeCoverage>]
     let inline traverse (x: MaybeLazyResult<'env, 'a> seq): MaybeLazyResult<'env, 'a list> =
         Seq.map (map Collection.prependL) x
         |> Collection.foldBack apply (retn [])

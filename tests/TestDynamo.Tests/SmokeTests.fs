@@ -427,6 +427,30 @@ type SmokeTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]
+    let ``Attribute set equality tests`` () =
+        let s1 = struct (1, AttributeSet.create [String "s1"; String "s2"])
+        let s2 = struct (1, AttributeSet.create [String "s2"; String "s1"])
+        let s3 = struct (1, AttributeSet.create [String "s1"])
+        
+        Assert.True(s1.Equals s2)
+        Assert.True(s2.Equals s1)
+        Assert.False(s1.Equals s3)
+        Assert.False(s3.Equals s1)
+
+    [<Fact>]
+    let ``Describe AttributeValue tests`` () =
+        
+        Assert.Equal("S:x", AttributeValue.describe (String "x"))
+        Assert.Equal("N:55", AttributeValue.describe (Number 55M))
+        Assert.Equal("B:BINARY_DATA", AttributeValue.describe (Binary [||]))
+        Assert.Equal("BOOL:True", AttributeValue.describe (Boolean true))
+        Assert.Equal("NULL", AttributeValue.describe Null)
+        Assert.Equal("SS:SET", AttributeValue.describe (AttributeSet.create [String "x"] |> HashSet))
+        Assert.Equal("L:LIST", AttributeListType.CompressedList [||] |> AttributeList |> AttributeValue.describe)
+        Assert.Equal("M:MAP", Map.empty |> HashMap |> AttributeValue.describe)
+        
+
+    [<Fact>]
     let ``Recorder test, recordings not enabled`` () =
 
         // arrange

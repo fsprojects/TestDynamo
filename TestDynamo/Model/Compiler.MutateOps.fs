@@ -9,6 +9,7 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Model.Compiler.MutateOps
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Data.Monads
 open TestDynamo.Model
 open TestDynamo.Model.Compiler
@@ -27,10 +28,7 @@ module Accessor =
         | AttributeList _ & x -> struct (x, emptySparseListAttr) |> ValueSome
         | _ -> ValueNone
 
-    let toWriter = function
-        | struct (ValueNone, x) -> Writer.retn x
-        | struct (ValueSome emit, x) -> Writer.create emit x
-
+    [<ExcludeFromCodeCoverage>] // A lot of this method is defensive for cases in the data model that cannot occur in the code 
     let rec private mutatePath:
         struct (struct (AttributeValue * AttributeValue) * ResolvedAccessorType list) -> AttributeValue voption =
 
@@ -74,7 +72,7 @@ module Accessor =
                 AttributeListType.tryFind (int i) ``to``
                 ?|> (tpl x >> ValueSome)
                 |> ValueOption.defaultWith (fun _ -> emptySetterArgs x))
-            ?|> (flip tpl tail)
+            ?|> flip tpl tail
             ?>>= mutatePath
             ?>>= flip (AttributeListType.set (int i)) ``to``
             ?|> AttributeList

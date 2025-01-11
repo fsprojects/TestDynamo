@@ -9,15 +9,16 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Model.Compiler.GetOps
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Model
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 
 type ItemData = Compiler.ItemData
 
-// aka $
-
+[<ExcludeFromCodeCoverage>]
 let inline private boolResult x = x |> Boolean |> ValueSome
+[<ExcludeFromCodeCoverage>]
 let inline private decimalResult x = x |> Number |> ValueSome
 let private intResult x = x |> decimal |> decimalResult
 let private falseResult = boolResult false
@@ -93,7 +94,9 @@ let not' = function
     | Boolean x -> not x |> boolResult
     | _ -> ValueNone
 
+[<ExcludeFromCodeCoverage>]
 let private sysNot = not
+[<ExcludeFromCodeCoverage>]
 let inline not item = item ?>=> not'
 
 let ``and`` struct (left, right) itemData =
@@ -119,7 +122,6 @@ let toList values =
     >> AttributeList
     >> ValueSome
 
-let inline private (>>>) f g x y = f x y |> g
 let private listContainsEq: AttributeValue seq -> AttributeValue -> bool voption =
     let rec test' (items: IEnumerator<AttributeValue -> bool voption>) defaultBuilder value =
         if items.MoveNext() |> sysNot

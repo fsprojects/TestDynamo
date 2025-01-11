@@ -1,4 +1,5 @@
 namespace TestDynamo.Data.Monads
+open System.Diagnostics.CodeAnalysis
 open TestDynamo
 open TestDynamo.Data.BasicStructures
 open Utils
@@ -7,23 +8,33 @@ open Utils
 type Writer<'emit, 'a> = | W of struct ('emit list * 'a)
 [<RequireQualifiedAccess>]
 module Writer =
+    [<ExcludeFromCodeCoverage>]
     let inline create e x = struct ([e], x) |> W
+    [<ExcludeFromCodeCoverage>]
     let inline retn x = struct([], x) |> W
+    [<ExcludeFromCodeCoverage>]
     let inline map f = function | W w -> mapSnd f w |> W
+    [<ExcludeFromCodeCoverage>]
     let inline mapEmits f = function | W w -> mapFst f w |> W
+    [<ExcludeFromCodeCoverage>]
     let inline mapEmit f = List.map f |> mapEmits
+    [<ExcludeFromCodeCoverage>]
     let inline bind f = function
         | W struct (e, x) -> match f x with | W (e', y) -> struct (e'@e, y) |> W
+    [<ExcludeFromCodeCoverage>]
     let inline apply x f =
         match struct (f, x) with
         | W ([], f'), W (xe, x') -> struct (xe, f' x') |> W
         | W (fe, f'), W (xe, x') -> struct (xe @ fe, f' x') |> W
+    [<ExcludeFromCodeCoverage>]
     let inline traverseTpl struct (x, y) =
         retn tpl |> apply x |> apply y
+    [<ExcludeFromCodeCoverage>]
     let inline traverse ws =
         let prepend wx = bind (fun s -> map (fun x -> x::s) wx)
         retn [] |> List.foldBack prepend ws
 
+    [<ExcludeFromCodeCoverage>]
     let inline execute (W w') = mapFst List.rev w'
 
     // let inline executeNested w =
@@ -39,6 +50,7 @@ module Writer =
         | W struct (_, Error x) -> Error x
         | W struct (emit, Ok x) -> W struct (emit, x) |> Ok
 
+    [<ExcludeFromCodeCoverage>]
     let inline traverseResultF (W struct (emit, f)) =
         f >> Result.map (tpl emit >> W)
 
@@ -49,24 +61,31 @@ module Reader =
 
     let retn: 'a -> Reader<'env, 'a> = asLazy
 
+    [<ExcludeFromCodeCoverage>]
     let inline create (x: 'env -> 'a): Reader<'env, 'a> = x
 
     let execute: 'env -> Reader<'env, 'a> -> 'a = apply
 
+    [<ExcludeFromCodeCoverage>]
     let inline map (f: 'a -> 'b) (x: Reader<'env, 'a>): Reader<'env, 'b> = x >> f
 
+    [<ExcludeFromCodeCoverage>]
     let inline invokeTwice f x = f x x
 
+    [<ExcludeFromCodeCoverage>]
     let inline bind (f: 'a -> Reader<'env, 'b>) (x: Reader<'env, 'a>): Reader<'env, 'b> =
         x >> f |> invokeTwice
 
+    [<ExcludeFromCodeCoverage>]
     let inline apply (x: Reader<'env, 'a>) (f: Reader<'env, 'a -> 'b>): Reader<'env, 'b> =
         bind (flip map x) f
 
+    [<ExcludeFromCodeCoverage>]
     let inline traverse (x: Reader<'env, 'a> seq): Reader<'env, 'a list> =
         Seq.map (map Collection.prependL) x
         |> Collection.foldBack apply (retn [])
 
+    [<ExcludeFromCodeCoverage>]
     let inline traverseSeq (x: Reader<'env, 'a> seq): Reader<'env, 'a seq> =
         create (fun env ->
             seq {
@@ -79,22 +98,30 @@ type ReaderResult<'env, 'a> = 'env -> Result<'a, NonEmptyList<string>>
 [<RequireQualifiedAccess>]    
 module ReaderResult =
 
+    [<ExcludeFromCodeCoverage>]
     let inline retn (x: 'a): ReaderResult<'env, 'a> = x |> Ok |> asLazy
 
+    [<ExcludeFromCodeCoverage>]
     let inline fromReader (x: Reader<'env, 'a>): ReaderResult<'env, 'a> = Reader.map Ok x
 
+    [<ExcludeFromCodeCoverage>]
     let inline fromResult (x: 'env -> 'a): ReaderResult<'env, 'a> = Reader.map Ok x
 
+    [<ExcludeFromCodeCoverage>]
     let inline create (x: 'env -> Result<'a, NonEmptyList<string>>): ReaderResult<'env, 'a> = x
 
     let execute: 'env -> ReaderResult<'env, 'a> -> Result<'a, NonEmptyList<string>> = apply
 
+    [<ExcludeFromCodeCoverage>]
     let inline map (f: 'a -> 'b) (x: ReaderResult<'env, 'a>): ReaderResult<'env, 'b> = x >> Result.map f
 
+    [<ExcludeFromCodeCoverage>]
     let inline mapEnv (f: 'env2 -> 'env1) (x: ReaderResult<'env1, 'a>): ReaderResult<'env2, 'a> = f >> x
 
+    [<ExcludeFromCodeCoverage>]
     let inline invokeTwice f x = f x x
 
+    [<ExcludeFromCodeCoverage>]
     let inline bind (f: 'a -> ReaderResult<'env, 'b>) (x: ReaderResult<'env, 'a>): ReaderResult<'env, 'b> =
         fun env -> x env |> Result.bind (flip f env)
 
@@ -126,23 +153,31 @@ type State<'state, 'a> = 'state -> struct ('state * 'a)
 [<RequireQualifiedAccess>]
 module State =
 
+    [<ExcludeFromCodeCoverage>]
     let inline retn x: State<'state, 'a> = flip tpl x
 
+    [<ExcludeFromCodeCoverage>]
     let inline create (x: 'state -> struct ('state * 'a)): State<'state, 'a> = x
 
+    [<ExcludeFromCodeCoverage>]
     let inline fromFn (f: 'state -> 'a): State<'state, 'a> = tplDouble >> mapSnd f
 
+    [<ExcludeFromCodeCoverage>]
     let execute: 'state -> State<'state, 'a> -> struct ('state * 'a) = apply
 
+    [<ExcludeFromCodeCoverage>]
     let inline map (f: 'a -> 'b) (x: State<'state, 'a>): State<'state, 'b> = x >> mapSnd f
 
+    [<ExcludeFromCodeCoverage>]
     let inline invokeTwice f x = f x x
 
+    [<ExcludeFromCodeCoverage>]
     let inline bind (f: 'a -> State<'state, 'b>) (x: State<'state, 'a>): State<'state, 'b> =
         x >> mapSnd f >> flipTpl >> applyTpl
 
     let private fnApply = apply
     /// <summary>NOTE: state is applied to function first, arg second</summary>
+    [<ExcludeFromCodeCoverage>]
     let inline apply (x: State<'state, 'a>) (f: State<'state, 'a -> 'b>): State<'state, 'b> =
         bind (flip map x) f
 

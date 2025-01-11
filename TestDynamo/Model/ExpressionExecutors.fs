@@ -12,6 +12,7 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Model.ExpressionExecutors
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Model.Compiler
 open TestDynamo.Model.Compiler.Compilers
 open TestDynamo.Utils
@@ -20,6 +21,7 @@ open TestDynamo.Data.Monads.Operators
 open System.Runtime.CompilerServices
 
 let private doubleLazyId x = (id |> asLazy |> asLazy) x
+[<ExcludeFromCodeCoverage>]
 let inline private logOperation x = DatabaseLogger.logOperation "ItemSelector" x
 
 module Fetch =
@@ -436,6 +438,7 @@ module Update =
             >>> (ExpressionCompiler.CompiledExpression.writer >> flip >> apply Map.empty >>> _.result))
         >> ValueOption.defaultValue returnInput
 
+    [<ExcludeFromCodeCoverage>]
     let inline private writerResultAsTpl (x: ExpressionCompiler.WriterResult) = struct (x.result, x.mutatedPaths)
     let private buildUpdate (req: UpdateInput) =
 

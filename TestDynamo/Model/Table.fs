@@ -1,5 +1,6 @@
 ﻿namespace TestDynamo.Model
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Utils
 open TestDynamo
 open TestDynamo.Data.Monads.Operators
@@ -243,6 +244,7 @@ module Table =
                         info.nameAndIndexes = nameAndIndexes args.table.info.name gsis 
                 }
 
+    [<ExcludeFromCodeCoverage>]
     let inline private unwrap (Tbl t) = t 
 
     let empty logger (data: TableConfig) =

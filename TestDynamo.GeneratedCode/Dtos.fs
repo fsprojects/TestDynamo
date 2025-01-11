@@ -5,14 +5,15 @@ module rec TestDynamo.GeneratedCode.Dtos
 // ############################################################################
 
 open System
-open System.Runtime.CompilerServices
+open System.Diagnostics.CodeAnalysis
 open System.Net
+open System.Runtime.CompilerServices
 
 #if NETSTANDARD2_0
 type internal IsReadOnlyAttribute() = inherit System.Attribute()
 #endif
 
-[<AllowNullLiteral>]
+[<ExcludeFromCodeCoverage; AllowNullLiteral>]
 type DynamodbTypeAttribute(name: string, empty: bool, ``const``: bool) =
     inherit Attribute()
 
@@ -22,37 +23,34 @@ type DynamodbTypeAttribute(name: string, empty: bool, ``const``: bool) =
 
     override _.ToString() = $"{name} - empty: {empty}, const: {``const``}"
 
-let private emptyStringAsNone = function | ValueSome "" -> ValueNone | x -> x
-let private emptyStringAsNull = function | "" -> null | x -> x
-
-[<DynamodbType("Amazon.DynamoDBv2.AmazonDynamoDBRequest", true, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.AmazonDynamoDBRequest", true, false)>]
 type AmazonDynamoDBRequest private () =
     static member value = AmazonDynamoDBRequest()
 
-[<DynamodbType("Amazon.Runtime.AmazonWebServiceRequest", true, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.AmazonWebServiceRequest", true, false)>]
 type AmazonWebServiceRequest private () =
     static member value = AmazonWebServiceRequest()
 
-[<DynamodbType("Amazon.Runtime.AmazonWebServiceResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.AmazonWebServiceResponse", false, false)>]
 type AmazonWebServiceResponse =
     { ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ApproximateCreationDateTimePrecision", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ApproximateCreationDateTimePrecision", false, true)>]
 type ApproximateCreationDateTimePrecision private (value: string) =
     member _.Value = value
     static member MICROSECOND = ApproximateCreationDateTimePrecision("MICROSECOND")
     static member MILLISECOND = ApproximateCreationDateTimePrecision("MILLISECOND")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ArchivalSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ArchivalSummary", false, false)>]
 type ArchivalSummary =
     { ArchivalBackupArn: String voption
       ArchivalDateTime: DateTime voption
       ArchivalReason: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.AttributeAction", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.AttributeAction", false, true)>]
 type AttributeAction private (value: string) =
     member _.Value = value
     static member ADD = AttributeAction("ADD")
@@ -60,27 +58,27 @@ type AttributeAction private (value: string) =
     static member PUT = AttributeAction("PUT")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AttributeDefinition", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AttributeDefinition", false, false); Struct; IsReadOnly>]
 type AttributeDefinition =
     { AttributeName: String voption
       AttributeType: ScalarAttributeType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AttributeValueUpdate", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AttributeValueUpdate", false, false); Struct; IsReadOnly>]
 type AttributeValueUpdate<'attr> =
     { Action: AttributeAction voption
       Value: 'attr voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingPolicyDescription", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingPolicyDescription", false, false); Struct; IsReadOnly>]
 type AutoScalingPolicyDescription =
     { PolicyName: String voption
       TargetTrackingScalingPolicyConfiguration: AutoScalingTargetTrackingScalingPolicyConfigurationDescription voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingPolicyUpdate", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingPolicyUpdate", false, false); Struct; IsReadOnly>]
 type AutoScalingPolicyUpdate =
     { PolicyName: String voption
       TargetTrackingScalingPolicyConfiguration: AutoScalingTargetTrackingScalingPolicyConfigurationUpdate voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingSettingsDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingSettingsDescription", false, false)>]
 type AutoScalingSettingsDescription =
     { AutoScalingDisabled: Boolean voption
       AutoScalingRoleArn: String voption
@@ -88,7 +86,7 @@ type AutoScalingSettingsDescription =
       MinimumUnits: Int64 voption
       ScalingPolicies: AutoScalingPolicyDescription array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingSettingsUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingSettingsUpdate", false, false)>]
 type AutoScalingSettingsUpdate =
     { AutoScalingDisabled: Boolean voption
       AutoScalingRoleArn: String voption
@@ -96,27 +94,27 @@ type AutoScalingSettingsUpdate =
       MinimumUnits: Int64 voption
       ScalingPolicyUpdate: AutoScalingPolicyUpdate voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingTargetTrackingScalingPolicyConfigurationDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingTargetTrackingScalingPolicyConfigurationDescription", false, false)>]
 type AutoScalingTargetTrackingScalingPolicyConfigurationDescription =
     { DisableScaleIn: Boolean voption
       ScaleInCooldown: Int32 voption
       ScaleOutCooldown: Int32 voption
       TargetValue: Double voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingTargetTrackingScalingPolicyConfigurationUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.AutoScalingTargetTrackingScalingPolicyConfigurationUpdate", false, false)>]
 type AutoScalingTargetTrackingScalingPolicyConfigurationUpdate =
     { DisableScaleIn: Boolean voption
       ScaleInCooldown: Int32 voption
       ScaleOutCooldown: Int32 voption
       TargetValue: Double voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BackupDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BackupDescription", false, false)>]
 type BackupDescription =
     { BackupDetails: BackupDetails voption
       SourceTableDetails: SourceTableDetails voption
       SourceTableFeatureDetails: SourceTableFeatureDetails voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BackupDetails", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BackupDetails", false, false)>]
 type BackupDetails =
     { BackupArn: String voption
       BackupCreationDateTime: DateTime voption
@@ -126,7 +124,7 @@ type BackupDetails =
       BackupStatus: BackupStatus voption
       BackupType: BackupType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.BackupStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.BackupStatus", false, true)>]
 type BackupStatus private (value: string) =
     member _.Value = value
     static member AVAILABLE = BackupStatus("AVAILABLE")
@@ -134,7 +132,7 @@ type BackupStatus private (value: string) =
     static member DELETED = BackupStatus("DELETED")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BackupSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BackupSummary", false, false)>]
 type BackupSummary =
     { BackupArn: String voption
       BackupCreationDateTime: DateTime voption
@@ -147,7 +145,7 @@ type BackupSummary =
       TableId: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.BackupType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.BackupType", false, true)>]
 type BackupType private (value: string) =
     member _.Value = value
     static member AWS_BACKUP = BackupType("AWS_BACKUP")
@@ -155,7 +153,7 @@ type BackupType private (value: string) =
     static member USER = BackupType("USER")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.BackupTypeFilter", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.BackupTypeFilter", false, true)>]
 type BackupTypeFilter private (value: string) =
     member _.Value = value
     static member ALL = BackupTypeFilter("ALL")
@@ -164,12 +162,12 @@ type BackupTypeFilter private (value: string) =
     static member USER = BackupTypeFilter("USER")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementRequest", false, false)>]
 type BatchExecuteStatementRequest<'attr> =
     { ReturnConsumedCapacity: ReturnConsumedCapacity voption
       Statements: BatchStatementRequest<'attr> array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchExecuteStatementResponse", false, false)>]
 type BatchExecuteStatementResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       Responses: BatchStatementResponse<'attr> array voption
@@ -177,12 +175,12 @@ type BatchExecuteStatementResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchGetItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchGetItemRequest", false, false)>]
 type BatchGetItemRequest<'attr> =
     { RequestItems: Map<String, KeysAndAttributes<'attr>> voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchGetItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchGetItemResponse", false, false)>]
 type BatchGetItemResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       Responses: Map<String, Map<String, 'attr> array> voption
@@ -191,13 +189,13 @@ type BatchGetItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementError", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementError", false, false)>]
 type BatchStatementError<'attr> =
     { Code: BatchStatementErrorCodeEnum voption
       Item: Map<String, 'attr> voption
       Message: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.BatchStatementErrorCodeEnum", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.BatchStatementErrorCodeEnum", false, true)>]
 type BatchStatementErrorCodeEnum private (value: string) =
     member _.Value = value
     static member AccessDenied = BatchStatementErrorCodeEnum("AccessDenied")
@@ -213,26 +211,26 @@ type BatchStatementErrorCodeEnum private (value: string) =
     static member ValidationError = BatchStatementErrorCodeEnum("ValidationError")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementRequest", false, false)>]
 type BatchStatementRequest<'attr> =
     { ConsistentRead: Boolean voption
       Parameters: 'attr array voption
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchStatementResponse", false, false)>]
 type BatchStatementResponse<'attr> =
     { Error: BatchStatementError<'attr> voption
       Item: Map<String, 'attr> voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemRequest", false, false)>]
 type BatchWriteItemRequest<'attr> =
     { RequestItems: Map<String, WriteRequest<'attr> array> voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       ReturnItemCollectionMetrics: ReturnItemCollectionMetrics voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BatchWriteItemResponse", false, false)>]
 type BatchWriteItemResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       ItemCollectionMetrics: Map<String, ItemCollectionMetrics<'attr> array> voption
@@ -241,32 +239,32 @@ type BatchWriteItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.BillingMode", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.BillingMode", false, true)>]
 type BillingMode private (value: string) =
     member _.Value = value
     static member PAY_PER_REQUEST = BillingMode("PAY_PER_REQUEST")
     static member PROVISIONED = BillingMode("PROVISIONED")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.BillingModeSummary", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.BillingModeSummary", false, false); Struct; IsReadOnly>]
 type BillingModeSummary =
     { BillingMode: BillingMode voption
       LastUpdateToPayPerRequestDateTime: DateTime voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Capacity", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Capacity", false, false)>]
 type Capacity =
     { CapacityUnits: Double voption
       ReadCapacityUnits: Double voption
       WriteCapacityUnits: Double voption }
 
-[<DynamodbType("Amazon.Runtime.ChecksumValidationStatus", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.ChecksumValidationStatus", false, false)>]
 type ChecksumValidationStatus =
     | NOT_VALIDATED = 0
     | PENDING_RESPONSE_READ = 1
     | SUCCESSFUL = 2
     | INVALID = 3
 
-[<DynamodbType("Amazon.DynamoDBv2.ComparisonOperator", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ComparisonOperator", false, true)>]
 type ComparisonOperator private (value: string) =
     member _.Value = value
     static member BEGINS_WITH = ComparisonOperator("BEGINS_WITH")
@@ -284,19 +282,19 @@ type ComparisonOperator private (value: string) =
     static member NULL = ComparisonOperator("NULL")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Condition", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Condition", false, false); Struct; IsReadOnly>]
 type Condition<'attr> =
     { AttributeValueList: 'attr array voption
       ComparisonOperator: ComparisonOperator voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ConditionalOperator", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ConditionalOperator", false, true)>]
 type ConditionalOperator private (value: string) =
     member _.Value = value
     static member AND = ConditionalOperator("AND")
     static member OR = ConditionalOperator("OR")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ConditionCheck", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ConditionCheck", false, false)>]
 type ConditionCheck<'attr> =
     { ConditionExpression: String voption
       ExpressionAttributeNames: Map<String, String> voption
@@ -305,11 +303,11 @@ type ConditionCheck<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.Runtime.ConstantClass", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.ConstantClass", false, false); Struct; IsReadOnly>]
 type ConstantClass =
     { Value: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ConsumedCapacity", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ConsumedCapacity", false, false)>]
 type ConsumedCapacity =
     { CapacityUnits: Double voption
       GlobalSecondaryIndexes: Map<String, Capacity> voption
@@ -319,26 +317,26 @@ type ConsumedCapacity =
       TableName: String voption
       WriteCapacityUnits: Double voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ContinuousBackupsDescription", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ContinuousBackupsDescription", false, false); Struct; IsReadOnly>]
 type ContinuousBackupsDescription =
     { ContinuousBackupsStatus: ContinuousBackupsStatus voption
       PointInTimeRecoveryDescription: PointInTimeRecoveryDescription voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ContinuousBackupsStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ContinuousBackupsStatus", false, true)>]
 type ContinuousBackupsStatus private (value: string) =
     member _.Value = value
     static member DISABLED = ContinuousBackupsStatus("DISABLED")
     static member ENABLED = ContinuousBackupsStatus("ENABLED")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ContributorInsightsAction", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ContributorInsightsAction", false, true)>]
 type ContributorInsightsAction private (value: string) =
     member _.Value = value
     static member DISABLE = ContributorInsightsAction("DISABLE")
     static member ENABLE = ContributorInsightsAction("ENABLE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ContributorInsightsStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ContributorInsightsStatus", false, true)>]
 type ContributorInsightsStatus private (value: string) =
     member _.Value = value
     static member DISABLED = ContributorInsightsStatus("DISABLED")
@@ -348,13 +346,13 @@ type ContributorInsightsStatus private (value: string) =
     static member FAILED = ContributorInsightsStatus("FAILED")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ContributorInsightsSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ContributorInsightsSummary", false, false)>]
 type ContributorInsightsSummary =
     { ContributorInsightsStatus: ContributorInsightsStatus voption
       IndexName: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.Runtime.CoreChecksumAlgorithm", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.CoreChecksumAlgorithm", false, false)>]
 type CoreChecksumAlgorithm =
     | NONE = 0
     | CRC32C = 1
@@ -362,19 +360,19 @@ type CoreChecksumAlgorithm =
     | SHA256 = 3
     | SHA1 = 4
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateBackupRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateBackupRequest", false, false)>]
 type CreateBackupRequest =
     { BackupName: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateBackupResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateBackupResponse", false, false)>]
 type CreateBackupResponse =
     { BackupDetails: BackupDetails voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalSecondaryIndexAction", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalSecondaryIndexAction", false, false)>]
 type CreateGlobalSecondaryIndexAction =
     { IndexName: String voption
       KeySchema: KeySchemaElement array voption
@@ -382,23 +380,23 @@ type CreateGlobalSecondaryIndexAction =
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableRequest", false, false)>]
 type CreateGlobalTableRequest =
     { GlobalTableName: String voption
       ReplicationGroup: Replica array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateGlobalTableResponse", false, false)>]
 type CreateGlobalTableResponse =
     { GlobalTableDescription: GlobalTableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateReplicaAction", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateReplicaAction", false, false); Struct; IsReadOnly>]
 type CreateReplicaAction =
     { RegionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateReplicationGroupMemberAction", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateReplicationGroupMemberAction", false, false)>]
 type CreateReplicationGroupMemberAction =
     { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndex array voption
       KMSMasterKeyId: String voption
@@ -407,7 +405,7 @@ type CreateReplicationGroupMemberAction =
       RegionName: String voption
       TableClassOverride: TableClass voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateTableRequest", false, false)>]
 type CreateTableRequest =
     { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
@@ -424,19 +422,19 @@ type CreateTableRequest =
       TableName: String voption
       Tags: Tag array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CreateTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CreateTableResponse", false, false)>]
 type CreateTableResponse =
     { TableDescription: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.CsvOptions", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.CsvOptions", false, false); Struct; IsReadOnly>]
 type CsvOptions =
     { Delimiter: String voption
       HeaderList: String array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Delete", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Delete", false, false)>]
 type Delete<'attr> =
     { ConditionExpression: String voption
       ExpressionAttributeNames: Map<String, String> voption
@@ -445,22 +443,22 @@ type Delete<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteBackupRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteBackupRequest", false, false)>]
 type DeleteBackupRequest =
     { BackupArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteBackupResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteBackupResponse", false, false)>]
 type DeleteBackupResponse =
     { BackupDescription: BackupDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteGlobalSecondaryIndexAction", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteGlobalSecondaryIndexAction", false, false); Struct; IsReadOnly>]
 type DeleteGlobalSecondaryIndexAction =
     { IndexName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteItemRequest", false, false)>]
 type DeleteItemRequest<'attr> =
     { ConditionalOperator: ConditionalOperator voption
       ConditionExpression: String voption
@@ -474,7 +472,7 @@ type DeleteItemRequest<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteItemResponse", false, false)>]
 type DeleteItemResponse<'attr> =
     { Attributes: Map<String, 'attr> voption
       ConsumedCapacity: ConsumedCapacity voption
@@ -483,69 +481,69 @@ type DeleteItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteReplicaAction", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteReplicaAction", false, false); Struct; IsReadOnly>]
 type DeleteReplicaAction =
     { RegionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteReplicationGroupMemberAction", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteReplicationGroupMemberAction", false, false); Struct; IsReadOnly>]
 type DeleteReplicationGroupMemberAction =
     { RegionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteRequest", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteRequest", false, false); Struct; IsReadOnly>]
 type DeleteRequest<'attr> =
     { Key: Map<String, 'attr> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteResourcePolicyRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteResourcePolicyRequest", false, false)>]
 type DeleteResourcePolicyRequest =
     { ExpectedRevisionId: String voption
       ResourceArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteResourcePolicyResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteResourcePolicyResponse", false, false)>]
 type DeleteResourcePolicyResponse =
     { RevisionId: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteTableRequest", false, false)>]
 type DeleteTableRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DeleteTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DeleteTableResponse", false, false)>]
 type DeleteTableResponse =
     { TableDescription: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeBackupRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeBackupRequest", false, false)>]
 type DescribeBackupRequest =
     { BackupArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeBackupResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeBackupResponse", false, false)>]
 type DescribeBackupResponse =
     { BackupDescription: BackupDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeContinuousBackupsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeContinuousBackupsRequest", false, false)>]
 type DescribeContinuousBackupsRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeContinuousBackupsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeContinuousBackupsResponse", false, false)>]
 type DescribeContinuousBackupsResponse =
     { ContinuousBackupsDescription: ContinuousBackupsDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeContributorInsightsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeContributorInsightsRequest", false, false)>]
 type DescribeContributorInsightsRequest =
     { IndexName: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeContributorInsightsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeContributorInsightsResponse", false, false)>]
 type DescribeContributorInsightsResponse =
     { ContributorInsightsRuleList: String array voption
       ContributorInsightsStatus: ContributorInsightsStatus voption
@@ -557,44 +555,44 @@ type DescribeContributorInsightsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeEndpointsRequest", true, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeEndpointsRequest", true, false)>]
 type DescribeEndpointsRequest private () =
     static member value = DescribeEndpointsRequest()
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeEndpointsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeEndpointsResponse", false, false)>]
 type DescribeEndpointsResponse =
     { Endpoints: Endpoint array voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeExportRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeExportRequest", false, false)>]
 type DescribeExportRequest =
     { ExportArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeExportResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeExportResponse", false, false)>]
 type DescribeExportResponse =
     { ExportDescription: ExportDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableRequest", false, false)>]
 type DescribeGlobalTableRequest =
     { GlobalTableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableResponse", false, false)>]
 type DescribeGlobalTableResponse =
     { GlobalTableDescription: GlobalTableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableSettingsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableSettingsRequest", false, false)>]
 type DescribeGlobalTableSettingsRequest =
     { GlobalTableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableSettingsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeGlobalTableSettingsResponse", false, false)>]
 type DescribeGlobalTableSettingsResponse =
     { GlobalTableName: String voption
       ReplicaSettings: ReplicaSettingsDescription array voption
@@ -602,22 +600,22 @@ type DescribeGlobalTableSettingsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeImportRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeImportRequest", false, false)>]
 type DescribeImportRequest =
     { ImportArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeImportResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeImportResponse", false, false)>]
 type DescribeImportResponse =
     { ImportTableDescription: ImportTableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeKinesisStreamingDestinationRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeKinesisStreamingDestinationRequest", false, false)>]
 type DescribeKinesisStreamingDestinationRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeKinesisStreamingDestinationResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeKinesisStreamingDestinationResponse", false, false)>]
 type DescribeKinesisStreamingDestinationResponse =
     { KinesisDataStreamDestinations: KinesisDataStreamDestination array voption
       TableName: String voption
@@ -625,11 +623,11 @@ type DescribeKinesisStreamingDestinationResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeLimitsRequest", true, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeLimitsRequest", true, false)>]
 type DescribeLimitsRequest private () =
     static member value = DescribeLimitsRequest()
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeLimitsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeLimitsResponse", false, false)>]
 type DescribeLimitsResponse =
     { AccountMaxReadCapacityUnits: Int64 voption
       AccountMaxWriteCapacityUnits: Int64 voption
@@ -639,40 +637,40 @@ type DescribeLimitsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableReplicaAutoScalingRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableReplicaAutoScalingRequest", false, false)>]
 type DescribeTableReplicaAutoScalingRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableReplicaAutoScalingResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableReplicaAutoScalingResponse", false, false)>]
 type DescribeTableReplicaAutoScalingResponse =
     { TableAutoScalingDescription: TableAutoScalingDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableRequest", false, false)>]
 type DescribeTableRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTableResponse", false, false)>]
 type DescribeTableResponse =
     { Table: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTimeToLiveRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTimeToLiveRequest", false, false)>]
 type DescribeTimeToLiveRequest =
     { TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DescribeTimeToLiveResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DescribeTimeToLiveResponse", false, false)>]
 type DescribeTimeToLiveResponse =
     { TimeToLiveDescription: TimeToLiveDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.DestinationStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.DestinationStatus", false, true)>]
 type DestinationStatus private (value: string) =
     member _.Value = value
     static member ACTIVE = DestinationStatus("ACTIVE")
@@ -683,13 +681,13 @@ type DestinationStatus private (value: string) =
     static member UPDATING = DestinationStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DisableKinesisStreamingDestinationRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DisableKinesisStreamingDestinationRequest", false, false)>]
 type DisableKinesisStreamingDestinationRequest =
     { EnableKinesisStreamingConfiguration: EnableKinesisStreamingConfiguration voption
       StreamArn: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.DisableKinesisStreamingDestinationResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.DisableKinesisStreamingDestinationResponse", false, false)>]
 type DisableKinesisStreamingDestinationResponse =
     { DestinationStatus: DestinationStatus voption
       EnableKinesisStreamingConfiguration: EnableKinesisStreamingConfiguration voption
@@ -699,11 +697,11 @@ type DisableKinesisStreamingDestinationResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent", false, false)>]
 type DynamoDBEvent<'attr> =
     { Records: DynamodbStreamRecord<'attr> array voption }
 
-[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+DynamodbStreamRecord", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+DynamodbStreamRecord", false, false)>]
 type DynamodbStreamRecord<'attr> =
     { EventSourceArn: String voption
       AwsRegion: String voption
@@ -714,17 +712,17 @@ type DynamodbStreamRecord<'attr> =
       EventVersion: String voption
       UserIdentity: Identity voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingConfiguration", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingConfiguration", false, false); Struct; IsReadOnly>]
 type EnableKinesisStreamingConfiguration =
     { ApproximateCreationDateTimePrecision: ApproximateCreationDateTimePrecision voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingDestinationRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingDestinationRequest", false, false)>]
 type EnableKinesisStreamingDestinationRequest =
     { EnableKinesisStreamingConfiguration: EnableKinesisStreamingConfiguration voption
       StreamArn: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingDestinationResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.EnableKinesisStreamingDestinationResponse", false, false)>]
 type EnableKinesisStreamingDestinationResponse =
     { DestinationStatus: DestinationStatus voption
       EnableKinesisStreamingConfiguration: EnableKinesisStreamingConfiguration voption
@@ -734,18 +732,18 @@ type EnableKinesisStreamingDestinationResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Endpoint", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Endpoint", false, false); Struct; IsReadOnly>]
 type Endpoint =
     { Address: String voption
       CachePeriodInMinutes: Int64 voption }
 
-[<DynamodbType("Amazon.Runtime.Endpoints.Endpoint", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.Endpoints.Endpoint", false, false)>]
 type Endpoint2 =
     { URL: String voption
       Attributes: IPropertyBag voption
       Headers: Map<String, String array> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementRequest", false, false)>]
 type ExecuteStatementRequest<'attr> =
     { ConsistentRead: Boolean voption
       Limit: Int32 voption
@@ -755,7 +753,7 @@ type ExecuteStatementRequest<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExecuteStatementResponse", false, false)>]
 type ExecuteStatementResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Items: Map<String, 'attr> array voption
@@ -765,13 +763,13 @@ type ExecuteStatementResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteTransactionRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExecuteTransactionRequest", false, false)>]
 type ExecuteTransactionRequest<'attr> =
     { ClientRequestToken: String voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       TransactStatements: ParameterizedStatement<'attr> array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExecuteTransactionResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExecuteTransactionResponse", false, false)>]
 type ExecuteTransactionResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       Responses: ItemResponse<'attr> array voption
@@ -779,14 +777,14 @@ type ExecuteTransactionResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExpectedAttributeValue", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExpectedAttributeValue", false, false)>]
 type ExpectedAttributeValue<'attr> =
     { AttributeValueList: 'attr array voption
       ComparisonOperator: ComparisonOperator voption
       Exists: Boolean voption
       Value: 'attr voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExportDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExportDescription", false, false)>]
 type ExportDescription =
     { BilledSizeBytes: Int64 voption
       ClientToken: String voption
@@ -810,14 +808,14 @@ type ExportDescription =
       TableArn: String voption
       TableId: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ExportFormat", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ExportFormat", false, true)>]
 type ExportFormat private (value: string) =
     member _.Value = value
     static member DYNAMODB_JSON = ExportFormat("DYNAMODB_JSON")
     static member ION = ExportFormat("ION")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ExportStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ExportStatus", false, true)>]
 type ExportStatus private (value: string) =
     member _.Value = value
     static member COMPLETED = ExportStatus("COMPLETED")
@@ -825,13 +823,13 @@ type ExportStatus private (value: string) =
     static member IN_PROGRESS = ExportStatus("IN_PROGRESS")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExportSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExportSummary", false, false)>]
 type ExportSummary =
     { ExportArn: String voption
       ExportStatus: ExportStatus voption
       ExportType: ExportType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExportTableToPointInTimeRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExportTableToPointInTimeRequest", false, false)>]
 type ExportTableToPointInTimeRequest =
     { ClientToken: String voption
       ExportFormat: ExportFormat voption
@@ -845,40 +843,40 @@ type ExportTableToPointInTimeRequest =
       S3SseKmsKeyId: String voption
       TableArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ExportTableToPointInTimeResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ExportTableToPointInTimeResponse", false, false)>]
 type ExportTableToPointInTimeResponse =
     { ExportDescription: ExportDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ExportType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ExportType", false, true)>]
 type ExportType private (value: string) =
     member _.Value = value
     static member FULL_EXPORT = ExportType("FULL_EXPORT")
     static member INCREMENTAL_EXPORT = ExportType("INCREMENTAL_EXPORT")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ExportViewType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ExportViewType", false, true)>]
 type ExportViewType private (value: string) =
     member _.Value = value
     static member NEW_AND_OLD_IMAGES = ExportViewType("NEW_AND_OLD_IMAGES")
     static member NEW_IMAGE = ExportViewType("NEW_IMAGE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.FailureException", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.FailureException", false, false); Struct; IsReadOnly>]
 type FailureException =
     { ExceptionDescription: String voption
       ExceptionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Get", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Get", false, false)>]
 type Get<'attr> =
     { ExpressionAttributeNames: Map<String, String> voption
       Key: Map<String, 'attr> voption
       ProjectionExpression: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GetItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GetItemRequest", false, false)>]
 type GetItemRequest<'attr> =
     { AttributesToGet: String array voption
       ConsistentRead: Boolean voption
@@ -888,7 +886,7 @@ type GetItemRequest<'attr> =
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GetItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GetItemResponse", false, false)>]
 type GetItemResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Item: Map<String, 'attr> voption
@@ -896,11 +894,11 @@ type GetItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GetResourcePolicyRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GetResourcePolicyRequest", false, false)>]
 type GetResourcePolicyRequest =
     { ResourceArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GetResourcePolicyResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GetResourcePolicyResponse", false, false)>]
 type GetResourcePolicyResponse =
     { Policy: String voption
       RevisionId: String voption
@@ -908,7 +906,7 @@ type GetResourcePolicyResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndex", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndex", false, false)>]
 type GlobalSecondaryIndex =
     { IndexName: String voption
       KeySchema: KeySchemaElement array voption
@@ -916,12 +914,12 @@ type GlobalSecondaryIndex =
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexAutoScalingUpdate", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexAutoScalingUpdate", false, false); Struct; IsReadOnly>]
 type GlobalSecondaryIndexAutoScalingUpdate =
     { IndexName: String voption
       ProvisionedWriteCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexDescription", false, false)>]
 type GlobalSecondaryIndexDescription =
     { Backfilling: Boolean voption
       IndexArn: String voption
@@ -934,7 +932,7 @@ type GlobalSecondaryIndexDescription =
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughputDescription voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexInfo", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexInfo", false, false)>]
 type GlobalSecondaryIndexInfo =
     { IndexName: String voption
       KeySchema: KeySchemaElement array voption
@@ -942,18 +940,18 @@ type GlobalSecondaryIndexInfo =
       Projection: Projection voption
       ProvisionedThroughput: ProvisionedThroughput voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalSecondaryIndexUpdate", false, false)>]
 type GlobalSecondaryIndexUpdate =
     { Create: CreateGlobalSecondaryIndexAction voption
       Delete: DeleteGlobalSecondaryIndexAction voption
       Update: UpdateGlobalSecondaryIndexAction voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTable", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalTable", false, false); Struct; IsReadOnly>]
 type GlobalTable =
     { GlobalTableName: String voption
       ReplicationGroup: Replica array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableDescription", false, false)>]
 type GlobalTableDescription =
     { CreationDateTime: DateTime voption
       GlobalTableArn: String voption
@@ -961,13 +959,13 @@ type GlobalTableDescription =
       GlobalTableStatus: GlobalTableStatus voption
       ReplicationGroup: ReplicaDescription array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableGlobalSecondaryIndexSettingsUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.GlobalTableGlobalSecondaryIndexSettingsUpdate", false, false)>]
 type GlobalTableGlobalSecondaryIndexSettingsUpdate =
     { IndexName: String voption
       ProvisionedWriteCapacityAutoScalingSettingsUpdate: AutoScalingSettingsUpdate voption
       ProvisionedWriteCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.GlobalTableStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.GlobalTableStatus", false, true)>]
 type GlobalTableStatus private (value: string) =
     member _.Value = value
     static member ACTIVE = GlobalTableStatus("ACTIVE")
@@ -976,16 +974,16 @@ type GlobalTableStatus private (value: string) =
     static member UPDATING = GlobalTableStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+Identity", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+Identity", false, false); Struct; IsReadOnly>]
 type Identity =
     { PrincipalId: String voption
       Type: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.IDynamoDBv2PaginatorFactory", true, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.IDynamoDBv2PaginatorFactory", true, false)>]
 type IDynamoDBv2PaginatorFactory private () =
     static member value = IDynamoDBv2PaginatorFactory()
 
-[<DynamodbType("Amazon.DynamoDBv2.ImportStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ImportStatus", false, true)>]
 type ImportStatus private (value: string) =
     member _.Value = value
     static member CANCELLED = ImportStatus("CANCELLED")
@@ -995,7 +993,7 @@ type ImportStatus private (value: string) =
     static member IN_PROGRESS = ImportStatus("IN_PROGRESS")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ImportSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ImportSummary", false, false)>]
 type ImportSummary =
     { CloudWatchLogGroupArn: String voption
       EndTime: DateTime voption
@@ -1006,7 +1004,7 @@ type ImportSummary =
       StartTime: DateTime voption
       TableArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ImportTableDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ImportTableDescription", false, false)>]
 type ImportTableDescription =
     { ClientToken: String voption
       CloudWatchLogGroupArn: String voption
@@ -1028,7 +1026,7 @@ type ImportTableDescription =
       TableCreationParameters: TableCreationParameters voption
       TableId: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ImportTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ImportTableRequest", false, false)>]
 type ImportTableRequest =
     { ClientToken: String voption
       InputCompressionType: InputCompressionType voption
@@ -1037,20 +1035,20 @@ type ImportTableRequest =
       S3BucketSource: S3BucketSource voption
       TableCreationParameters: TableCreationParameters voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ImportTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ImportTableResponse", false, false)>]
 type ImportTableResponse =
     { ImportTableDescription: ImportTableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.IncrementalExportSpecification", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.IncrementalExportSpecification", false, false)>]
 type IncrementalExportSpecification =
     { ExportFromTime: DateTime voption
       ExportToTime: DateTime voption
       ExportViewType: ExportViewType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.IndexStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.IndexStatus", false, true)>]
 type IndexStatus private (value: string) =
     member _.Value = value
     static member ACTIVE = IndexStatus("ACTIVE")
@@ -1059,7 +1057,7 @@ type IndexStatus private (value: string) =
     static member UPDATING = IndexStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.InputCompressionType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.InputCompressionType", false, true)>]
 type InputCompressionType private (value: string) =
     member _.Value = value
     static member GZIP = InputCompressionType("GZIP")
@@ -1067,7 +1065,7 @@ type InputCompressionType private (value: string) =
     static member ZSTD = InputCompressionType("ZSTD")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.InputFormat", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.InputFormat", false, true)>]
 type InputFormat private (value: string) =
     member _.Value = value
     static member CSV = InputFormat("CSV")
@@ -1075,24 +1073,24 @@ type InputFormat private (value: string) =
     static member ION = InputFormat("ION")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.InputFormatOptions", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.InputFormatOptions", false, false); Struct; IsReadOnly>]
 type InputFormatOptions =
     { Csv: CsvOptions voption }
 
-[<DynamodbType("Amazon.Runtime.Endpoints.IPropertyBag", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.Endpoints.IPropertyBag", false, false); Struct; IsReadOnly>]
 type IPropertyBag =
     { Item: Object voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ItemCollectionMetrics", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ItemCollectionMetrics", false, false); Struct; IsReadOnly>]
 type ItemCollectionMetrics<'attr> =
     { ItemCollectionKey: Map<String, 'attr> voption
       SizeEstimateRangeGB: Double array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ItemResponse", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ItemResponse", false, false); Struct; IsReadOnly>]
 type ItemResponse<'attr> =
     { Item: Map<String, 'attr> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.KeysAndAttributes", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.KeysAndAttributes", false, false)>]
 type KeysAndAttributes<'attr> =
     { AttributesToGet: String array voption
       ConsistentRead: Boolean voption
@@ -1100,26 +1098,26 @@ type KeysAndAttributes<'attr> =
       Keys: Map<String, 'attr> array voption
       ProjectionExpression: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.KeySchemaElement", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.KeySchemaElement", false, false); Struct; IsReadOnly>]
 type KeySchemaElement =
     { AttributeName: String voption
       KeyType: KeyType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.KeyType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.KeyType", false, true)>]
 type KeyType private (value: string) =
     member _.Value = value
     static member HASH = KeyType("HASH")
     static member RANGE = KeyType("RANGE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.KinesisDataStreamDestination", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.KinesisDataStreamDestination", false, false)>]
 type KinesisDataStreamDestination =
     { ApproximateCreationDateTimePrecision: ApproximateCreationDateTimePrecision voption
       DestinationStatus: DestinationStatus voption
       DestinationStatusDescription: String voption
       StreamArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListBackupsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListBackupsRequest", false, false)>]
 type ListBackupsRequest =
     { BackupType: BackupTypeFilter voption
       ExclusiveStartBackupArn: String voption
@@ -1128,7 +1126,7 @@ type ListBackupsRequest =
       TimeRangeLowerBound: DateTime voption
       TimeRangeUpperBound: DateTime voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListBackupsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListBackupsResponse", false, false)>]
 type ListBackupsResponse =
     { BackupSummaries: BackupSummary array voption
       LastEvaluatedBackupArn: String voption
@@ -1136,13 +1134,13 @@ type ListBackupsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListContributorInsightsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListContributorInsightsRequest", false, false)>]
 type ListContributorInsightsRequest =
     { MaxResults: Int32 voption
       NextToken: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListContributorInsightsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListContributorInsightsResponse", false, false)>]
 type ListContributorInsightsResponse =
     { ContributorInsightsSummaries: ContributorInsightsSummary array voption
       NextToken: String voption
@@ -1150,13 +1148,13 @@ type ListContributorInsightsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListExportsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListExportsRequest", false, false)>]
 type ListExportsRequest =
     { MaxResults: Int32 voption
       NextToken: String voption
       TableArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListExportsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListExportsResponse", false, false)>]
 type ListExportsResponse =
     { ExportSummaries: ExportSummary array voption
       NextToken: String voption
@@ -1164,13 +1162,13 @@ type ListExportsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListGlobalTablesRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListGlobalTablesRequest", false, false)>]
 type ListGlobalTablesRequest =
     { ExclusiveStartGlobalTableName: String voption
       Limit: Int32 voption
       RegionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListGlobalTablesResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListGlobalTablesResponse", false, false)>]
 type ListGlobalTablesResponse =
     { GlobalTables: GlobalTable array voption
       LastEvaluatedGlobalTableName: String voption
@@ -1178,13 +1176,13 @@ type ListGlobalTablesResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListImportsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListImportsRequest", false, false)>]
 type ListImportsRequest =
     { NextToken: String voption
       PageSize: Int32 voption
       TableArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListImportsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListImportsResponse", false, false)>]
 type ListImportsResponse =
     { ImportSummaryList: ImportSummary array voption
       NextToken: String voption
@@ -1192,12 +1190,12 @@ type ListImportsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListTablesRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListTablesRequest", false, false)>]
 type ListTablesRequest =
     { ExclusiveStartTableName: String voption
       Limit: Int32 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListTablesResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListTablesResponse", false, false)>]
 type ListTablesResponse =
     { LastEvaluatedTableName: String voption
       TableNames: String array voption
@@ -1205,12 +1203,12 @@ type ListTablesResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListTagsOfResourceRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListTagsOfResourceRequest", false, false)>]
 type ListTagsOfResourceRequest =
     { NextToken: String voption
       ResourceArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ListTagsOfResourceResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ListTagsOfResourceResponse", false, false)>]
 type ListTagsOfResourceResponse =
     { NextToken: String voption
       Tags: Tag array voption
@@ -1218,13 +1216,13 @@ type ListTagsOfResourceResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndex", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndex", false, false)>]
 type LocalSecondaryIndex =
     { IndexName: String voption
       KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexDescription", false, false)>]
 type LocalSecondaryIndexDescription =
     { IndexArn: String voption
       IndexName: String voption
@@ -1233,50 +1231,50 @@ type LocalSecondaryIndexDescription =
       KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexInfo", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.LocalSecondaryIndexInfo", false, false)>]
 type LocalSecondaryIndexInfo =
     { IndexName: String voption
       KeySchema: KeySchemaElement array voption
       Projection: Projection voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.OnDemandThroughput", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.OnDemandThroughput", false, false); Struct; IsReadOnly>]
 type OnDemandThroughput =
     { MaxReadRequestUnits: Int64 voption
       MaxWriteRequestUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.OnDemandThroughputOverride", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.OnDemandThroughputOverride", false, false); Struct; IsReadOnly>]
 type OnDemandThroughputOverride =
     { MaxReadRequestUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ParameterizedStatement", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ParameterizedStatement", false, false)>]
 type ParameterizedStatement<'attr> =
     { Parameters: 'attr array voption
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       Statement: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PointInTimeRecoveryDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PointInTimeRecoveryDescription", false, false)>]
 type PointInTimeRecoveryDescription =
     { EarliestRestorableDateTime: DateTime voption
       LatestRestorableDateTime: DateTime voption
       PointInTimeRecoveryStatus: PointInTimeRecoveryStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PointInTimeRecoverySpecification", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PointInTimeRecoverySpecification", false, false); Struct; IsReadOnly>]
 type PointInTimeRecoverySpecification =
     { PointInTimeRecoveryEnabled: Boolean voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.PointInTimeRecoveryStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.PointInTimeRecoveryStatus", false, true)>]
 type PointInTimeRecoveryStatus private (value: string) =
     member _.Value = value
     static member DISABLED = PointInTimeRecoveryStatus("DISABLED")
     static member ENABLED = PointInTimeRecoveryStatus("ENABLED")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Projection", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Projection", false, false); Struct; IsReadOnly>]
 type Projection =
     { NonKeyAttributes: String array voption
       ProjectionType: ProjectionType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ProjectionType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ProjectionType", false, true)>]
 type ProjectionType private (value: string) =
     member _.Value = value
     static member ALL = ProjectionType("ALL")
@@ -1284,12 +1282,12 @@ type ProjectionType private (value: string) =
     static member KEYS_ONLY = ProjectionType("KEYS_ONLY")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughput", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughput", false, false); Struct; IsReadOnly>]
 type ProvisionedThroughput =
     { ReadCapacityUnits: Int64 voption
       WriteCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughputDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughputDescription", false, false)>]
 type ProvisionedThroughputDescription =
     { LastDecreaseDateTime: DateTime voption
       LastIncreaseDateTime: DateTime voption
@@ -1297,11 +1295,11 @@ type ProvisionedThroughputDescription =
       ReadCapacityUnits: Int64 voption
       WriteCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughputOverride", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ProvisionedThroughputOverride", false, false); Struct; IsReadOnly>]
 type ProvisionedThroughputOverride =
     { ReadCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Put", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Put", false, false)>]
 type Put<'attr> =
     { ConditionExpression: String voption
       ExpressionAttributeNames: Map<String, String> voption
@@ -1310,7 +1308,7 @@ type Put<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PutItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PutItemRequest", false, false)>]
 type PutItemRequest<'attr> =
     { ConditionalOperator: ConditionalOperator voption
       ConditionExpression: String voption
@@ -1324,7 +1322,7 @@ type PutItemRequest<'attr> =
       ReturnValuesOnConditionCheckFailure: ReturnValuesOnConditionCheckFailure voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PutItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PutItemResponse", false, false)>]
 type PutItemResponse<'attr> =
     { Attributes: Map<String, 'attr> voption
       ConsumedCapacity: ConsumedCapacity voption
@@ -1333,25 +1331,25 @@ type PutItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PutRequest", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PutRequest", false, false); Struct; IsReadOnly>]
 type PutRequest<'attr> =
     { Item: Map<String, 'attr> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PutResourcePolicyRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PutResourcePolicyRequest", false, false)>]
 type PutResourcePolicyRequest =
     { ConfirmRemoveSelfResourceAccess: Boolean voption
       ExpectedRevisionId: String voption
       Policy: String voption
       ResourceArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.PutResourcePolicyResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.PutResourcePolicyResponse", false, false)>]
 type PutResourcePolicyResponse =
     { RevisionId: String voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.QueryRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.QueryRequest", false, false)>]
 type QueryRequest<'attr> =
     { AttributesToGet: String array voption
       ConditionalOperator: ConditionalOperator voption
@@ -1371,7 +1369,7 @@ type QueryRequest<'attr> =
       Select: Select voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.QueryResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.QueryResponse", false, false)>]
 type QueryResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Count: Int32 voption
@@ -1382,11 +1380,11 @@ type QueryResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Replica", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Replica", false, false); Struct; IsReadOnly>]
 type Replica =
     { RegionName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingDescription", false, false)>]
 type ReplicaAutoScalingDescription =
     { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndexAutoScalingDescription array voption
       RegionName: String voption
@@ -1394,13 +1392,13 @@ type ReplicaAutoScalingDescription =
       ReplicaProvisionedWriteCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
       ReplicaStatus: ReplicaStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaAutoScalingUpdate", false, false)>]
 type ReplicaAutoScalingUpdate =
     { RegionName: String voption
       ReplicaGlobalSecondaryIndexUpdates: ReplicaGlobalSecondaryIndexAutoScalingUpdate array voption
       ReplicaProvisionedReadCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaDescription", false, false)>]
 type ReplicaDescription =
     { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndexDescription array voption
       KMSMasterKeyId: String voption
@@ -1413,31 +1411,31 @@ type ReplicaDescription =
       ReplicaStatusPercentProgress: String voption
       ReplicaTableClassSummary: TableClassSummary voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndex", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndex", false, false)>]
 type ReplicaGlobalSecondaryIndex =
     { IndexName: String voption
       OnDemandThroughputOverride: OnDemandThroughputOverride voption
       ProvisionedThroughputOverride: ProvisionedThroughputOverride voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexAutoScalingDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexAutoScalingDescription", false, false)>]
 type ReplicaGlobalSecondaryIndexAutoScalingDescription =
     { IndexName: String voption
       IndexStatus: IndexStatus voption
       ProvisionedReadCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
       ProvisionedWriteCapacityAutoScalingSettings: AutoScalingSettingsDescription voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexAutoScalingUpdate", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexAutoScalingUpdate", false, false); Struct; IsReadOnly>]
 type ReplicaGlobalSecondaryIndexAutoScalingUpdate =
     { IndexName: String voption
       ProvisionedReadCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexDescription", false, false)>]
 type ReplicaGlobalSecondaryIndexDescription =
     { IndexName: String voption
       OnDemandThroughputOverride: OnDemandThroughputOverride voption
       ProvisionedThroughputOverride: ProvisionedThroughputOverride voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexSettingsDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexSettingsDescription", false, false)>]
 type ReplicaGlobalSecondaryIndexSettingsDescription =
     { IndexName: String voption
       IndexStatus: IndexStatus voption
@@ -1446,13 +1444,13 @@ type ReplicaGlobalSecondaryIndexSettingsDescription =
       ProvisionedWriteCapacityAutoScalingSettings: AutoScalingSettingsDescription voption
       ProvisionedWriteCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexSettingsUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaGlobalSecondaryIndexSettingsUpdate", false, false)>]
 type ReplicaGlobalSecondaryIndexSettingsUpdate =
     { IndexName: String voption
       ProvisionedReadCapacityAutoScalingSettingsUpdate: AutoScalingSettingsUpdate voption
       ProvisionedReadCapacityUnits: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaSettingsDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaSettingsDescription", false, false)>]
 type ReplicaSettingsDescription =
     { RegionName: String voption
       ReplicaBillingModeSummary: BillingModeSummary voption
@@ -1464,7 +1462,7 @@ type ReplicaSettingsDescription =
       ReplicaStatus: ReplicaStatus voption
       ReplicaTableClassSummary: TableClassSummary voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaSettingsUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaSettingsUpdate", false, false)>]
 type ReplicaSettingsUpdate =
     { RegionName: String voption
       ReplicaGlobalSecondaryIndexSettingsUpdate: ReplicaGlobalSecondaryIndexSettingsUpdate array voption
@@ -1472,7 +1470,7 @@ type ReplicaSettingsUpdate =
       ReplicaProvisionedReadCapacityUnits: Int64 voption
       ReplicaTableClass: TableClass voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ReplicaStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ReplicaStatus", false, true)>]
 type ReplicaStatus private (value: string) =
     member _.Value = value
     static member ACTIVE = ReplicaStatus("ACTIVE")
@@ -1484,32 +1482,32 @@ type ReplicaStatus private (value: string) =
     static member UPDATING = ReplicaStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicationGroupUpdate", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicationGroupUpdate", false, false)>]
 type ReplicationGroupUpdate =
     { Create: CreateReplicationGroupMemberAction voption
       Delete: DeleteReplicationGroupMemberAction voption
       Update: UpdateReplicationGroupMemberAction voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ReplicaUpdate", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ReplicaUpdate", false, false); Struct; IsReadOnly>]
 type ReplicaUpdate =
     { Create: CreateReplicaAction voption
       Delete: DeleteReplicaAction voption }
 
-[<DynamodbType("Amazon.Runtime.ResponseMetadata", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.ResponseMetadata", false, false)>]
 type ResponseMetadata =
     { RequestId: String voption
       Metadata: Map<String, String> voption
       ChecksumAlgorithm: CoreChecksumAlgorithm voption
       ChecksumValidationStatus: ChecksumValidationStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.RestoreSummary", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.RestoreSummary", false, false)>]
 type RestoreSummary =
     { RestoreDateTime: DateTime voption
       RestoreInProgress: Boolean voption
       SourceBackupArn: String voption
       SourceTableArn: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableFromBackupRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableFromBackupRequest", false, false)>]
 type RestoreTableFromBackupRequest =
     { BackupArn: String voption
       BillingModeOverride: BillingMode voption
@@ -1520,14 +1518,14 @@ type RestoreTableFromBackupRequest =
       SSESpecificationOverride: SSESpecification voption
       TargetTableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableFromBackupResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableFromBackupResponse", false, false)>]
 type RestoreTableFromBackupResponse =
     { TableDescription: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableToPointInTimeRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableToPointInTimeRequest", false, false)>]
 type RestoreTableToPointInTimeRequest =
     { BillingModeOverride: BillingMode voption
       GlobalSecondaryIndexOverride: GlobalSecondaryIndex array voption
@@ -1541,14 +1539,14 @@ type RestoreTableToPointInTimeRequest =
       TargetTableName: String voption
       UseLatestRestorableTime: Boolean voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableToPointInTimeResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.RestoreTableToPointInTimeResponse", false, false)>]
 type RestoreTableToPointInTimeResponse =
     { TableDescription: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.ReturnConsumedCapacity", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ReturnConsumedCapacity", false, true)>]
 type ReturnConsumedCapacity private (value: string) =
     member _.Value = value
     static member INDEXES = ReturnConsumedCapacity("INDEXES")
@@ -1556,14 +1554,14 @@ type ReturnConsumedCapacity private (value: string) =
     static member TOTAL = ReturnConsumedCapacity("TOTAL")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ReturnItemCollectionMetrics", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ReturnItemCollectionMetrics", false, true)>]
 type ReturnItemCollectionMetrics private (value: string) =
     member _.Value = value
     static member NONE = ReturnItemCollectionMetrics("NONE")
     static member SIZE = ReturnItemCollectionMetrics("SIZE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ReturnValue", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ReturnValue", false, true)>]
 type ReturnValue private (value: string) =
     member _.Value = value
     static member ALL_NEW = ReturnValue("ALL_NEW")
@@ -1573,27 +1571,27 @@ type ReturnValue private (value: string) =
     static member UPDATED_OLD = ReturnValue("UPDATED_OLD")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ReturnValuesOnConditionCheckFailure", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ReturnValuesOnConditionCheckFailure", false, true)>]
 type ReturnValuesOnConditionCheckFailure private (value: string) =
     member _.Value = value
     static member ALL_OLD = ReturnValuesOnConditionCheckFailure("ALL_OLD")
     static member NONE = ReturnValuesOnConditionCheckFailure("NONE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.S3BucketSource", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.S3BucketSource", false, false)>]
 type S3BucketSource =
     { S3Bucket: String voption
       S3BucketOwner: String voption
       S3KeyPrefix: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.S3SseAlgorithm", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.S3SseAlgorithm", false, true)>]
 type S3SseAlgorithm private (value: string) =
     member _.Value = value
     static member AES256 = S3SseAlgorithm("AES256")
     static member KMS = S3SseAlgorithm("KMS")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.ScalarAttributeType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.ScalarAttributeType", false, true)>]
 type ScalarAttributeType private (value: string) =
     member _.Value = value
     static member B = ScalarAttributeType("B")
@@ -1601,7 +1599,7 @@ type ScalarAttributeType private (value: string) =
     static member S = ScalarAttributeType("S")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ScanRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ScanRequest", false, false)>]
 type ScanRequest<'attr> =
     { AttributesToGet: String array voption
       ConditionalOperator: ConditionalOperator voption
@@ -1620,7 +1618,7 @@ type ScanRequest<'attr> =
       TableName: String voption
       TotalSegments: Int32 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.ScanResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.ScanResponse", false, false)>]
 type ScanResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity voption
       Count: Int32 voption
@@ -1631,7 +1629,7 @@ type ScanResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Select", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Select", false, true)>]
 type Select private (value: string) =
     member _.Value = value
     static member ALL_ATTRIBUTES = Select("ALL_ATTRIBUTES")
@@ -1640,7 +1638,7 @@ type Select private (value: string) =
     static member SPECIFIC_ATTRIBUTES = Select("SPECIFIC_ATTRIBUTES")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.SourceTableDetails", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.SourceTableDetails", false, false)>]
 type SourceTableDetails =
     { BillingMode: BillingMode voption
       ItemCount: Int64 voption
@@ -1653,7 +1651,7 @@ type SourceTableDetails =
       TableName: String voption
       TableSizeBytes: Int64 voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.SourceTableFeatureDetails", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.SourceTableFeatureDetails", false, false)>]
 type SourceTableFeatureDetails =
     { GlobalSecondaryIndexes: GlobalSecondaryIndexInfo array voption
       LocalSecondaryIndexes: LocalSecondaryIndexInfo array voption
@@ -1661,20 +1659,20 @@ type SourceTableFeatureDetails =
       StreamDescription: StreamSpecification voption
       TimeToLiveDescription: TimeToLiveDescription voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.SSEDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.SSEDescription", false, false)>]
 type SSEDescription =
     { InaccessibleEncryptionDateTime: DateTime voption
       KMSMasterKeyArn: String voption
       SSEType: SSEType voption
       Status: SSEStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.SSESpecification", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.SSESpecification", false, false)>]
 type SSESpecification =
     { Enabled: Boolean voption
       KMSMasterKeyId: String voption
       SSEType: SSEType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.SSEStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.SSEStatus", false, true)>]
 type SSEStatus private (value: string) =
     member _.Value = value
     static member DISABLED = SSEStatus("DISABLED")
@@ -1684,14 +1682,14 @@ type SSEStatus private (value: string) =
     static member UPDATING = SSEStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.SSEType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.SSEType", false, true)>]
 type SSEType private (value: string) =
     member _.Value = value
     static member AES256 = SSEType("AES256")
     static member KMS = SSEType("KMS")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+StreamRecord", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Lambda.DynamoDBEvents.DynamoDBEvent+StreamRecord", false, false)>]
 type StreamRecord<'attr> =
     { ApproximateCreationDateTime: DateTime voption
       Keys: Map<String, 'attr> voption
@@ -1701,12 +1699,12 @@ type StreamRecord<'attr> =
       SizeBytes: Int64 voption
       StreamViewType: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.StreamSpecification", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.StreamSpecification", false, false); Struct; IsReadOnly>]
 type StreamSpecification =
     { StreamEnabled: Boolean voption
       StreamViewType: StreamViewType voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.StreamViewType", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.StreamViewType", false, true)>]
 type StreamViewType private (value: string) =
     member _.Value = value
     static member KEYS_ONLY = StreamViewType("KEYS_ONLY")
@@ -1715,25 +1713,25 @@ type StreamViewType private (value: string) =
     static member OLD_IMAGE = StreamViewType("OLD_IMAGE")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TableAutoScalingDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TableAutoScalingDescription", false, false)>]
 type TableAutoScalingDescription =
     { Replicas: ReplicaAutoScalingDescription array voption
       TableName: String voption
       TableStatus: TableStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.TableClass", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.TableClass", false, true)>]
 type TableClass private (value: string) =
     member _.Value = value
     static member STANDARD = TableClass("STANDARD")
     static member STANDARD_INFREQUENT_ACCESS = TableClass("STANDARD_INFREQUENT_ACCESS")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TableClassSummary", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TableClassSummary", false, false); Struct; IsReadOnly>]
 type TableClassSummary =
     { LastUpdateDateTime: DateTime voption
       TableClass: TableClass voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TableCreationParameters", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TableCreationParameters", false, false)>]
 type TableCreationParameters =
     { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
@@ -1744,7 +1742,7 @@ type TableCreationParameters =
       SSESpecification: SSESpecification voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TableDescription", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TableDescription", false, false)>]
 type TableDescription =
     { ArchivalSummary: ArchivalSummary voption
       AttributeDefinitions: AttributeDefinition array voption
@@ -1771,7 +1769,7 @@ type TableDescription =
       TableSizeBytes: Int64 voption
       TableStatus: TableStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.TableStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.TableStatus", false, true)>]
 type TableStatus private (value: string) =
     member _.Value = value
     static member ACTIVE = TableStatus("ACTIVE")
@@ -1783,33 +1781,33 @@ type TableStatus private (value: string) =
     static member UPDATING = TableStatus("UPDATING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Tag", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Tag", false, false); Struct; IsReadOnly>]
 type Tag =
     { Key: String voption
       Value: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TagResourceRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TagResourceRequest", false, false)>]
 type TagResourceRequest =
     { ResourceArn: String voption
       Tags: Tag array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TagResourceResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TagResourceResponse", false, false)>]
 type TagResourceResponse =
     { ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TimeToLiveDescription", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TimeToLiveDescription", false, false); Struct; IsReadOnly>]
 type TimeToLiveDescription =
     { AttributeName: String voption
       TimeToLiveStatus: TimeToLiveStatus voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TimeToLiveSpecification", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TimeToLiveSpecification", false, false); Struct; IsReadOnly>]
 type TimeToLiveSpecification =
     { AttributeName: String voption
       Enabled: Boolean voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.TimeToLiveStatus", false, true)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.TimeToLiveStatus", false, true)>]
 type TimeToLiveStatus private (value: string) =
     member _.Value = value
     static member DISABLED = TimeToLiveStatus("DISABLED")
@@ -1818,16 +1816,16 @@ type TimeToLiveStatus private (value: string) =
     static member ENABLING = TimeToLiveStatus("ENABLING")
     override this.ToString() = this.Value
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItem", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItem", false, false); Struct; IsReadOnly>]
 type TransactGetItem<'attr> =
     { Get: Get<'attr> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsRequest", false, false)>]
 type TransactGetItemsRequest<'attr> =
     { ReturnConsumedCapacity: ReturnConsumedCapacity voption
       TransactItems: TransactGetItem<'attr> array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactGetItemsResponse", false, false)>]
 type TransactGetItemsResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       Responses: ItemResponse<'attr> array voption
@@ -1835,21 +1833,21 @@ type TransactGetItemsResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItem", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItem", false, false)>]
 type TransactWriteItem<'attr> =
     { ConditionCheck: ConditionCheck<'attr> voption
       Delete: Delete<'attr> voption
       Put: Put<'attr> voption
       Update: Update<'attr> voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItemsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItemsRequest", false, false)>]
 type TransactWriteItemsRequest<'attr> =
     { ClientRequestToken: String voption
       ReturnConsumedCapacity: ReturnConsumedCapacity voption
       ReturnItemCollectionMetrics: ReturnItemCollectionMetrics voption
       TransactItems: TransactWriteItem<'attr> array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItemsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.TransactWriteItemsResponse", false, false)>]
 type TransactWriteItemsResponse<'attr> =
     { ConsumedCapacity: ConsumedCapacity array voption
       ItemCollectionMetrics: Map<String, ItemCollectionMetrics<'attr> array> voption
@@ -1857,18 +1855,18 @@ type TransactWriteItemsResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceRequest", false, false)>]
 type UntagResourceRequest =
     { ResourceArn: String voption
       TagKeys: String array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UntagResourceResponse", false, false)>]
 type UntagResourceResponse =
     { ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.Update", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.Update", false, false)>]
 type Update<'attr> =
     { ConditionExpression: String voption
       ExpressionAttributeNames: Map<String, String> voption
@@ -1878,25 +1876,25 @@ type Update<'attr> =
       TableName: String voption
       UpdateExpression: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateContinuousBackupsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateContinuousBackupsRequest", false, false)>]
 type UpdateContinuousBackupsRequest =
     { PointInTimeRecoverySpecification: PointInTimeRecoverySpecification voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateContinuousBackupsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateContinuousBackupsResponse", false, false)>]
 type UpdateContinuousBackupsResponse =
     { ContinuousBackupsDescription: ContinuousBackupsDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateContributorInsightsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateContributorInsightsRequest", false, false)>]
 type UpdateContributorInsightsRequest =
     { ContributorInsightsAction: ContributorInsightsAction voption
       IndexName: String voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateContributorInsightsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateContributorInsightsResponse", false, false)>]
 type UpdateContributorInsightsResponse =
     { ContributorInsightsStatus: ContributorInsightsStatus voption
       IndexName: String voption
@@ -1905,25 +1903,25 @@ type UpdateContributorInsightsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalSecondaryIndexAction", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalSecondaryIndexAction", false, false)>]
 type UpdateGlobalSecondaryIndexAction =
     { IndexName: String voption
       OnDemandThroughput: OnDemandThroughput voption
       ProvisionedThroughput: ProvisionedThroughput voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableRequest", false, false)>]
 type UpdateGlobalTableRequest =
     { GlobalTableName: String voption
       ReplicaUpdates: ReplicaUpdate array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableResponse", false, false)>]
 type UpdateGlobalTableResponse =
     { GlobalTableDescription: GlobalTableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsRequest", false, false)>]
 type UpdateGlobalTableSettingsRequest =
     { GlobalTableBillingMode: BillingMode voption
       GlobalTableGlobalSecondaryIndexSettingsUpdate: GlobalTableGlobalSecondaryIndexSettingsUpdate array voption
@@ -1932,7 +1930,7 @@ type UpdateGlobalTableSettingsRequest =
       GlobalTableProvisionedWriteCapacityUnits: Int64 voption
       ReplicaSettingsUpdate: ReplicaSettingsUpdate array voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateGlobalTableSettingsResponse", false, false)>]
 type UpdateGlobalTableSettingsResponse =
     { GlobalTableName: String voption
       ReplicaSettings: ReplicaSettingsDescription array voption
@@ -1940,7 +1938,7 @@ type UpdateGlobalTableSettingsResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateItemRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateItemRequest", false, false)>]
 type UpdateItemRequest<'attr> =
     { AttributeUpdates: Map<String, AttributeValueUpdate<'attr>> voption
       ConditionalOperator: ConditionalOperator voption
@@ -1956,7 +1954,7 @@ type UpdateItemRequest<'attr> =
       TableName: String voption
       UpdateExpression: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateItemResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateItemResponse", false, false)>]
 type UpdateItemResponse<'attr> =
     { Attributes: Map<String, 'attr> voption
       ConsumedCapacity: ConsumedCapacity voption
@@ -1965,17 +1963,17 @@ type UpdateItemResponse<'attr> =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingConfiguration", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingConfiguration", false, false); Struct; IsReadOnly>]
 type UpdateKinesisStreamingConfiguration =
     { ApproximateCreationDateTimePrecision: ApproximateCreationDateTimePrecision voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingDestinationRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingDestinationRequest", false, false)>]
 type UpdateKinesisStreamingDestinationRequest =
     { StreamArn: String voption
       TableName: String voption
       UpdateKinesisStreamingConfiguration: UpdateKinesisStreamingConfiguration voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingDestinationResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateKinesisStreamingDestinationResponse", false, false)>]
 type UpdateKinesisStreamingDestinationResponse =
     { DestinationStatus: DestinationStatus voption
       StreamArn: String voption
@@ -1985,7 +1983,7 @@ type UpdateKinesisStreamingDestinationResponse =
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateReplicationGroupMemberAction", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateReplicationGroupMemberAction", false, false)>]
 type UpdateReplicationGroupMemberAction =
     { GlobalSecondaryIndexes: ReplicaGlobalSecondaryIndex array voption
       KMSMasterKeyId: String voption
@@ -1994,21 +1992,21 @@ type UpdateReplicationGroupMemberAction =
       RegionName: String voption
       TableClassOverride: TableClass voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingRequest", false, false)>]
 type UpdateTableReplicaAutoScalingRequest =
     { GlobalSecondaryIndexUpdates: GlobalSecondaryIndexAutoScalingUpdate array voption
       ProvisionedWriteCapacityAutoScalingUpdate: AutoScalingSettingsUpdate voption
       ReplicaUpdates: ReplicaAutoScalingUpdate array voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableReplicaAutoScalingResponse", false, false)>]
 type UpdateTableReplicaAutoScalingResponse =
     { TableAutoScalingDescription: TableAutoScalingDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableRequest", false, false)>]
 type UpdateTableRequest =
     { AttributeDefinitions: AttributeDefinition array voption
       BillingMode: BillingMode voption
@@ -2022,26 +2020,26 @@ type UpdateTableRequest =
       TableClass: TableClass voption
       TableName: String voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTableResponse", false, false)>]
 type UpdateTableResponse =
     { TableDescription: TableDescription voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTimeToLiveRequest", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTimeToLiveRequest", false, false)>]
 type UpdateTimeToLiveRequest =
     { TableName: String voption
       TimeToLiveSpecification: TimeToLiveSpecification voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.UpdateTimeToLiveResponse", false, false)>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.UpdateTimeToLiveResponse", false, false)>]
 type UpdateTimeToLiveResponse =
     { TimeToLiveSpecification: TimeToLiveSpecification voption
       ResponseMetadata: ResponseMetadata voption
       ContentLength: Int64 voption
       HttpStatusCode: HttpStatusCode voption }
 
-[<DynamodbType("Amazon.DynamoDBv2.Model.WriteRequest", false, false); Struct; IsReadOnly>]
+[<ExcludeFromCodeCoverage; DynamodbType("Amazon.DynamoDBv2.Model.WriteRequest", false, false); Struct; IsReadOnly>]
 type WriteRequest<'attr> =
     { DeleteRequest: DeleteRequest<'attr> voption
       PutRequest: PutRequest<'attr> voption }

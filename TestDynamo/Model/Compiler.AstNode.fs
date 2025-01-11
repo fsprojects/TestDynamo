@@ -1,6 +1,7 @@
 ﻿namespace TestDynamo.Model.Compiler
 
 open System
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Utils
 
@@ -122,6 +123,7 @@ type ParserSettings =
 
 module AstNode =
 
+    [<ExcludeFromCodeCoverage>]
     let inline private addAcc struct (f, ast) acc = struct (f, acc, ast)  
 
     /// <summary>

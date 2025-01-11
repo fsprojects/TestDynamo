@@ -1,6 +1,7 @@
 ﻿
 namespace TestDynamo.Model.Compiler
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Model.Compiler.Lexer
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -93,6 +94,7 @@ module QueryExpressionCompiler =
         let pHigh = getExpressionAttrValue high inputs.expressionParams.expressionAttrValues
         Partition.subset (ValueSome pLow) (ValueSome pHigh) true inputs.expressionParams.forwards
 
+    [<ExcludeFromCodeCoverage>] // extensive testing here is a bit of a waste of time
     let private chooseSortKey = function
         | Eq -> sortKeyEq
         | Lt -> sortKeyLt
@@ -157,6 +159,7 @@ module QueryExpressionCompiler =
             |> setAliasedKey acc
 
         | AstNode.Between (AstNode.Accessor (AccessorType.ExpressionAttrName alias), lowHigh) ->
+            
             MapUtils.tryFind alias
             >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
             >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl lowHigh >> AstNode.Between

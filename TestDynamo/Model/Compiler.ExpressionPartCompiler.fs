@@ -1,6 +1,7 @@
 ﻿
 namespace TestDynamo.Model.Compiler
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Data.Monads
 open TestDynamo.Model
@@ -149,9 +150,11 @@ module ExpressionPartCompiler =
         | [x1; x2; x3] -> f struct (x1, x2, x3)
         | xs -> ClientError.clientError $"Expected 3 args for {name}, got {List.length xs}"
 
+    [<ExcludeFromCodeCoverage>]
     let inline private traverseTrpl struct (x, y, z) =
         Writer.retn tpl3 |> Writer.apply x |> Writer.apply y |> Writer.apply z
 
+    [<ExcludeFromCodeCoverage>]
     let inline private threeArgOpFromExpressionFn op =
         traverseTrpl >> Writer.map op
 
@@ -168,6 +171,7 @@ module ExpressionPartCompiler =
           name = name
           argValidator = Validator.createRoot settings buildDescription } |> Root
 
+    [<ExcludeFromCodeCoverage>]
     let inline private argListOpFromExpressionFn op =
         Writer.traverse >> Writer.map op
 

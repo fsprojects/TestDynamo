@@ -2,6 +2,7 @@
 module TestDynamo.Model.ClientError
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Reflection
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
@@ -56,12 +57,17 @@ let testDynamoException' msg inner data =
     
     exn
         
+[<ExcludeFromCodeCoverage>]
 let inline clientError msg = testDynamoException' msg ValueNone ValueNone |> raise
 
+[<ExcludeFromCodeCoverage>]
 let inline isClientError (e: exn) = e.Data <> null && e.Data.Contains clientErrFlag'
 
+[<ExcludeFromCodeCoverage>]
 let inline clientErrorWithInnerException msg inner = testDynamoException' msg (ValueSome inner) ValueNone |> raise
+[<ExcludeFromCodeCoverage>]
 let inline clientErrorWithData data msg = testDynamoException' msg ValueNone (ValueSome data) |> raise
 
+[<ExcludeFromCodeCoverage>]
 let inline expectSomeClientErr msg errState =
     ValueOption.defaultWith (fun _ -> sprintf msg errState |> clientError)

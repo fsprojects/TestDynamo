@@ -107,12 +107,6 @@ public static class ClassGeneration
                 .Select(x => UnTaskify(x.ReturnType)))
             .Concat([typeof(DynamoDBEvent.DynamodbStreamRecord), typeof(DynamoDBEvent)]));
 
-        var customParsers = string.Join("\n", new List<string>
-        {
-            @"let private emptyStringAsNone = function | ValueSome """" -> ValueNone | x -> x",
-            @"let private emptyStringAsNull = function | """" -> null | x -> x"
-        });
-
         var header = string.Join("\n", new List<string>
         {
             "// ############################################################################",
@@ -120,14 +114,15 @@ public static class ClassGeneration
             "// ############################################################################",
             "",
             "open System",
-            "open System.Runtime.CompilerServices",
+            "open System.Diagnostics.CodeAnalysis",
             "open System.Net",
+            "open System.Runtime.CompilerServices",
             "",
             "#if NETSTANDARD2_0",
             "type internal IsReadOnlyAttribute() = inherit System.Attribute()",
             "#endif",
             "",
-            "[<AllowNullLiteral>]",
+            "[<ExcludeFromCodeCoverage; AllowNullLiteral>]",
             "type DynamodbTypeAttribute(name: string, empty: bool, ``const``: bool) =",
             "    inherit Attribute()",
             "",
@@ -144,9 +139,7 @@ public static class ClassGeneration
             .Select(x => x.Value)
             .Where(x => !Regex.IsMatch(x, @"^\s+$")));
 
-        var text = $"module rec TestDynamo.GeneratedCode.Dtos\n\n{header}\n\n{customParsers}\n\n{requestTypes}";
-     //   Console.WriteLine(text);
-     // C:\Dev\TestDynamo\TestDynamo\Client\DtoMappers.fs   
+        var text = $"module rec TestDynamo.GeneratedCode.Dtos\n\n{header}\n\n{requestTypes}";
         File.WriteAllText(@".\TestDynamo.GeneratedCode\Dtos.fs", text);
     }
 
@@ -210,7 +203,7 @@ public static class ClassGeneration
 
         var stringBuilder1 = new List<string>
         {
-            $"[<DynamodbType(\"{t.FullName}\", false, false)>]",
+            $"[<ExcludeFromCodeCoverage; DynamodbType(\"{t.FullName}\", false, false)>]",
             $"type {TypeName(t)} ="
         };
 
@@ -281,7 +274,7 @@ public static class ClassGeneration
         var structAttr = !isEmptyObj && !isConst && props.Length <= 2 && !forceRefType ? "; Struct; IsReadOnly" : "";
         var stringBuilder = new List<string>
         {
-            $"[<DynamodbType(\"{t.FullName}\", {isEmptyObjFlag}, {isConstFlag}){structAttr}>]"
+            $"[<ExcludeFromCodeCoverage; DynamodbType(\"{t.FullName}\", {isEmptyObjFlag}, {isConstFlag}){structAttr}>]"
         };
         
         if (isEmptyObj)
@@ -328,12 +321,6 @@ public static class ClassGeneration
 
         emissions[t] = string.Join("\n", stringBuilder);
         return emissions;
-    }
-
-    private static string ApplyParser(Type t, string name, bool noneify)
-    {
-        if (t == typeof(string)) return $"{(noneify ? "emptyStringAsNone" : "emptyStringAsNull")} {name}";
-        return name;
     }
 }
 

@@ -7,6 +7,7 @@ open Xunit
 open Xunit.Abstractions
 open TestDynamo.Data
 open TestDynamo.Utils
+open RequestItemTestUtils
 
 type AvlTreeTests(output: ITestOutputHelper) =
 
@@ -229,3 +230,22 @@ type AvlTreeTests(output: ITestOutputHelper) =
         // assert
         let result = if forwards then result else Seq.rev result
         Assert.Equal(expected, result |> Seq.map fstT)
+
+    [<Fact>]
+    let ``Misc``  () =
+        // arrange
+        let rand = randomBuilder output
+        let struct (vals, tree) = avlTreeWithABunchOfValues rand 1
+        let struct (randomKey, randomV) = randomSort rand tree |> Seq.head
+        let newV = Guid.NewGuid()
+
+        // act
+        // assert
+        Assert.Equal(101, AvlTree.count tree)
+        Assert.Equal(newV, AvlTree.change -123 (fun _ -> newV |> ValueSome) AvlTree.empty |> AvlTree.find -123)
+        Assert.Equal(newV, AvlTree.change -123 (fun _ -> newV |> ValueSome) tree |> AvlTree.find -123)
+        Assert.Equal(newV, AvlTree.change randomKey (fun _ -> newV |> ValueSome) tree |> AvlTree.find randomKey)
+        Assert.False(AvlTree.change randomKey (fun _ -> ValueNone) tree |> AvlTree.containsKey randomKey)
+        Assert.Equal(newV, AvlTree.map (fun _ _ -> newV) tree |> AvlTree.find randomKey)
+        Assert.Equal(7, AvlTree.fold (fun s _ _ -> s) 7 tree)
+        Assert.Equal(7, AvlTree.foldBack (fun _ _ s -> s) tree 7)

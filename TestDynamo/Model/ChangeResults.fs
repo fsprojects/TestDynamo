@@ -1,5 +1,6 @@
 ﻿namespace TestDynamo.Model
 
+open System.Diagnostics.CodeAnalysis
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Utils
 open TestDynamo
@@ -46,8 +47,11 @@ type ChangeResult =
 
 module ChangeResult =
 
+    [<ExcludeFromCodeCoverage>]
     let inline id (x: ChangeResult) = x.Id
+    [<ExcludeFromCodeCoverage>]
     let inline deleted (x: ChangeResult) = x.Deleted
+    [<ExcludeFromCodeCoverage>]
     let inline put (x: ChangeResult) = x.Put
     let result (Pcr x) = x.result
     let asTpl (Pcr x) = struct (x.id, x.result)

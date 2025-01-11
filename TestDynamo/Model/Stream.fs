@@ -1,6 +1,7 @@
 ﻿namespace TestDynamo.Model
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
@@ -30,7 +31,9 @@ type EmergencyBrakeRequest<'request> =
 module EmergencyBrakeRequest =
     let noBrakeValue = ValueTask<_>(true).Preserve()
     let noBrake x = { request = x; emergencyBrake = noBrakeValue }
+    [<ExcludeFromCodeCoverage>]
     let inline create emergencyBrake x = { request = x; emergencyBrake = emergencyBrake }
+    [<ExcludeFromCodeCoverage>]
     let inline map f x = { request = f x.request; emergencyBrake = x.emergencyBrake }
 
 [<Struct; IsReadOnly>]
@@ -324,9 +327,11 @@ module private StreamSubscriber =
             struct (subscriber.executionState |%|> List.rev |> logComplete, queue)
         |> mapSnd (fun queue -> { subscriber with executionState = queue.Preserve() })
 
+    [<ExcludeFromCodeCoverage>]
     let inline private removePuts (x: DatabaseSynchronizationPacket<TableCdcPacket>) =
         { x with data.packet.changeResult =  ChangeResults.removePuts x.data.packet.changeResult }
 
+    [<ExcludeFromCodeCoverage>]
     let inline private removeDeletes (x: DatabaseSynchronizationPacket<TableCdcPacket>) =
         { x with data.packet.changeResult =  ChangeResults.removeDeletes x.data.packet.changeResult }
 

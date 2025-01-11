@@ -1,6 +1,7 @@
 ﻿namespace TestDynamo.Model
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Text.RegularExpressions
 open TestDynamo
 open TestDynamo.Data
@@ -353,12 +354,14 @@ module Index =
         let keyDescription = KeyConfig.describe k |> List.map (fun x -> $"  {x}")
         let attributes =
             ProjectionType.cols p
-            ?|> (Seq.map (sprintf "    %s"))
-            ?|> (Collection.concat2 ["  Projections:"])
-            |> ValueOption.defaultValue ["  Projections: ALL"]
+            ?|> (
+                Seq.map (sprintf "    %s")
+                >> Collection.concat2 ["  Projections:"])
+            ?|? ["  Projections: ALL"]
 
         n::(Collection.concat2 keyDescription attributes |> List.ofSeq)
 
+    [<ExcludeFromCodeCoverage>]
     let inline private seqify xs: 'a seq = xs
 
     let get partitionKey sortKey (Idx {data = data; info = {keyConfig = keyConfig; compositeName = name}}) =
@@ -453,6 +456,7 @@ module Index =
             Logger.debug1 "Change is most recent (put, delete) %A" struct (put, del) logger
             struct ([changeResult], partition)
 
+    [<ExcludeFromCodeCoverage>]
     let inline private noResultToValidate struct (_, x) _ = struct ([], x)
     let private validateOptionalResultPrecedence loggerIndex result =
         mapSnd ValueSome result

@@ -2,6 +2,7 @@
 
 open System
 open System.Collections.Generic
+open System.Diagnostics.CodeAnalysis
 open System.Runtime.InteropServices
 open System.Text
 open TestDynamo.Utils
@@ -52,18 +53,8 @@ type AttributeType =
         | _ -> ValueNone
 
     static member parse value =
-        match value with
-        | "S" -> AttributeType.String
-        | "N" -> AttributeType.Number
-        | "BOOL" -> AttributeType.Boolean
-        | "B" -> AttributeType.Binary
-        | "M" -> AttributeType.HashMap
-        | "SS" -> AttributeType.StringHashSet
-        | "NS" -> AttributeType.NumberHashSet
-        | "BS" -> AttributeType.BinaryHashSet
-        | "L" -> AttributeType.AttributeList
-        | "NULL" -> AttributeType.Null
-        | x -> invalidOp $"Invalid AttributeType {x}"
+        AttributeType.tryParse value
+        |> Maybe.expectSomeErr "Invalid AttributeType %s" value
 
 /// <summary>
 /// A set of attribute values which have a specified type
@@ -145,10 +136,8 @@ type AttributeSet =
             | true -> ValueSome ValueNone
             | false -> AttributeSet.tryOperation Set.difference xs ?|> ValueSome)
 
-    /// <summary>Returns none if set types do not match</summary>
-    static member tryIntersect = AttributeSet.tryOperation Set.intersect
-
     interface IComparable with
+        [<ExcludeFromCodeCoverage>] // no need to test all cases here
         member this.CompareTo obj =
             match struct (this, obj) with
             | As (tX, x), (:? AttributeSet as (As (tY, y))) ->
@@ -217,26 +206,9 @@ and
         | CompressedList t & t' when Array.length t <= i -> t'
         | CompressedList t -> Array.removeAt i t |> CompressedList
 
-    /// <summary>Returns None if the index is out of range for either input</summary>
-    static member copyTo i from ``to`` =
-        match struct (from, ``to``) with
-        | SparseList f, SparseList t ->
-            let i = uint i
-            MapUtils.tryFind i f
-            ?|> (flip (Map.add i) t >> SparseList)
-        | CompressedList f, SparseList t ->
-            Collection.tryGetArr f i
-            ?|> (flip (Map.add (uint i)) t >> SparseList)
-        | SparseList f, CompressedList t ->
-            MapUtils.tryFind (uint i) f
-            ?>>= (Collection.tryAddOrReplaceArr t i)
-            ?|> CompressedList
-        | CompressedList f, CompressedList t ->
-            Collection.tryGetArr f i
-            ?>>= (Collection.tryAddOrReplaceArr t i)
-            ?|> CompressedList
-
+    [<ExcludeFromCodeCoverage>] // coverage doesn't seem to pick this up
     static member private emptySparse = Map.empty |> SparseList
+    [<ExcludeFromCodeCoverage>] // coverage doesn't seem to pick this up
     static member private emptyCompressed = [||] |> CompressedList
 
     static member asSparse = function
@@ -486,6 +458,7 @@ and
         | false -> invalidOp $"Attribute value of type {AttributeValue.getType this} is not a list"
 
     interface IComparable with
+        [<ExcludeFromCodeCoverage>] // no need to test all cases here
         member this.CompareTo obj =
             match obj with
             | :? AttributeValue as y ->
@@ -612,6 +585,7 @@ and
         | HashSet _ -> $"{typ}:SET"
         | AttributeList _ -> $"{typ}:LIST"
 
+    [<ExcludeFromCodeCoverage>] // extensive testing here is a bit of a waste of time
     static member asType ``type`` value =
         match value with
         | Null -> if ``type`` = AttributeType.Null then ValueSome value else ValueNone
@@ -731,6 +705,7 @@ module ItemSize =
     let rec private numberSize =
         countDigits >> float >> (flip (/) 2.0) >> Math.Ceiling >> int >> (+) 1
 
+    [<ExcludeFromCodeCoverage>]
     let inline private stringSize (x: string) = Encoding.UTF8.GetByteCount x
 
     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/CapacityUnitCalculations.html

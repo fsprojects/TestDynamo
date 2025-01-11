@@ -4,6 +4,7 @@
 /// </summary>
 module TestDynamo.Model.Compiler.Lexer
 
+open System.Diagnostics.CodeAnalysis
 open System.Text.RegularExpressions
 open TestDynamo.Model
 open TestDynamo.Utils
@@ -192,8 +193,8 @@ let private parseIndexer =
 
     token parse scanRx
 
-let inline private addListIndex (token: TokenData) =
-    struct (uint token.string, token)
+[<ExcludeFromCodeCoverage>]
+let inline private addListIndex (token: TokenData) = struct (uint token.string, token)
 
 let private getNextToken =
     [

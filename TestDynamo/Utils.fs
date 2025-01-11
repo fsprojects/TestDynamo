@@ -1,6 +1,7 @@
 module TestDynamo.Utils
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Runtime.CompilerServices
 open System.Text
 open System.Text.RegularExpressions
@@ -44,57 +45,92 @@ let kvpToDictionary (xs: KeyValuePair<_, _> seq) = Dictionary<_, _> xs
 #endif
 
 let shiftRight = (>>>)
+[<ExcludeFromCodeCoverage>]
 let inline (>>>) f g x = f x >> g
+[<ExcludeFromCodeCoverage>]
 let inline (>>>>) f g x = f x >>> g
+[<ExcludeFromCodeCoverage>]
 let inline (>>>>>) f g x = f x >>>> g
+[<ExcludeFromCodeCoverage>]
 let inline mapFst f struct (x, y) = struct (f x, y)
+[<ExcludeFromCodeCoverage>]
 let inline mapSnd f struct (x, y) = struct (x, f y)
 let mapFstFst f = mapFst (mapFst f)
 let mapFstSnd f = mapFst (mapSnd f)
 let mapSndFst f = mapSnd (mapFst f)
 let mapSndSnd f = mapSnd (mapSnd f)
 let inline toString x = x.ToString()
+[<ExcludeFromCodeCoverage>]
 let inline mapTpl fl fr struct (x, y) = struct (fl x, fr y)
+[<ExcludeFromCodeCoverage>]
 let inline fstT struct (x, _) = x
+[<ExcludeFromCodeCoverage>]
 let inline sndT<'a, 'b> struct (_: 'a, x: 'b) = x
+[<ExcludeFromCodeCoverage>]
 let inline curry f x y = f struct (x, y)
+[<ExcludeFromCodeCoverage>]
 let inline curryRef f x y = f (x, y)
+[<ExcludeFromCodeCoverage>]
 let inline curry3 f x y z = f struct (x, y, z)
+[<ExcludeFromCodeCoverage>]
 let inline curry4 f w x y z = f struct (w, x, y, z)
+[<ExcludeFromCodeCoverage>]
 let inline uncurry f struct (x, y) = f x y
+[<ExcludeFromCodeCoverage>]
 let inline uncurry3 f struct (x, y, z) = f x y z
+[<ExcludeFromCodeCoverage>]
 let inline uncurry4 f struct (w, x, y, z) = f w x y z
+[<ExcludeFromCodeCoverage>]
 let inline tplDouble x = struct (x, x)
+[<ExcludeFromCodeCoverage>]
 let inline tpl x y = struct (x, y)
+[<ExcludeFromCodeCoverage>]
 let inline tpl3 x y z = struct (x, y, z)
+[<ExcludeFromCodeCoverage>]
 let inline tpl4 w x y z = struct (w, x, y, z)
+[<ExcludeFromCodeCoverage>]
 let inline structTpl (x, y) = struct (x, y)
+[<ExcludeFromCodeCoverage>]
 let inline applyTpl struct (f, x) = f x
+[<ExcludeFromCodeCoverage>]
 let inline tplToList struct (x, y) = [x; y]
 
 /// <summary>
 /// Just like ignore, but adds a type check to mitigate future errors due to currying 
 /// </summary>
+[<ExcludeFromCodeCoverage>]
 let inline ignoreTyped<'a> (_: ^a) = ()
 
 /// <summary>
 /// converts a value to a function, or
 /// adds an arg to the start of a function
 /// </summary>
+[<ExcludeFromCodeCoverage>]
 let inline asLazy x _ = x
+[<ExcludeFromCodeCoverage>]
 let inline asLazy2 f x _ = f x
+[<ExcludeFromCodeCoverage>]
 let inline asLazy3 f x y _ = f x y
+[<ExcludeFromCodeCoverage>]
 let inline lazyF f x = lazy(f x)
+[<ExcludeFromCodeCoverage>]
 let inline flip f x y = f y x
+[<ExcludeFromCodeCoverage>]
 let inline flip3To1 f x y z = f y z x
+[<ExcludeFromCodeCoverage>]
 let inline flip1To3 f x y z = f z x y
+[<ExcludeFromCodeCoverage>]
 let inline flip2To3 f x y z = f x z y
+[<ExcludeFromCodeCoverage>]
 let inline flip4To1 f w x y z = f x y z w
+[<ExcludeFromCodeCoverage>]
 let inline flip1To4 f w x y z = f z w x y
+[<ExcludeFromCodeCoverage>]
 let inline flipTpl struct (x, y) = struct (y, x)
 let kvpToRefTuple (kvp: KeyValuePair<'a, 'b>) = (kvp.Key, kvp.Value)
 let kvpToTuple (kvp: KeyValuePair<'a, 'b>) = struct (kvp.Key, kvp.Value)
 let tplToKvp struct (k, v) = KeyValuePair<_, _>(k, v)
+[<ExcludeFromCodeCoverage>]
 let inline toRefTuple struct (x, y) = (x, y)
 let apply = (|>)
 
@@ -109,7 +145,9 @@ let debug2 y x =
         System.Diagnostics.Debugger.Break()
     x
 #else
+[<ExcludeFromCodeCoverage>]
 let inline debug x = x
+[<ExcludeFromCodeCoverage>]
 let inline debug2 _ x = x
 #endif
 
@@ -120,6 +158,7 @@ let serverError msg = msg |> Exception |> raise
 module AwsUtils =
     // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.NamingRulesDataTypes.html
     let tableNameRx = Regex(@"^[0-9A-Za-z\.\-_]{3,255}$", RegexOptions.Compiled)
+    [<ExcludeFromCodeCoverage>]
     let inline parseTableName (name: string) =
         if tableNameRx.IsMatch name then ValueSome name else ValueNone
 
@@ -218,14 +257,6 @@ let memoize cacheInvalidationSettings (keySelector: 'a -> 'key) (f: 'a -> 'b) : 
     executeCached
 
 [<RequireQualifiedAccess>]
-module Lazy =
-    let eager (x: Lazy<'a>) = x.Value
-
-    let map f (x: Lazy<'a>) = lazy (f x.Value)
-
-    let bind (f: 'a -> Lazy<'b>) (x: Lazy<'a>): Lazy<'b> = f x.Value
-
-[<RequireQualifiedAccess>]
 module Str =
 
     let emptyStringToNull = function
@@ -262,28 +293,21 @@ module Str =
         s.Split separator
 #endif
 
+    [<ExcludeFromCodeCoverage>]
     let inline join (separator: string) (xs: string seq) = System.String.Join(separator, xs)
 
+    [<ExcludeFromCodeCoverage>]
     let inline concat (x: string) (y: string) = x + y
     
+    [<ExcludeFromCodeCoverage>]
     let inline contains (search: string) (str: string) = str.Contains search
-
-    // adds padding to each element of a list. Each element has more padding than the last
-    // paddingF takes in the index of the element and returns the amount of spaces to pad
-    let asContexted =
-        let emptySpace x = new string(Array.create x ' ')
-        let inline key (x: int) = x
-        let emptySpaceCached = memoize (ValueSome (100, 200)) key emptySpace >> sndT
-        let emptySpaceChooser = function | x when x < 50 -> emptySpaceCached x | x -> emptySpace x
-        let padResult paddingF prefix resultIndex = sprintf "%s%s%s" (emptySpaceChooser (paddingF resultIndex)) prefix
-
-        fun (paddingF: int -> int) (prefix: string) (xs: string seq) -> Seq.mapi (padResult paddingF prefix) xs
 
     let indentComplex firstIndentation indentation (str: string) =
         split "\n" str
         |> Seq.mapi (fun i -> sprintf "%s%s" (if i = 0 then firstIndentation else indentation))
         |> join "\n"
 
+    [<ExcludeFromCodeCoverage>]
     let inline indent indentation = indentComplex indentation indentation
 
     let indentSpace =
@@ -323,27 +347,28 @@ module Collection =
           inLOnly: 'k list
           inROnly: 'k list }
 
-    let ofOption = function
-        | ValueSome x -> List.singleton x
-        | ValueNone -> List.empty
-
+    [<ExcludeFromCodeCoverage>]
     let inline tryGetArr arr i =
         if i < 0 || Array.length arr <= i then ValueNone
         else Array.get arr i |> ValueSome
 
+    [<ExcludeFromCodeCoverage>]
     let inline replace arr i x =
         if i < 0 || Array.length arr <= i then ArgumentOutOfRangeException() |> raise
         else Array.mapi (fun i' x' -> if i' = i then x else x') arr
 
+    [<ExcludeFromCodeCoverage>]
     let inline tryAddOrReplaceArr arr i x =
         if i < 0 || Array.length arr < i then ValueNone
         elif i = Array.length arr then Array.insertAt i x arr |> ValueSome
         else replace arr i x |> ValueSome
 
     /// <summary>Like regular fold back but with args like fold</summary>
+    [<ExcludeFromCodeCoverage>]
     let inline foldBack f s xs = Seq.foldBack (flip f) xs s
 
     /// <summary>Like regular fold back but with args like fold</summary>
+    [<ExcludeFromCodeCoverage>]
     let inline foldBackL f s xs = List.foldBack (flip f) xs s
 
     // single use type. has mutable state, so do not call peek/pop more than once
@@ -396,86 +421,6 @@ module Collection =
                     yield y
                 | ValueNone, ValueNone -> brk <- true
         }
-
-    let compareMaps l r =
-        let struct (intersection, lOnly) =
-            Map.keys l
-            |> Seq.fold (fun struct (intersection, lOnly) k ->
-                match Map.containsKey k r with
-                | true -> struct (k::intersection, lOnly)
-                | false -> struct (intersection, k::lOnly)) struct ([], [])
-
-        let rOnly =
-            Map.keys r
-            |> Seq.filter (flip Map.containsKey l)
-            |> List.ofSeq
-
-        { intersection = intersection
-          inLOnly = lOnly
-          inROnly = rOnly }
-
-    let asMap kf =
-        Seq.map (fun x -> (kf x, x))
-        >> Map.ofSeq
-
-    // map, but also includes
-    // the previous and next value in the sequence
-    let mapAround f (xs: 'a seq) =
-        seq {
-            use enm = xs.GetEnumerator()
-
-            if enm.MoveNext() then
-                let mutable twoBefore = ValueNone
-                let mutable oneBefore = enm.Current
-
-                while enm.MoveNext() do
-                    yield f struct (twoBefore, oneBefore, ValueSome enm.Current)
-                    twoBefore <- ValueSome oneBefore
-                    oneBefore <- enm.Current
-
-                yield f struct (twoBefore, oneBefore, ValueNone)
-        }
-
-    let firstNonEmpty (xs: 'a seq seq) =
-        seq {
-            use enms = xs.GetEnumerator()
-            let mutable found = false
-            while not found && enms.MoveNext() do
-                use enm = enms.Current.GetEnumerator()
-
-                if enm.MoveNext()
-                then
-                    found <- true
-                    yield enm.Current
-
-                    while enm.MoveNext() do
-                        yield enm.Current
-        }
-
-    let ifEmpty (f: unit -> 'a seq) (xs: 'a seq) =
-        seq {
-            use enm = xs.GetEnumerator()
-
-            if enm.MoveNext()
-            then
-                yield enm.Current
-                while enm.MoveNext() do
-                    yield enm.Current
-            else
-                use enm2 = (f()).GetEnumerator()
-                while enm2.MoveNext() do
-                    yield enm2.Current
-        }
-
-    /// <summary>
-    /// Like Seq.scan, but simplifies state interaction and returns 1 result per item
-    /// </summary>
-    let scan (f: 's -> 'a -> struct ('s * 'b)) (s: 's) (xs: 'a seq) =
-        let f = OptimizedClosures.FSharpFunc<_, _, _>.Adapt f
-        let s' = struct (s, Unchecked.defaultof<'b>)
-        Seq.scan (fun s x -> f.Invoke(fstT s, x)) s' xs
-        |> Seq.skip 1
-        |> Seq.map sndT
 
     let window windowSize (xs: 'a seq): 'a seq seq =
         if windowSize < 1 then invalidOp "Size < 1"
@@ -553,24 +498,12 @@ module Collection =
             | true -> struct (x::l, r)
             | false -> struct (l, x::r)) xs struct ([], [])
 
-    let partitionChoice2 xs =
-        partition (function
-            | Choice1Of2 _ -> true
-            | Choice2Of2 _ -> false) xs
-        |> mapFst (List.map (function | Choice1Of2 x -> x | _ -> invalidOp ""))
-        |> mapSnd (List.map (function | Choice2Of2 x -> x | _ -> invalidOp ""))
-
-    let partitionChoice3 xs =
-        Seq.foldBack (fun x struct (v1, v2, v3) ->
-            match x with
-            | Choice1Of3 x' -> struct (x'::v1, v2, v3)
-            | Choice2Of3 x' -> struct (v1, x'::v2, v3)
-            | Choice3Of3 x' -> struct (v1, v2, x'::v3)) xs struct ([], [], [])
-
+    [<ExcludeFromCodeCoverage>]
     let inline private tryHeadIList (l: IList<_>) =
         if l.Count = 0 then ValueNone
         else l[0] |> ValueSome
 
+    [<ExcludeFromCodeCoverage>]
     let inline private tryHeadIReadOnlyList (l: IReadOnlyList<_>) =
         if l.Count = 0 then ValueNone
         else l[0] |> ValueSome
@@ -694,12 +627,6 @@ module Collection =
         | ValueSome xs, ValueNone -> xs
         | ValueSome xs, ValueSome ys -> Seq.append xs ys
 
-    let inline concat2L (xs: 'a list) (ys: 'a list) = 
-        match struct (xs, ys) with
-        | [], ys' -> ys'
-        | xs', [] -> xs'
-        | xs', ys' -> List.concat [xs'; ys']
-
     // NOTE: not more efficient than normal group by. Just standardises a bit
     let groupBy f =
         Seq.groupBy f
@@ -710,6 +637,7 @@ module Collection =
         List.groupBy f
         >> List.map structTpl
 
+    [<ExcludeFromCodeCoverage>]
     let inline prependL x xs = x::xs
 
     let prepend (x: 'a) (xs: 'a seq) =
@@ -732,8 +660,7 @@ module Collection =
     let mapSnd f xs =
         Seq.map (mapSnd f) xs
 
-    let inline toList2 x y = [x; y]
-
+    [<ExcludeFromCodeCoverage>]
     let inline ofSeq<'a> (xs: ^a seq) = xs
 
     let singleOrDefault (xs: 'a seq) =
@@ -748,121 +675,10 @@ module Collection =
             else ValueSome x
         else ValueNone
 
-    let foldUntil (f: 's -> 'a -> 's voption) (s: 's) (xs: 'a seq) =
-
-        let mutable quit = false
-        let mutable s' = s
-        use enm = xs.GetEnumerator()
-        while not quit && enm.MoveNext() do
-            match f s' enm.Current with
-            | ValueNone ->
-                quit <- true
-            | ValueSome x ->
-                s' <- x
-
-        s'
-
-    let maps (f: 's -> 'a -> struct ('s * 'b)) (s: 's) (xs: 'a seq) =
-        seq {
-            let mutable quit = false
-            let mutable ss = s
-            use enm = xs.GetEnumerator()
-            while not quit && enm.MoveNext() do
-                let struct (s', y) = f ss enm.Current
-                ss <- s'
-                yield y
-        }
-
-    let countGreaterThan count (xs: _ seq) =
-        let mutable counted = 0
-        use enm = xs.GetEnumerator()
-        while counted <= count && enm.MoveNext() do
-            counted <- counted + 1
-
-        counted > count
-
-    let countLessThan count (xs: _ seq) =
-        let mutable counted = 0
-        use enm = xs.GetEnumerator()
-        while counted < count && enm.MoveNext() do
-            counted <- counted + 1
-
-        counted < count
-
     type ICachableEnumerable<'a> =
         inherit IEnumerable<'a>
         inherit IDisposable
         abstract member AsList: IReadOnlyList<'a>
-
-    module Cachable =
-
-        type private CachableSeqEnumerator<'a>(fromSeq: IEnumerator<'a>) =
-            let cache = MList<'a>()
-            let mutable i = -1
-
-            let moveNext() =
-                i <- Interlocked.Increment(&i)
-                if i < cache.Count then true
-                elif fromSeq.MoveNext()
-                then
-                    cache.Add(fromSeq.Current)
-                    true
-                else false
-
-            member this.complete() =
-                while moveNext() do ()
-                cache :> IReadOnlyList<'a>
-
-            interface IDisposable with
-                // owning IEnumerable handles disposal
-                member _.Dispose() = ()
-
-            interface IEnumerator<'a> with
-                member _.Current =
-                    if i < 0 || i >= cache.Count then Unchecked.defaultof<'a>
-                    else cache[i]
-
-            interface IEnumerator with
-                member _.MoveNext() = moveNext()
-
-                member this.Current = (this :> IEnumerator<'a>).Current |> box
-
-                member _.Reset() =
-                    i <- -1
-
-        [<IsReadOnly; Struct>]        
-        type private ListOrEnumerator<'a> =
-            | IsList of l: IReadOnlyList<'a>
-            | IsEnm of struct (IEnumerator<'a> * CachableSeqEnumerator<'a>)
-
-        type private CachableSeq<'a> (vals: ListOrEnumerator<'a>) =
-
-            interface ICachableEnumerable<'a> with
-                member _.AsList =
-                    match vals with
-                    | IsList l -> l
-                    | IsEnm (_, e) -> e.complete()
-
-                member _.Dispose() =
-                    match vals with
-                    | IsList _ -> ()
-                    | IsEnm struct (x, _) -> x.Dispose()
-
-                member _.GetEnumerator() =
-                    match vals with
-                    | IsList x -> x.GetEnumerator()
-                    | IsEnm struct (_, x) -> x
-
-                member this.GetEnumerator() =
-                    (this :> IEnumerable<'a>).GetEnumerator() :> IEnumerator
-
-        let ofSeq (xs: 'a seq) =
-            let enm = xs.GetEnumerator()
-            let cachable = new CachableSeqEnumerator<'a>(enm)
-            new CachableSeq<'a>(struct (enm, cachable) |> IsEnm) :> ICachableEnumerable<'a>
-
-        let ofList (xs: IReadOnlyList<'a>) =
-            new CachableSeq<'a>(xs |> IsList) :> ICachableEnumerable<'a>
 
 [<RequireQualifiedAccess>]
 module MapUtils =
@@ -899,11 +715,6 @@ module MapUtils =
         | ValueNone -> Map.add key value map |> tpl true
         | ValueSome _ -> map |> tpl false
 
-    let addOrThrow key value map =
-        match tryFind key map with
-        | ValueNone -> Map.add key value map
-        | ValueSome _ -> invalidOp $"Key {key} has been added already"
-
     let change f key value map =
         match tryFind key map with
         | ValueNone -> Map.add key (f key ValueNone value) map
@@ -938,35 +749,44 @@ type Either<'a, 'b> =
 
 [<RequireQualifiedAccess>]
 module Either =
+    [<ExcludeFromCodeCoverage>]
     let inline map1Of2 f x =
         match x with
         | Either1 x -> f x |> Either1
         | Either2 x -> x |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline map2Of2 f x = 
         match x with
         | Either1 x -> x |> Either1
         | Either2 x -> f x |> Either2
 
+    [<ExcludeFromCodeCoverage>]
     let inline reduce x = 
         match x with
         | Either1 x -> x
         | Either2 x -> x
 
+    [<ExcludeFromCodeCoverage>]
     let inline ignore1 x = 
         match x with
         | Either1 _ -> ValueNone
         | Either2 x -> ValueSome x
 
+    [<ExcludeFromCodeCoverage>]
     let inline ignore2 x = 
         match x with
         | Either1 x -> ValueSome x
         | Either2 _ -> ValueNone
         
+    [<ExcludeFromCodeCoverage>]
     let inline expect1 x = match x with | Either1 x -> x | Either2 _ -> invalidOp "Expected 1"
+    [<ExcludeFromCodeCoverage>]
     let inline expect2 x = match x with | Either2 x -> x | Either1 _ -> invalidOp "Expected 2"
     
+    [<ExcludeFromCodeCoverage>]
     let inline take1 x = match x with | Either1 x -> ValueSome x | Either2 _ -> ValueNone
+    [<ExcludeFromCodeCoverage>]
     let inline take2 x = match x with | Either1 _ -> ValueNone | Either2 x -> ValueSome x
 
     let partition xs =
@@ -998,27 +818,26 @@ module Maybe =
             | ValueNone -> null
             | ValueSome x -> x
     
+    [<ExcludeFromCodeCoverage>]
     let inline expectSomeErr err errState =
         ValueOption.defaultWith (fun _ -> sprintf err errState |> invalidOp)
 
+    [<ExcludeFromCodeCoverage>]
     let inline defaultWith defThunk arg voption =
         match voption with
         | ValueNone -> defThunk arg
         | ValueSome v -> v
 
+    [<ExcludeFromCodeCoverage>]
     let inline expectSome x = expectSomeErr "Expected some%s" "" x
 
-    let ``do`` f = function
-        | (ValueSome x) & x' ->
-            f x
-            x'
-        | x -> x
-
+    [<ExcludeFromCodeCoverage>]
     let inline traverseFn f arg =
         ValueOption.map (apply arg) f
 
     let tpl x y = ValueOption.bind (fun x -> ValueOption.map (tpl x) y) x
 
+    [<ExcludeFromCodeCoverage>]
     let inline apply f x =
         match struct (f, x) with
         | ValueSome f', ValueSome x -> f' x |> ValueSome
@@ -1048,15 +867,6 @@ module Maybe =
         | None -> ValueNone
         | Some x -> ValueSome x
 
-    let toRef = function
-        | ValueNone -> None
-        | ValueSome x -> Some x
-
-    let all (xs: 'a voption seq) =
-        Seq.foldBack (fun x s ->
-            tpl x s
-            |> ValueOption.map (uncurry Collection.prependL)) xs (ValueSome [])
-
 [<RequireQualifiedAccess>]
 module Io =
     let private caf (x: Task<'a>) = x.ConfigureAwait(false)
@@ -1081,7 +891,7 @@ module Io =
     let toTask (task: ValueTask<'a>) = task.AsTask()
 
     /// <summary>Retains synchronicity if input task is complete</summary>
-    let inline map (f: 'a -> 'b) (x: ValueTask<'a>): ValueTask<'b> =
+    let map (f: 'a -> 'b) (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> ValueTask<'b>(f x)
         | ValueNone ->
@@ -1091,7 +901,7 @@ module Io =
             } |> ValueTask<'b>
 
     /// <summary>Retains synchronicity if input task is complete</summary>
-    let inline bind f (x: ValueTask<'a>): ValueTask<'b> =
+    let bind f (x: ValueTask<'a>): ValueTask<'b> =
         match trySyncResult x with
         | ValueSome x -> f x
         | ValueNone ->
@@ -1262,6 +1072,7 @@ module Io =
 
     let apply x = x |> flip map |> bind
 
+    [<ExcludeFromCodeCoverage>]
     let inline ignoreTask<'a> (x: Task<^a>): Task = x
 
 module Comparison =
@@ -1317,6 +1128,7 @@ module Comparison =
             let inline kSelector (x: int) = x
             memoize (ValueSome (50, 100)) kSelector arrayComparer'<'a>
 
+    [<ExcludeFromCodeCoverage>]
     let inline arrayComparer<'a when 'a: equality> hashElements = ArrayComparerCache<'a>.create hashElements |> sndT
 
     let private seqComparer'<'a when 'a: comparison> () =

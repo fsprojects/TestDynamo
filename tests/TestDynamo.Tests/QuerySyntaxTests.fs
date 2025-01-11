@@ -12,6 +12,7 @@ open Xunit
 open Xunit.Abstractions
 open RequestItemTestUtils
 open TestDynamo.Model
+open TestDynamo.Data.Monads.Operators
 
 type QuerySyntaxTests(output: ITestOutputHelper) =
 
@@ -51,6 +52,120 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             Assert.Equal(Seq.length expected, result.Items.Count)
 
             assertItems (expected, result.Items, true)
+        }
+
+    [<Theory>]
+    [<ClassData(typedefof<TwoFlags>)>]
+    let ``Query, with BETWEEN, returns correct items`` ``swap eq condition`` ``use aliases`` =
+
+        task {
+            use client = buildClient output
+            let client = client.Client
+
+            // arrange
+            let! tables = sharedTestData ValueNone // (ValueSome output)
+            let tab = Tables.get true true tables
+
+            let struct (pk, struct (sk, _)) =
+                randomPartition tab.hasSk random
+                |> mapSnd Seq.head
+                
+            let hsh = if ``use aliases`` then "#" else ""
+
+            // act
+            let execute l r =
+                QueryBuilder.empty ValueNone
+                |> QueryBuilder.setTableName tab.name
+                |> if ``swap eq condition``
+                   then QueryBuilder.setKeyConditionExpression $"{hsh}TablePk = :p AND {hsh}TableSk BETWEEN :l AND :r"
+                   else QueryBuilder.setKeyConditionExpression $":p = {hsh}TablePk AND {hsh}TableSk BETWEEN :l AND :r"
+                |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
+                |> QueryBuilder.setExpressionAttrValues ":l" (Number l)
+                |> QueryBuilder.setExpressionAttrValues ":r" (Number r)
+                |> if ``use aliases``
+                   then
+                       QueryBuilder.setExpressionAttrName "#TablePk" "TablePk"
+                       >> QueryBuilder.setExpressionAttrName "#TableSk" "TableSk"
+                   else id
+                |> QueryBuilder.queryRequest
+                |> client.QueryAsync
+                |> Io.fromTask
+                |%|> (fun x ->
+                    x.Items
+                    |> Maybe.Null.toOption
+                    ?|? MList()
+                    |> Seq.filter (fun x -> x["TablePk"].S = pk && x["TableSk"].N = (sk.ToString()))
+                    |> Seq.isEmpty
+                    |> not)
+                
+                
+            let! r1 = execute sk sk
+            let! r2 = execute (sk - 1M) (sk + 1M)
+            let! r3 = execute (sk + 1M) sk
+            let! r4 = execute sk (sk - 1M)
+
+            // assert
+            Assert.True(r1)
+            Assert.True(r2)
+            Assert.False(r3)
+            Assert.False(r4)
+        }
+
+    [<Theory>]
+    [<ClassData(typeof<OneFlag>)>]
+    let ``Query, with begins_with, returns correct items``  ``use aliases`` =
+
+        task {
+            use client = buildClient output
+            let client = client.Client
+
+            // arrange
+            let! tables = sharedTestData ValueNone // (ValueSome output)
+            let tab = Tables.get true true tables
+
+            let struct (_, struct (_, expected)) =
+                randomPartition tab.hasSk random
+                |> mapSnd Seq.head
+                
+            let pk = (Map.find "IndexPk" expected).N
+            let sk = (Map.find "IndexSk" expected).S
+            let hsh = if ``use aliases`` then "#" else ""
+
+            // act
+            let execute bw =
+                QueryBuilder.empty ValueNone
+                |> QueryBuilder.setTableName tab.name
+                |> QueryBuilder.setIndexName "TheIndex"
+                |> QueryBuilder.setKeyConditionExpression $"{hsh}IndexPk = :p AND begins_with({hsh}IndexSk, :bw)"
+                |> QueryBuilder.setExpressionAttrValues ":p" (Number pk)
+                |> QueryBuilder.setExpressionAttrValues ":bw" (String bw)
+                |> if ``use aliases``
+                   then
+                       QueryBuilder.setExpressionAttrName "#IndexPk" "IndexPk"
+                       >> QueryBuilder.setExpressionAttrName "#IndexSk" "IndexSk"
+                   else id
+                |> QueryBuilder.queryRequest
+                |> client.QueryAsync
+                |> Io.fromTask
+                |%|> (fun x ->
+                    x.Items
+                    |> Maybe.Null.toOption
+                    ?|? MList()
+                    |> Seq.filter (fun x -> x["IndexPk"].N = pk.ToString() && x["IndexSk"].S = sk)
+                    |> Seq.isEmpty
+                    |> not)
+                
+                
+            let! r1 = execute (sk.Substring(0, 1))
+            let! r2 = execute sk
+            let! r3 = execute $"x{sk}"
+            let! r4 = execute $"{sk}x"
+
+            // assert
+            Assert.True(r1)
+            Assert.True(r2)
+            Assert.False(r3)
+            Assert.False(r4)
         }
 
     [<Theory>]

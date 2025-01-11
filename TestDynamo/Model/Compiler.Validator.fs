@@ -2,6 +2,7 @@
 namespace TestDynamo.Model.Compiler
 
 open System
+open System.Diagnostics.CodeAnalysis
 open System.Text
 open TestDynamo.Data.Monads
 open TestDynamo.Data.Monads.Operators
@@ -154,7 +155,9 @@ module ValidatedPath =
 
 [<RequireQualifiedAccess>]
 module Validator =
+    [<ExcludeFromCodeCoverage>]
     let inline private(=+) x d = ValueOption.defaultValue d x
+    [<ExcludeFromCodeCoverage>]
     let inline private(=+>) x d = ValueOption.defaultWith d x
 
     let private lookupExprAttrValue name vArgs =
