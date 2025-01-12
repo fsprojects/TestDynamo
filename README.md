@@ -174,7 +174,7 @@ public async Task TestSomething()
 
 Use the handy debug properties on `Api.Database` and `Api.GlobalDatabase` in your debugger of choice
 
-![Debugger](./Docs/DbDebugger.png "Debugger")
+![https://raw.githubusercontent.com/ShaneGH/TestDynamo/refs/heads/main/Docs/DbDebugger.png](./Docs/DbDebugger.png "Debugger")
 
 ### Test Tools
 
