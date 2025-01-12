@@ -71,7 +71,9 @@ if (!$tmp) {
 } elseif ((git branch --show-current) -ne $versionBranch) {
     Write-Error "Invalid branch config"
     exit 1
-}
+} 
+
+Write-Host "✅ Step 1: create release state (tag, branch and version file)" -ForegroundColor Green
 
 $moveDtosFlag = "moveDtos"
 $tmp = (testFlag $moveDtosFlag)
@@ -84,7 +86,9 @@ if (!$tmp) {
         --generatedCode "$rootDir\TestDynamo.GeneratedCode\TestDynamo.GeneratedCode.fsproj"
 
     setFlag $moveDtosFlag $true
-}
+} 
+
+Write-Host "✅ Step 2: merge GeneratedCode and TestDynamo projects" -ForegroundColor Green
 
 $executeTestsFlag = "executeTests"
 $tmp = (testFlag $executeTestsFlag)
@@ -94,7 +98,9 @@ if (!$tmp) {
     dotnet test "$rootDir" -c Release
     
     setFlag $executeTestsFlag $true
-}
+} 
+
+Write-Host "✅ Step 3: final test, with latest dynamodb + merged code, in release mode" -ForegroundColor Green
 
 $executeLegacyTestsFlag = "executeLegacyTests"
 $tmp = (testFlag $executeLegacyTestsFlag)
@@ -125,7 +131,9 @@ if (!$tmp) {
         Write-Host ""
         Write-Host "### Step 4: skipping old version test. Mid execution" -ForegroundColor Green
     }
-}
+} 
+
+Write-Host "✅ Step 4: skipping old version test. Mid execution" -ForegroundColor Green
 
 $updateDependenciesFlag = "updateDependencies"
 $tmp = (testFlag $updateDependenciesFlag)
@@ -138,7 +146,9 @@ if (!$tmp) {
 
     git add @($testApps + $publishApps)    
     setFlag $updateDependenciesFlag
-}
+} 
+
+Write-Host "✅ Step 6: change dependant projects to reference the new release version of their dependencies" -ForegroundColor Green
 
 function handle-pack-errors ($i, $err) {
     Write-Error "ERROR $err"
@@ -166,6 +176,7 @@ $publishApps |
         $projectFlag = "DEPLOYED_PROJECT_$projectName"
         $tmp = (testFlag $projectFlag)
         if ($tmp) {
+            Write-Host "✅ Step 7: pack and release ($projectName)" -ForegroundColor Green
             return
         }
 
@@ -224,6 +235,7 @@ $publishApps |
         }
 
         setFlag $projectFlag
+        Write-Host "✅ Step 7: pack and release ($projectName)" -ForegroundColor Green
     }
 
 Write-Host ""
