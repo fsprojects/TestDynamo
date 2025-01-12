@@ -2,7 +2,6 @@ namespace TestDynamo.Api
 
 open System.Runtime.InteropServices
 open Microsoft.Extensions.Logging
-open TestDynamo
 open TestDynamo.Model
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Utils
@@ -74,13 +73,12 @@ type TableBuilder =
     member this.WithDeletionProtection() =
         {this with data.tableConfig.addDeletionProtection = true }
 
-    static member Create(
-        database: FSharp.Database,
-        name: string,
-        partitionKey: struct (string * string),
-        sortKey: System.Nullable<struct (string * string)>) =
+    static member create
+        (name: string)
+        (partitionKey: struct (string * string))
+        (sortKey: struct (string * string) voption)
+        (database: FSharp.Database) =
 
-        let sortKey = Maybe.Null.valToOption sortKey        
         let attrs =
             [
                 ValueSome partitionKey
@@ -99,6 +97,41 @@ type TableBuilder =
                   indexes = Map.empty
                   addDeletionProtection = false }
               createStream = false } }
+
+    static member addTable logger (builder: TableBuilder) =
+        builder.AddTable(Maybe.Null.fromOption logger)
+
+    static member withGlobalSecondaryIndex
+        name
+        (partitionKey: struct (string * string))
+        (sortKey: struct (string * string) voption)
+        (projectionAttributes: string seq voption)
+        (projectKeysOnly: bool)
+        (builder: TableBuilder) =
+            
+        builder.WithGlobalSecondaryIndex(
+            name,
+            partitionKey,
+            Maybe.Null.valFromOption sortKey,
+            Maybe.Null.fromOption projectionAttributes,
+            projectKeysOnly)
+
+    static member withStreamsEnabled (enabled: bool) (builder: TableBuilder) = builder.WithStreamsEnabled enabled
+
+    static member withLocalSecondaryIndex
+        name
+        (sortKey: struct (string * string) voption)
+        (projectionAttributes: string seq)
+        (projectKeysOnly: bool)
+        (builder: TableBuilder) =
+            
+        builder.WithLocalSecondaryIndex(
+            name,
+            Maybe.Null.valFromOption sortKey,
+            projectionAttributes,
+            projectKeysOnly)
+
+    static member withDeletionProtection (builder: TableBuilder) = builder.WithDeletionProtection()
 
 [<Struct; IsReadOnly>]
 type ListBuilder private(itemsReversed: AttributeValue list voption) =
@@ -204,3 +237,7 @@ type ItemBuilder =
           conditionExpression = ConditionAndProject<_>.empty this.tableName None }
         |> this.database.Put (Maybe.Null.toOption logger)
         |> ignoreTyped<Map<string, AttributeValue> voption>
+
+    static member putRequest tableName item =
+        { conditionExpression = ConditionAndProject<BasicReturnValues>.empty tableName AllOld
+          item = item }

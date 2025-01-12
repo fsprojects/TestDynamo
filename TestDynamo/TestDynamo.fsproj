@@ -79,7 +79,7 @@
     <Compile Include="Api.FSharp\Database.fs" />
     <Compile Include="Api.FSharp\GlobalDatabaseState.fs" />
     <Compile Include="Api.FSharp\GlobalDatabase.fs" />
-    <Compile Include="Api\CSharpHelpers.fs" />
+    <Compile Include="Api\Builders.fs" />
     <Compile Include="Api\Database.fs" />
     <Compile Include="Api\GlobalDatabase.fs" />
     <Compile Include="Client\DtoMappers.fs" />

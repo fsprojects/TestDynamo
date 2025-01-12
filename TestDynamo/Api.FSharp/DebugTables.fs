@@ -128,7 +128,7 @@ type LazyDebugTable(name: string, table: Table) =
     member _.HasDeletionProtection = Table.hasDeletionProtection table
 
     member this.GetValues () = this.GetValues Seq.empty
-
+    
     member _.GetValues filters =
         let idx = LazyDebugIndex(Index.primaryIndexName, Table.getIndex ValueNone table |> Maybe.expectSome)
         idx.GetValues filters
@@ -153,3 +153,16 @@ type LazyDebugTable(name: string, table: Table) =
         { Name = this.Name
           Values = this.GetValues() |> List.ofSeq
           Indexes = this.GetIndexes() |> Seq.map _.EagerLoad() |> List.ofSeq }
+        
+    static member getValues index (table: LazyDebugTable) =
+        match index with
+        | ValueNone -> table.GetValues()
+        | ValueSome idx -> 
+            let idx = table.GetIndex idx
+            idx.GetValues()
+    
+    static member getIndexes (table: LazyDebugTable) = table.GetIndexes()
+    
+    static member getIndex name (table: LazyDebugTable) = table.GetIndex name
+    
+    static member eagerLoad (table: LazyDebugTable) = table.EagerLoad()

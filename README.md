@@ -40,20 +40,20 @@ using TestDynamo;
 [Test]
 public async Task GetPersonById_WithValidId_ReturnsPerson()
 {
-   // arrange
-   using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
+    // arrange
+    using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
-   // create a table and add some items
-   await client.CreateTableAsync(...);
-   await client.BatchWriteItemAsync(...);
+    // create a table and add some items
+    await client.CreateTableAsync(...);
+    await client.BatchWriteItemAsync(...);
 
-   var testSubject = new MyBeatlesService(client);
+    var testSubject = new MyBeatlesService(client);
 
-   // act
-   var beatle = testSubject.GetBeatle("Ringo");
+    // act
+    var beatle = testSubject.GetBeatle("Ringo");
 
-   // assert
-   Assert.Equal("Starr", beatle.SecondName);
+    // assert
+    Assert.Equal("Starr", beatle.SecondName);
 }
 ```
 
@@ -108,8 +108,11 @@ TestDynamo is written in F# and has a lot of F# first constructs
 ```F#
 open TestDynamo
 
+let buildBasicClient = TestDynamoClient.createClient<AmazonDynamoDBClient> ValueNone false ValueNone false
 use db = new Api.FSharp.Database({ regionId = "us-west-1" })
-use client = ValueSome db |> TestDynamoClient.createClient ValueNone false ValueNone false
+use client = 
+    ValueSome db 
+    |> buildBasicClient
 ```
 
 In general, functions and extension methods with in `camelCase` are targeted at F#, where as those is `PascalCase` are targeted at C#
@@ -125,16 +128,38 @@ using var database = new Api.Database(new DatabaseId("us-west-1"));
 
 // add a table
 database
-   .TableBuilder("Beatles", ("FirstName", "S"))
-   .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
-   .AddTable();
+    .TableBuilder("Beatles", ("FirstName", "S"))
+    .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
+    .AddTable();
 
 // add some data
 database
-   .ItemBuilder("Beatles")
-   .Attribute("FirstName", "Ringo")
-   .Attribute("SecondName", "Starr")
-   .AddItem();
+    .ItemBuilder("Beatles")
+    .Attribute("FirstName", "Ringo")
+    .Attribute("SecondName", "Starr")
+    .AddItem();
+```
+
+F# databases are supported also
+
+```F#
+open TestDynamo
+
+use database = new Api.FSharp.Database({ regionId = "us-west-1" });
+
+// add a table
+database
+|> TableBuilder.create "Beatles" struct ("FirstName", "S") ValueNone
+|> TableBuilder.withGlobalSecondaryIndex "SecondNameIndex" struct ("SecondName", "S") (ValueSome struct ("FirstName", "S")) ValueNone false
+|> TableBuilder.addTable ValueNone
+
+// add some data
+Map.empty
+|> Map.add "FirstName" (String "Ringo")
+|> Map.add "SecondName" (String "Starr")
+|> ItemBuilder.putRequest "Beatles"
+|> database.Put ValueNone
+|> ignore
 ```
 
 ### Database Cloning
@@ -150,37 +175,37 @@ private static Api.Database _sharedRootDatabase = BuildDatabase();
 
 private static Api.Database BuildDatabase()
 {
-   var database = new Api.Database(new DatabaseId("us-west-1"));
+    var database = new Api.Database(new DatabaseId("us-west-1"));
 
-   // add a table
-   database
-      .TableBuilder("Beatles", ("FirstName", "S"))
-      .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
-      .AddTable();
+    // add a table
+    database
+        .TableBuilder("Beatles", ("FirstName", "S"))
+        .WithGlobalSecondaryIndex("SecondNameIndex", ("SecondName", "S"), ("FirstName", "S"))
+        .AddTable();
 
-   // add some data
-   database
-      .ItemBuilder("Beatles")
-      .Attribute("FirstName", "Ringo")
-      .Attribute("SecondName", "Starr")
-      .AddItem();
+    // add some data
+    database
+        .ItemBuilder("Beatles")
+        .Attribute("FirstName", "Ringo")
+        .Attribute("SecondName", "Starr")
+        .AddItem();
 
-   return database;
+    return database;
 }
 
 [Test]
 public async Task TestSomething()
 {
-   // clone the database to get working copy
-   // without altering the original
-   using var database = _sharedRootDatabase.Clone();
-   using var client = database.CreateClient<AmazonDynamoDBClient>();
+    // clone the database to get working copy
+    // without altering the original
+    using var database = _sharedRootDatabase.Clone();
+    using var client = database.CreateClient<AmazonDynamoDBClient>();
 
-   // act
-   ...
+    // act
+    ...
 
-   // assert
-   ...
+    // assert
+    ...
 }
 ```
 
@@ -203,6 +228,22 @@ var ringo = database
     .Single(v => v["FirstName"].S == "Ringo");
 ```
 
+Or with F#
+
+```F#
+use database = GetMeADatabase()
+
+let ringo = 
+    database.GetTable ValueNone "Beatles"
+    |> LazyDebugTable.getValues ValueNone
+    |> Seq.filter (
+        _.InternalItem 
+        >> Item.attributes 
+        >> Map.find "FirstName" 
+        >> (=) (String "Ringo"))
+    |> Seq.head
+```
+
 ### Streaming and Subscriptions
 
 If streams are enabled on tables they can be used for global table 
@@ -219,19 +260,55 @@ using TestDynamo.Lambda;
 using Amazon.Lambda.DynamoDBEvents;
 
 var subscription = database.AddSubscription<DynamoDBEvent>(
-   "Beatles",
-   (dynamoDbStreamsEvent, cancellationToken) =>
-   {
-      var added = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.NewImage?["FirstName"]?.S;
-      if (added != null)
-         Console.WriteLine($"{added} has joined the Beatles");
+    "Beatles",
+    (dynamoDbStreamsEvent, cancellationToken) =>
+    {
+        var added = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.NewImage?["FirstName"]?.S;
+        if (added != null)
+            Console.WriteLine($"{added} has joined the Beatles");
 
-      var removed = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.OldImage?["FirstName"]?.S;
-      if (removed != null)
-         Console.WriteLine($"{removed} has left the Beatles");
+        var removed = dynamoDbStreamsEvent.Records.FirstOrDefault()?.Dynamodb.OldImage?["FirstName"]?.S;
+        if (removed != null)
+            Console.WriteLine($"{removed} has left the Beatles");
 
-      return default;
-   });
+        return default;
+    });
+
+// disposing will remove the subscription
+subscription.Dispose();
+```
+
+Or with F#
+
+```F#
+open TestDynamo
+open TestDynamo.Lambda
+open Amazon.Lambda.DynamoDBEvents
+
+let subscriber (dynamoDbStreamsEvent: DynamoDBEvent) _ =
+
+    let tryFirst f =
+        dynamoDbStreamsEvent.Records
+        |> Seq.map f
+        |> Seq.filter ((<>) null)
+        |> Seq.map (fun (x: Dictionary<string, AttributeValue>) -> x["FirstName"].S)
+        |> Seq.tryHead
+
+    match tryFirst _.Dynamodb.NewImage with 
+    | Some x -> printf "%s has joined the Beatles" x
+    | None -> ()
+
+    match tryFirst _.Dynamodb.OldImage with 
+    | Some x -> printf "%s has left the Beatles" x
+    | None -> ()
+
+    Unchecked.defaultOf<_>
+
+let subscription = 
+    Subscriptions.addSubscription
+        (SubscriptionDetails.ofTableName "Beatles")
+        subscriber
+        database
 
 // disposing will remove the subscription
 subscription.Dispose();
@@ -241,28 +318,28 @@ Subscribe to raw changes
 
 ```C#
 var subscription = database
-   .SubscribeToStream("Beatles", (cdcPacket, cancellationToken) =>
-   {
-      var added = cdcPacket.data.packet.changeResult.OrderedChanges
-         .Select(x => x.Put)
-         .Where(x => x.IsSome)
-         .Select(x => x.Value["FirstName"].S)
-         .FirstOrDefault();
+    .SubscribeToStream("Beatles", (cdcPacket, cancellationToken) =>
+    {
+        var added = cdcPacket.data.packet.changeResult.OrderedChanges
+            .Select(x => x.Put)
+            .Where(x => x.IsSome)
+            .Select(x => x.Value["FirstName"].S)
+            .FirstOrDefault();
 
-      if (added != null)
-         Console.WriteLine($"{added} has joined the Beatles");
+        if (added != null)
+            Console.WriteLine($"{added} has joined the Beatles");
 
-      var removed = cdcPacket.data.packet.changeResult.OrderedChanges
-         .Select(x => x.Deleted)
-         .Where(x => x.IsSome)
-         .Select(x => x.Value["FirstName"].S)
-         .FirstOrDefault();
+        var removed = cdcPacket.data.packet.changeResult.OrderedChanges
+            .Select(x => x.Deleted)
+            .Where(x => x.IsSome)
+            .Select(x => x.Value["FirstName"].S)
+            .FirstOrDefault();
 
-      if (removed != null)
-         Console.WriteLine($"{removed} has left the Beatles");
+        if (removed != null)
+            Console.WriteLine($"{removed} has left the Beatles");
 
-      return default;
-   });
+        return default;
+    });
 
 // disposing will remove the subscription
 subscription.Dispose();
@@ -298,8 +375,8 @@ using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 using var context = new DynamoDbContext(client)
 await context.SaveAsync(new Beatle
 {
-   FirstName = "Ringo",
-   SecondName = "Starr"
+    FirstName = "Ringo",
+    SecondName = "Starr"
 })
 ```
 
@@ -429,6 +506,23 @@ using var db2 = DatabaseSerializer.Database.FromFile(@"TestData.json");
 var json = DatabaseSerializer.GlobalDatabase.ToString(globalDb);
 ```
 
+Or F#
+
+```F#
+open TestDynamo
+open TestDynamo.Serialization
+
+use db1 = new Api.FSharp.Database()
+... populate database
+
+DatabaseSerializer.FSharp.Database.ToFile(db1, @"TestData.json")
+
+use db2 = DatabaseSerializer.FSharp.Database.FromFile(@"TestData.json")
+
+// there are also tools to serialize and deserialze global databases
+let json = DatabaseSerializer.FSharp.GlobalDatabase.ToString(globalDb)
+```
+
 Serialization is designed to share data between test runs, but ultimately, it scales with the number of items in the database. This means
 that it may take more time than is ideal for executing fast unit tests. [Database cloning](#database-cloning) is a better solution for large databases which are shared between multiple tests, as it executes instantly for any sized database or global database
 
@@ -446,6 +540,22 @@ var cfnFile1 = new CloudFormationFile(await File.ReadAllTextAsync("myTemplate1.j
 var cfnFile2 = new CloudFormationFile(await File.ReadAllTextAsync("myTemplate2.json"), "us-west-2");
 using var database = await CloudFormationParser.BuildDatabase(new[] { cfnFile1, cfnFile2 }, new CloudFormationSettings(true));
 ...
+```
+
+Or with F#
+
+```F#
+open TestDynamo.Serialization;
+
+async {
+    use! database = 
+        [ { region = "eu-north-1"
+            fileJson = File.ReadAllText("myTemplate1.json") }
+          { region = "us-west-2"
+            fileJson = File.ReadAllText("myTemplate2.json") } ]
+        |> CloudFormationParser.buildDatabase { ignoreUnsupportedResources = true } ValueNone
+    ...
+}
 ```
 
 ### Locking and Atomic transactions
@@ -478,12 +588,12 @@ using var client = TestDynamoClient.CreateClient<AmazonDynamoDBClient>(recordCal
 await client.CreateTableAsync(...);
 try
 {
-   // failed request to put an item
-   await client.PutItemAsync(...);
+    // failed request to put an item
+    await client.PutItemAsync(...);
 }
 catch
 {
-   // do nothing
+    // do nothing
 }
 
 
@@ -597,20 +707,20 @@ using var database = new Api.Database(new DatabaseId("us-west-1"));
 var interceptor = new CreateBackupInterceptor(backups);
 using var client = database.CreateClient<AmazonDynamoDBClient>(interceptor);
 
-// execute some requests which are not intercepted. These will not be intercepted
+// execute some requests which are not intercepted
 await client.PutItemAsync(...);
 await client.PutItemAsync(...);
 
 // create a backup. This will be intercepted
 var backupResponse = await client.CreateBackupAsync(new CreateBackupRequest
 {
-   TableName = "Beatles"
+    TableName = "Beatles"
 });
 
 // restore from backup. This will be intercepted
 await client.RestoreTableFromBackupAsync(new RestoreTableFromBackupRequest
 {
-   BackupArn = backupResponse.BackupDetails.BackupArn
+    BackupArn = backupResponse.BackupDetails.BackupArn
 });
 ```
 

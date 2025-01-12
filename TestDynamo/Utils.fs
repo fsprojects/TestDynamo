@@ -817,6 +817,11 @@ module Maybe =
         let fromOption = function
             | ValueNone -> null
             | ValueSome x -> x
+            
+        let valFromOption x =
+            match x with
+            | ValueSome x -> Nullable<_>(x)
+            | ValueNone -> Nullable<_>()
     
     [<ExcludeFromCodeCoverage>]
     let inline expectSomeErr err errState =

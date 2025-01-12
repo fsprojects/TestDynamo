@@ -232,10 +232,11 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             do! client.PutItemAsync(table.name, TableItem.asAttributes data1) |> Io.ignoreTask
 
             // act
-            let func = asFunc2 (fun x _ ->
-                    record.Add(struct (DateTimeOffset.UtcNow, x))
-                    ValueTask.CompletedTask)
-            use _ = Subscriptions.AddSubscription(host, table.name, func)
+            let func x _ =
+                record.Add(struct (DateTimeOffset.UtcNow, x))
+                ValueTask.CompletedTask
+                
+            use _ = Subscriptions.addSubscription (SubscriptionDetails.ofTableName table.name) func host 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! host.AwaitAllSubscribers (ValueSome writer) CancellationToken.None
 
@@ -818,11 +819,11 @@ type TableSubscriberTests(output: ITestOutputHelper) =
 
             // act
             use _ =
-                let sub = asFunc2 (fun x _ ->
+                let sub x _ =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
-                    ValueTask.CompletedTask)
+                    ValueTask.CompletedTask
 
-                host.AddSubscription(table.name, sub)
+                Subscriptions.addSubscription (SubscriptionDetails.ofTableName table.name) sub host
 
             do! invalidPut1()
             do! invalidPut2()
@@ -873,18 +874,18 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             let recordNew = System.Collections.Generic.List<_>()
             let recordOld = System.Collections.Generic.List<_>()
             use _ =
-                let sub = asFunc2 (fun (x: DynamoDBEvent) _ ->
+                let sub (x: DynamoDBEvent) _ =
                     recordNew.Add(struct (DateTimeOffset.UtcNow, x))
-                    ValueTask.CompletedTask)
-
-                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = StreamViewType.NEW_IMAGE)
+                    ValueTask.CompletedTask
+                    
+                Subscriptions.addSubscription { SubscriptionDetails.ofTableName table.name with streamViewType = ValueSome StreamViewType.NEW_IMAGE} sub host
 
             use _ =
-                let sub = asFunc2 (fun x _ ->
+                let sub x _ =
                     recordOld.Add(struct (DateTimeOffset.UtcNow, x))
-                    ValueTask.CompletedTask)
+                    ValueTask.CompletedTask
 
-                Subscriptions.AddSubscription(host, table.name, sub, streamViewType = StreamViewType.OLD_IMAGE)
+                Subscriptions.addSubscription { SubscriptionDetails.ofTableName table.name with streamViewType = ValueSome StreamViewType.OLD_IMAGE} sub host
 
             do! client.PutItemAsync(table.name, TableItem.asAttributes data2) |> Io.ignoreTask
             do! client.DeleteItemAsync(table.name, data1Keys) |> Io.ignoreTask
@@ -926,11 +927,11 @@ type TableSubscriberTests(output: ITestOutputHelper) =
             // act
             let record = System.Collections.Generic.List<_>()
             use subscription =
-                let sub = asFunc2 (fun (x: DynamoDBEvent) _ ->
+                let sub (x: DynamoDBEvent) _ =
                     record.Add(struct (DateTimeOffset.UtcNow, x))
-                    ValueTask.CompletedTask)
+                    ValueTask.CompletedTask
 
-                Subscriptions.AddSubscription(host, table.name, sub, behaviour = settings1)
+                Subscriptions.addSubscription { SubscriptionDetails.ofTableName table.name with behaviour = ValueSome settings1} sub host
 
             let put1 = client.PutItemAsync(table.name, TableItem.asAttributes data1)
             host.SetStreamBehaviour (ValueSome writer) table.name subscription.SubscriberId settings2

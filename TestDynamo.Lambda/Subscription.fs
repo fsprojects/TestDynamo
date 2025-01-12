@@ -5,6 +5,7 @@ open System.Runtime.InteropServices
 open System.Threading
 open System.Threading.Tasks
 open TestDynamo
+open TestDynamo.Api.FSharp
 open TestDynamo.Data.BasicStructures
 open TestDynamo.GeneratedCode.Dtos
 open TestDynamo.GenericMapper
@@ -87,114 +88,48 @@ module LambdaSubscriberUtils =
         >>> fun mapper changeData c ->
             let funcInput = mapper streamViewType changeData
 
-            // filter results which only have attempted deletes
+            // filter out results which only have attempted deletes
             if List.isEmpty changeData.data.packet.changeResult.OrderedChanges
             then completedTask
             else subscriber.Invoke(funcInput, c) |> Io.normalizeVt
+            
+    let deFunc2 (f: System.Func<_, _, _>) x y = f.Invoke(x, y)
+
+type SubscriptionDetails =
+    { awsAccountId: string voption
+      tableName: Model.Database.TableName
+      behaviour: SubscriberBehaviour voption
+      streamViewType: StreamViewType voption }
+    
+    with
+    static member ofTableName tableName =
+        { awsAccountId = ValueNone
+          tableName = tableName
+          behaviour = ValueNone
+          streamViewType = ValueNone }
 
 type Subscriptions() =
-
-    static member private addSubscription<'DynamoDBEvent>
-        (database: Either<TestDynamo.Api.Database, TestDynamo.Api.FSharp.Database>)
-        tableName
-        (subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>)
-        behaviour
-        (streamViewType: StreamViewType voption)
-        (awsAccountId: string voption) =
-
-        let awsAccountId = awsAccountId ?|? Settings.DefaultAwsAccountId
-        let streamViewType = streamViewType ?|? StreamViewType.NEW_AND_OLD_IMAGES
-        let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
         
-        database
-        |> Either.map1Of2 (fun db ->
-            let f = LambdaSubscriberUtils.build subscriber streamViewType awsAccountId db.Id.regionId
-            db.SubscribeToStream(tableName, struct (behaviour, streamConfig), f))
-        |> Either.map2Of2 (fun db ->
-            LambdaSubscriberUtils.build subscriber streamViewType awsAccountId db.Id.regionId
-            |> db.SubscribeToStream ValueNone tableName struct (behaviour, streamConfig))
-        |> Either.reduce
-
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
+    /// Subscribe to a stream of lambda events
+    /// Targets F#. See `AddSubscription` for C# version
     /// </summary>
-    [<Extension>]
-    static member AddSubscription<'DynamoDBEvent> (
-        database: TestDynamo.Api.FSharp.Database,
-        tableName,
-        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
-        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
+    static member addSubscription<'DynamoDBEvent>
+        (details: SubscriptionDetails)
+        (subscriber: 'DynamoDBEvent -> CancellationToken -> ValueTask)
+        (database: TestDynamo.Api.FSharp.Database): IStreamSubscriberDisposal =
 
-        Subscriptions.addSubscription
-            (Either2 database)
-            tableName
-            subscriber
-            SubscriberBehaviour.defaultOptions
-            ValueNone
-            (awsAccountId |> Maybe.Null.toOption)
-
-    /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
-    /// </summary>
-    [<Extension>]
-    static member AddSubscription<'DynamoDBEvent> (
-        database: TestDynamo.Api.FSharp.Database,
-        tableName,
-        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
-        streamViewType: StreamViewType,
-        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-
-        Subscriptions.addSubscription
-            (Either2 database)
-            tableName
-            subscriber
-            SubscriberBehaviour.defaultOptions
-            (ValueSome streamViewType)
-            (awsAccountId |> Maybe.Null.toOption)
-
-    /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
-    /// </summary>
-    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    [<Extension>]
-    static member AddSubscription<'DynamoDBEvent> (
-        database: TestDynamo.Api.FSharp.Database,
-        tableName,
-        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
-        behaviour,
-        streamViewType: StreamViewType,
-        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-
-        Subscriptions.addSubscription
-            (Either2 database)
-            tableName
-            subscriber
-            behaviour
-            (ValueSome streamViewType)
-            (awsAccountId |> Maybe.Null.toOption)
-
-    /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.FSharp.Database
-    /// </summary>
-    /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
-    [<Extension>]
-    static member AddSubscription<'DynamoDBEvent> (
-        database: TestDynamo.Api.FSharp.Database,
-        tableName,
-        subscriber: System.Func<'DynamoDBEvent, CancellationToken, ValueTask>,
-        behaviour,
-        [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
-
-        Subscriptions.addSubscription
-            (Either2 database)
-            tableName
-            subscriber
-            behaviour
-            ValueNone
-            (awsAccountId |> Maybe.Null.toOption)
+        let awsAccountId = details.awsAccountId ?|? Settings.DefaultAwsAccountId
+        let streamViewType = details.streamViewType ?|? StreamViewType.NEW_AND_OLD_IMAGES
+        let streamConfig = LambdaSubscriberUtils.parseStreamConfig streamViewType
+        let behaviour = details.behaviour ?|? SubscriberBehaviour.defaultOptions
+        
+        LambdaSubscriberUtils.build<'DynamoDBEvent> subscriber streamViewType awsAccountId database.Id.regionId
+        |> database.SubscribeToStream ValueNone details.tableName struct (behaviour, streamConfig)
     
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Subscribe to a stream of lambda events
+    /// Targets C#. See `addSubscription` for F# version
     /// </summary>
     [<Extension>]
     static member AddSubscription<'DynamoDBEvent> (
@@ -204,15 +139,16 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
         Subscriptions.addSubscription
-            (Either1 database)
-            tableName
-            subscriber
-            SubscriberBehaviour.defaultOptions
-            ValueNone
-            (awsAccountId |> Maybe.Null.toOption)
+            { awsAccountId = (awsAccountId |> Maybe.Null.toOption)
+              tableName = tableName
+              behaviour = ValueNone
+              streamViewType = ValueNone }
+            (LambdaSubscriberUtils.deFunc2 subscriber)
+            database.CoreDb
 
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Subscribe to a stream of lambda events
+    /// Targets C#. See `addSubscription` for F# version
     /// </summary>
     [<Extension>]
     static member AddSubscription<'DynamoDBEvent> (
@@ -223,15 +159,16 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
         Subscriptions.addSubscription
-            (Either1 database)
-            tableName
-            subscriber
-            SubscriberBehaviour.defaultOptions
-            (ValueSome streamViewType)
-            (awsAccountId |> Maybe.Null.toOption)
+            { awsAccountId = (awsAccountId |> Maybe.Null.toOption)
+              tableName = tableName
+              behaviour = ValueNone
+              streamViewType = ValueSome streamViewType }
+            (LambdaSubscriberUtils.deFunc2 subscriber)
+            database.CoreDb
 
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Subscribe to a stream of lambda events
+    /// Targets C#. See `addSubscription` for F# version
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     [<Extension>]
@@ -244,15 +181,16 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
         Subscriptions.addSubscription
-            (Either1 database)
-            tableName
-            subscriber
-            behaviour
-            (ValueSome streamViewType)
-            (awsAccountId |> Maybe.Null.toOption)
+            { awsAccountId = (awsAccountId |> Maybe.Null.toOption)
+              tableName = tableName
+              behaviour = ValueSome behaviour
+              streamViewType = ValueSome streamViewType }
+            (LambdaSubscriberUtils.deFunc2 subscriber)
+            database.CoreDb
 
     /// <summary>
-    /// Create a stream subscriber that can be passed into the SubscribeToLambdaStream method on Api.Database
+    /// Subscribe to a stream of lambda events
+    /// Targets C#. See `addSubscription` for F# version
     /// </summary>
     /// <param name="behaviour">Define the synchronicity and error handling strategy for this subscriber</param>
     [<Extension>]
@@ -264,10 +202,10 @@ type Subscriptions() =
         [<Optional; DefaultParameterValue(null: string)>] awsAccountId: string) =
 
         Subscriptions.addSubscription
-            (Either1 database)
-            tableName
-            subscriber
-            behaviour
-            ValueNone
-            (awsAccountId |> Maybe.Null.toOption)
+            { awsAccountId = (awsAccountId |> Maybe.Null.toOption)
+              tableName = tableName
+              behaviour = ValueSome behaviour
+              streamViewType = ValueNone }
+            (LambdaSubscriberUtils.deFunc2 subscriber)
+            database.CoreDb
             

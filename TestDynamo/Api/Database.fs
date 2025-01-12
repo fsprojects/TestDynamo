@@ -77,7 +77,7 @@ type Database (db: FsDb, [<Optional; DefaultParameterValue(false)>] disposeUnder
         partitionKey: struct (string * string),
         [<Optional; DefaultParameterValue(System.Nullable<struct (string * string)>())>] sortKey: System.Nullable<struct (string * string)>) =
 
-        TableBuilder.Create(db, name, partitionKey, sortKey)
+        TableBuilder.create name partitionKey (Maybe.Null.valToOption sortKey) db
 
     /// <summary>
     /// Create an item builder, which can accumulate attributes
