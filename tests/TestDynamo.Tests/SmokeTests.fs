@@ -51,7 +51,7 @@ type SmokeTests(output: ITestOutputHelper) =
         if not DynamoDbVersion.isLatestVersion then ()
         else
             let slnRoot = slnRoot
-            use vFile = System.IO.File.OpenRead($@"{slnRoot.FullName}\tests\testVersion.txt");
+            use vFile = System.IO.File.OpenRead($@"{slnRoot.FullName}/tests/testVersion.txt");
             use vData = new System.IO.StreamReader(vFile);
 
             let target = Version.Parse(Regex.Replace(vData.ReadToEnd(), @"[^\d\.].*", "")) |> normalizeVersion;
