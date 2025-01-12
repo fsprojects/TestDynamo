@@ -2,7 +2,7 @@
 
 An in-memory dynamodb client for automated testing
 
-[![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FShaneGH%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")](https://github.com/ShaneGH/TestDynamo)
+[![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FShaneGH%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")](https://github.com/ShaneGH/TestDynamo/blob/main/tests/coverage.ps1)
 [![Github](https://img.shields.io/badge/Github-TestDynamo-black "Github")](https://github.com/ShaneGH/TestDynamo)
 [![NuGet](https://img.shields.io/badge/NuGet-TestDynamo-blue "NuGet")](https://www.nuget.org/packages/TestDynamo)
 [![NuGet](https://img.shields.io/badge/NuGet-TestDynamo.Serialization-blue "NuGet")](https://www.nuget.org/packages/TestDynamo.Serialization)
