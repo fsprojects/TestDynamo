@@ -63,6 +63,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
 
  * Support for [DynamoDb versions](https://www.nuget.org/packages/AWSSDK.DynamoDBv2#versions-body-tab) >= and 3.5.0
  * [`Api.Database`](#database) contains tables from a single region.
+    * [F# Support](#f-database) out of the box
     * [Full expression engine](#using-expressions) so you can test your queries, scans, projections and conditions
     * [Schema and item change](#schema-and-item-change) tools make creating and populating test databases easier
     * [Database cloning](#database-cloning) allows you to make copies of entire AWS regions which can be safely used in other tests.
@@ -99,6 +100,19 @@ using TestDynamo;
 using var db = new Api.Database(new DatabaseId("us-west-1"));
 using var client = db.CreateClient<AmazonDynamoDBClient>();
 ```
+
+### F# Database
+
+TestDynamo is written in F# and has a lot of F# first constructs
+
+```F#
+open TestDynamo
+
+use db = new Api.FSharp.Database({ regionId = "us-west-1" })
+use client = ValueSome db |> TestDynamoClient.createClient ValueNone false ValueNone false
+```
+
+In general, functions and extension methods with in `camelCase` are targeted at F#, where as those is `PascalCase` are targeted at C#
 
 ### Schema and Item Change
 
@@ -357,10 +371,24 @@ using TestDynamo;
 using var client1 = TestDynamoClient.CreateClient<AmazonDynamoDBClient>();
 
 // get the underlying database from a client
-var db1 = TestDynamoClient.GetDatabase(clientclient);
+var db1 = TestDynamoClient.GetDatabase(client1);
 
 // get a debug table from a client
-var beatles = TestDynamoClient.GetTable(client, "Beatles");
+var beatles = TestDynamoClient.GetTable(client1, "Beatles");
+```
+
+Or in F#
+
+```F#
+open TestDynamo
+
+use client1 = TestDynamoClient.createClient<AmazonDynamoDBClient> ValueNone false ValueNone false ValueNone
+
+// get the underlying database from a client
+let db1 = TestDynamoClient.getDatabase client1
+
+// get a debug table from a client
+let beatles = TestDynamoClient.getTable "Beatles" client1
 ```
 
 #### Set methods

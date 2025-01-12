@@ -118,7 +118,7 @@ type private AmazonDynamoDBClientBuilder<'a>() =
 /// <summary>
 /// Extensions to create a dynamodb db client from a Database or to attach a Database to
 /// an existing dynamodb client.
-/// Methods targeting C# have upper case names, methods targeting F# have lower case names
+/// Functions and extension methods with in `camelCase` are targeted at F#, where as those is `PascalCase` are targeted at C#
 /// </summary>
 type TestDynamoClient =
 
@@ -221,6 +221,8 @@ type TestDynamoClient =
     
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database
+    /// 
+    /// Targets C#. See `createClient` for F# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -246,6 +248,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase
+    /// 
+    /// Targets C#. See `createClient` for F# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -272,6 +276,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase
+    /// 
+    /// Targets C#. See `createClient` for F# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -294,6 +300,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new Database
+    /// 
+    /// Targets C#. See `createClient` for F# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -318,6 +326,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new GlobalDatabase
+    /// 
+    /// Targets C#. See `createGlobalClient` for F# version
     /// </summary>
     static member CreateGlobalClient<'a>(
         databaseId: TestDynamo.Model.DatabaseId,
@@ -333,6 +343,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on a new GlobalDatabase
+    /// 
+    /// Targets C#. See `createGlobalClient` for F# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -353,6 +365,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given Database or a new Database
+    /// 
+    /// Targets F#. See `CreateClient` for C# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -379,6 +393,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Create an AmazonDynamoDBClient which can execute operations on the given GlobalDatabase or a new GlobalDatabase
+    /// 
+    /// Targets F#. See `CreateGlobalClient` for C# version
     /// </summary>
     /// <param name="addAwsCredentials">
     /// <para>
@@ -405,13 +421,17 @@ type TestDynamoClient =
             client
 
     /// <summary>
-    /// Alter an AmazonDynamoDBClient so that it executes on a given Database  
+    /// Alter an AmazonDynamoDBClient so that it executes on a given Database 
+    /// 
+    /// Targets F#. See `Attach` for C# version
     /// </summary>
     static member attach<'a> (logger: ILogger voption) (db: Database) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
         TestDynamoClient.attach'<'a> logger (Either1 db, false) interceptor recordCalls client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given Database
+    /// 
+    /// Targets C#. See `attach` for F# version
     /// </summary>
     [<Extension>]
     static member Attach (
@@ -425,16 +445,19 @@ type TestDynamoClient =
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
+    /// 
+    /// Targets F#. See `AttachGlobal` for C# version
     /// </summary>
     static member attachGlobal<'a> (logger: ILogger voption) (db: GlobalDatabase) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
         struct (Either2 db, false) |> flip1To4 (TestDynamoClient.attach'<'a> logger) interceptor recordCalls client
 
-    // ILogger voption -> struct (Either<ApiDb,GlobalDatabase> * bool) -> IRequestInterceptor voption -> bool -> 'a -> unit
     static member private attachGlobal'<'a> (logger: ILogger voption) (db: struct (GlobalDatabase * bool)) (interceptor: IRequestInterceptor voption) (recordCalls: bool) (client: 'a): unit =
         db |> mapFst Either2 |> flip1To4 (TestDynamoClient.attach'<'a> logger) interceptor recordCalls client
 
     /// <summary>
     /// Alter an AmazonDynamoDBClient so that it executes on a given GlobalDatabase
+    /// 
+    /// Targets C#. See `attach` for F# version
     /// </summary>
     [<Extension>]
     static member Attach<'a> (
@@ -448,6 +471,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Set an artificial delay on all requests.  
+    /// 
+    /// Targets F#. See `SetProcessingDelay` for C# version
     /// </summary>
     static member setProcessingDelay<'a> delay client =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -455,11 +480,15 @@ type TestDynamoClient =
 
     /// <summary>
     /// Set an artificial delay on all requests.  
+    /// 
+    /// Targets C#. See `setProcessingDelay` for F# version
     /// </summary>
     static member SetProcessingDelay<'a>(client, delay) = TestDynamoClient.setProcessingDelay<'a> delay client
 
     /// <summary>
     /// Set limits on how much data can be scanned in a single page
+    /// 
+    /// Targets F#. See `SetScanLimits` for C# version
     /// </summary>
     static member setScanLimits<'a> scanLimits client =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -467,11 +496,15 @@ type TestDynamoClient =
 
     /// <summary>
     /// Set limits on how much data can be scanned in a single page
+    /// 
+    /// Targets C#. See `setScanLimits` for F# version
     /// </summary>
     static member SetScanLimits<'a>(client, scanLimits) = TestDynamoClient.setScanLimits<'a> scanLimits client
 
     /// <summary>
     /// Set the aws account id for an AmazonDynamoDBClient
+    /// 
+    /// Targets F#. See `SetAwsAccountId` for C# version
     /// </summary>
     static member setAwsAccountId<'a> awsAccountId client =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -479,11 +512,15 @@ type TestDynamoClient =
 
     /// <summary>
     /// Set limits on how much data can be scanned in a single page
+    /// 
+    /// Targets C#. See `setAwsAccountId` for F# version
     /// </summary>
     static member SetAwsAccountId<'a>(client, awsAccountId) = TestDynamoClient.setAwsAccountId<'a> awsAccountId client
 
     /// <summary>
     /// Set the aws account id for an AmazonDynamoDBClient
+    /// 
+    /// Targets F#. See `GetAwsAccountId` for C# version
     /// </summary>
     static member getAwsAccountId<'a> client =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -491,11 +528,15 @@ type TestDynamoClient =
 
     /// <summary>
     /// Set limits on how much data can be scanned in a single page
+    /// 
+    /// Targets C#. See `getAwsAccountId` for F# version
     /// </summary>
     static member GetAwsAccountId<'a>(client) = TestDynamoClient.getAwsAccountId<'a> client
 
     /// <summary>
     /// Get recordings of calls to this client
+    /// 
+    /// Targets F#. See `GetRecordings` for C# version
     /// </summary>
     static member getRecordings<'a> (client: 'a) =
         AmazonDynamoDBClientBuilder<'a>.getOptionalInterceptor<RecordingInterceptor> client
@@ -504,11 +545,15 @@ type TestDynamoClient =
 
     /// <summary>
     /// Get the underlying database from an AmazonDynamoDBClient
+    /// 
+    /// Targets C#. See `getRecordings` for F# version
     /// </summary>
     static member GetRecordings<'a>(client: 'a) = TestDynamoClient.getRecordings<'a> client
 
     /// <summary>
     /// Get the underlying database from an AmazonDynamoDBClient
+    /// 
+    /// Targets F#. See `GetDatabase` for C# version
     /// </summary>
     static member getDatabase<'a> (client: 'a) =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -516,6 +561,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Get the underlying database from an AmazonDynamoDBClient
+    /// 
+    /// Targets C#. See `getDatabase` for F# version
     /// </summary>
     static member GetDatabase<'a>(client: 'a) =
         let db = TestDynamoClient.getDatabase<'a> client
@@ -524,6 +571,8 @@ type TestDynamoClient =
     /// <summary>
     /// Get the underlying global database from an AmazonDynamoDBClient
     /// Returns None if this client is attached to a non global database
+    /// 
+    /// Targets F#. See `GetGlobalDatabase` for C# version
     /// </summary>
     static member getGlobalDatabase<'a>(client: 'a) =
         let interceptor = AmazonDynamoDBClientBuilder<'a>.getRequiredInterceptor<DbInterceptor> client
@@ -532,6 +581,8 @@ type TestDynamoClient =
     /// <summary>
     /// Get the underlying global database from an AmazonDynamoDBClient
     /// Returns null if this client is attached to a non global database
+    /// 
+    /// Targets C#. See `getGlobalDatabase` for F# version
     /// </summary>
     static member GetGlobalDatabase<'a>(client: 'a) =
 
@@ -542,6 +593,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Get a table from the underlying database
+    /// 
+    /// Targets F#. See `GetTable` for C# version
     /// </summary>
     static member getTable<'a> tableName (client: 'a) =
         let db = TestDynamoClient.getDatabase<'a> client
@@ -549,12 +602,16 @@ type TestDynamoClient =
 
     /// <summary>
     /// Get a table from the underlying database
+    /// 
+    /// Targets C#. See `getTable` for F# version
     /// </summary>
     static member GetTable<'a>(client: 'a, tableName) =
         TestDynamoClient.getTable tableName client
 
     /// <summary>
     /// Wait for all subscribers to complete from the underlying Database or GlobalDatabase
+    /// 
+    /// Targets F#. See `AwaitAllSubscribers` for C# version
     /// </summary>
     static member awaitAllSubscribers<'a> logger cancellationToken (client: 'a) =
         TestDynamoClient.getGlobalDatabase<'a> client
@@ -563,6 +620,8 @@ type TestDynamoClient =
 
     /// <summary>
     /// Wait for all subscribers to complete from the underlying Database or GlobalDatabase
+    /// 
+    /// Targets C#. See `awaitAllSubscribers` for F# version
     /// </summary>
     static member AwaitAllSubscribers<'a>(
         client: 'a,
