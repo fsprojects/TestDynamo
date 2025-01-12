@@ -25,5 +25,5 @@ test_results_file=$(echo "$test_results" | grep -oP "([^\s]).+/coverage\.cobertu
 # Also, not rounding results, flooring because bash cannot round
 code_coverage=$(cat "$test_results_file" | grep -oP "(?<=line-rate=\"0\.)\d{1,2}" | head -1)
 echo "Code coverage: $code_coverage%"
-echo "{\"projects\":{\"TestDynamo\":{\"coverage\":\"$code_coverage%\"}}}" >> "./automatedBuildResults.json"
+echo "{\"projects\":{\"TestDynamo\":{\"coverage\":\"$code_coverage%\"}}}" > "./automatedBuildResults.json"
 

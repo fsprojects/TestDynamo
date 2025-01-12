@@ -2,7 +2,9 @@
 
 An in-memory dynamodb client for automated testing
 
-![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FShaneGH%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage "Code coverage")
+![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FShaneGH%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")
+![Github](https://img.shields.io/badge/Github-TestDynamo-black "Github")
+![NuGet](https://img.shields.io/badge/NuGet-TestDynamo-blue "NuGet")
 
 TestDynamo is a rewrite of dynamodb in dotnet designed for testing and debugging. 
 It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and read and write items.
