@@ -115,7 +115,7 @@ type LazyDebugIndex(name: string, index: Index) =
         this.GetValues() |> filter
 
 /// <summary>
-/// An Table with all of its Indexes, optimised for programatic access 
+/// An Table with all of its Indexes, optimised for programmatic access 
 /// </summary>
 type LazyDebugTable(name: string, table: Table) =
 
