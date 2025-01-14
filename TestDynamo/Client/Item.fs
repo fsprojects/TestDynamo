@@ -39,6 +39,14 @@ let buildUpdateConditionExpression
     ?|> Map.map either2Snd
     |> Fetch.buildFetchExpression "Expected" "ConditionExpression" "ue" op expression
 
+let private sizeEstimateRangeGB =
+    [| fstT Settings.TransactWriteSettings.SizeRangeEstimateResponse
+       sndT Settings.TransactWriteSettings.SizeRangeEstimateResponse |] |> ValueSome
+
+let private itemCollectionMetrics v =
+    { ItemCollectionKey = ValueSome v
+      SizeEstimateRangeGB = sizeEstimateRangeGB }: ItemCollectionMetrics<AttributeValue>
+
 module Put =
 
     let input (req: PutItemRequest<_>): PutItemArgs<Map<string,_>> =
@@ -57,7 +65,6 @@ module Put =
                 expressionAttrNames = req.ExpressionAttributeNames ?|? Map.empty |> addNames
                 expressionAttrValues = req.ExpressionAttributeValues ?|? Map.empty |> addValues } } : PutItemArgs<_>
 
-        // 'a -> Map<string,AttributeValue> voption -> PutItemResponse
     let output databaseId (attributes: Map<string,_> voption): PutItemResponse<_> =
 
         { Attributes = attributes
@@ -384,14 +391,6 @@ module Transact =
               updates = update |> Maybe.traverse |> List.ofSeq
               idempotencyKey = req.ClientRequestToken |> noneifyStrings 
               conditionCheck = condition |> Maybe.traverse |> List.ofSeq } : Database.TransactWrite.TransactWrites
-
-        let private sizeEstimateRangeGB =
-            [| fstT Settings.TransactWriteSettings.SizeRangeEstimateResponse
-               sndT Settings.TransactWriteSettings.SizeRangeEstimateResponse |] |> ValueSome
-
-        let private itemCollectionMetrics v =
-            { ItemCollectionKey = ValueSome v
-              SizeEstimateRangeGB = sizeEstimateRangeGB }: ItemCollectionMetrics<AttributeValue>
 
         let output _ (modifiedTables: Map<string, Map<string, AttributeValue> list>): TransactWriteItemsResponse<AttributeValue> =
 

@@ -207,14 +207,13 @@ module PrecedenceProcessor =
         | head::_ when head.fromToken = from && head.toToken = ``to`` -> ValueSome head
         | _::tail -> isProcessed' from ``to`` tail
 
-    // O(N) operation on an ever shinking number of nodes
-    // probaly does not need to be optimised for small collections
-    let alreadyProcessed from ``to`` =
-        function
-        | Pp { processed = processed } -> isProcessed' from ``to`` processed
+    // O(N) operation on an ever shrinking number of nodes
+    // probably does not need to be optimised for small collections
+    let alreadyProcessed from ``to`` (Pp { processed = processed }) =
+        isProcessed' from ``to`` processed
 
     /// <summary>
-    /// Put a tokenization reuslt into the processor, replacing
+    /// Put a tokenization result into the processor, replacing
     /// any tokens or other results which were in its place
     /// </summary>
     let put =

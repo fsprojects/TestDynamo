@@ -416,7 +416,6 @@ type MappingTests(output: ITestOutputHelper) =
             TestDynamo.GeneratedCode.Dtos.QueryRequest<AttributeValue>> data
 
         // assert
-        // Assert.NotNull(data.Statements) - todo Dynamodb v3 only
         Assert.Equal(ValueNone, result.AttributesToGet)
 
     [<Fact>]
