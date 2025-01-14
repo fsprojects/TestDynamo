@@ -1,7 +1,7 @@
 # TestDynamo
 
 An in-memory dynamodb client for automated testing
- 
+
 [![Made with F#](https://img.shields.io/badge/Made%20with-FSharp-rgb(184,69,252).svg)](https://fsharp.org/)
 [![Build Status](https://github.com/fsprojects/TestDynamo/actions/workflows/dotnet2.yml/badge.svg)](https://github.com/fsprojects/TestDynamo/actions)
 [![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffsprojects%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")](https://github.com/fsprojects/TestDynamo/blob/main/tests/coverage.ps1)
