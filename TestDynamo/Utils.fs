@@ -73,13 +73,9 @@ let inline curryRef f x y = f (x, y)
 [<ExcludeFromCodeCoverage>]
 let inline curry3 f x y z = f struct (x, y, z)
 [<ExcludeFromCodeCoverage>]
-let inline curry4 f w x y z = f struct (w, x, y, z)
-[<ExcludeFromCodeCoverage>]
 let inline uncurry f struct (x, y) = f x y
 [<ExcludeFromCodeCoverage>]
 let inline uncurry3 f struct (x, y, z) = f x y z
-[<ExcludeFromCodeCoverage>]
-let inline uncurry4 f struct (w, x, y, z) = f w x y z
 [<ExcludeFromCodeCoverage>]
 let inline tplDouble x = struct (x, x)
 [<ExcludeFromCodeCoverage>]

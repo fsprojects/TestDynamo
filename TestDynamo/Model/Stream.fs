@@ -239,8 +239,7 @@ module private StreamSubscriber =
                 let result =
                     flip subscriber c
                     |> addErrorLogging logger subscriberId
-                    |> errHandling
-                    <| message
+                    |> fun f -> errHandling f message
 
                 if result.IsCompleted then result
                 else

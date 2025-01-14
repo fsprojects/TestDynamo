@@ -395,7 +395,7 @@ module Database =
                 >> Maybe.defaultWith (fun name -> ClientError.clientError $"Invalid index {name}") req.indexName
                 >> Logger.logFn1 "Using index %A" logger)
             |> mapSnd Table.attributeNames
-            |> uncurry (executeFetch req logger))
+            |> fun struct (index, tableKeys) -> executeFetch req logger index tableKeys)
 
     let private concatStreamErrors err1 err2 =
         Io.retn Collection.concat2

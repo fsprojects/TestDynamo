@@ -124,7 +124,7 @@ type DeleteAttemptData =
     with
     static member asDeleteRequest attemptedDelete =
         attemptedDelete.sortKey
-        ?|> (flip3To1 Map.add Map.empty |> uncurry)
+        ?|> fun struct (name, value) -> Map.add name value Map.empty
         |> ValueOption.defaultValue Map.empty
         |> Map.add (fstT attemptedDelete.partitionKey) (sndT attemptedDelete.partitionKey)
         |> tpl attemptedDelete.deleteId

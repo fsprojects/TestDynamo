@@ -33,8 +33,8 @@ type ItemBuilder =
     static member withCondition condition x = { x with condition = ValueSome condition } : ItemBuilder
     static member tableName x = x.tName |> ValueOption.defaultWith (fun _ -> invalidOp "missing table name")
 
-    static member buildAttribute =
-        function
+    static member buildAttribute label value =
+        match struct (label, value) with
         | struct ("S", value) ->
             let attrV = DynamoAttributeValue()
             attrV.S <- value
@@ -112,7 +112,6 @@ type ItemBuilder =
             maybeSetProperty "IsMSet" attrV true
             attrV
         | x -> invalidOp $"unknown {x}"
-        |> curry
 
     static member withAttrs attrs x =
         let attrs = Seq.fold (fun s (x: KeyValuePair<string, DynamoAttributeValue>) -> Map.add x.Key x.Value s) x.attrs attrs

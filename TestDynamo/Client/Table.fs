@@ -58,9 +58,9 @@ module Local =
           KeySchema = toKeySchema x |> ValueSome
           Projection = buildProjection (Index.projections x) [Index.keyConfig x; Table.keyConfig t] |> ValueSome
 
-          IndexSizeBytes = Unchecked.defaultof<_>
-          OnDemandThroughput = Unchecked.defaultof<_>
-          ProvisionedThroughput = Unchecked.defaultof<_> }: GlobalSecondaryIndexDescription
+          IndexSizeBytes = ValueNone
+          OnDemandThroughput = ValueNone
+          ProvisionedThroughput = ValueNone }: GlobalSecondaryIndexDescription
 
     let private buildLsi awsAccountId databaseId t (x: Index) =
 
@@ -70,12 +70,12 @@ module Local =
           KeySchema = toKeySchema x |> ValueSome
           Projection = buildProjection (Index.projections x) [Index.keyConfig x; Table.keyConfig t] |> ValueSome
 
-          IndexSizeBytes = Unchecked.defaultof<_> }: LocalSecondaryIndexDescription
+          IndexSizeBytes = ValueNone }: LocalSecondaryIndexDescription
 
     let private buildReplicaGsi (x: Index) =
         { IndexName = Index.getName x
-          OnDemandThroughputOverride = Unchecked.defaultof<_>
-          ProvisionedThroughputOverride =  Unchecked.defaultof<_> }: ReplicaGlobalSecondaryIndexDescription
+          OnDemandThroughputOverride = ValueNone
+          ProvisionedThroughputOverride =  ValueNone }: ReplicaGlobalSecondaryIndexDescription
 
     let private buildGsis awsAccountId databaseId t = Seq.filter Index.isGsi >> Seq.map (buildGsi awsAccountId databaseId t)
 
@@ -108,14 +108,14 @@ module Local =
         { GlobalSecondaryIndexes = buildReplicaGsis replicaIndexes |> Array.ofSeq |> ValueSome
           RegionName = !!<databaseId.regionId
 
-          KMSMasterKeyId = Unchecked.defaultof<_>
-          OnDemandThroughputOverride =  Unchecked.defaultof<_>
-          ProvisionedThroughputOverride = Unchecked.defaultof<_>
-          ReplicaStatusPercentProgress = Unchecked.defaultof<_>
-          ReplicaInaccessibleDateTime = Unchecked.defaultof<_>
-          ReplicaStatus = Unchecked.defaultof<_>
-          ReplicaStatusDescription = Unchecked.defaultof<_>
-          ReplicaTableClassSummary = Unchecked.defaultof<_> }: ReplicaDescription
+          KMSMasterKeyId = ValueNone
+          OnDemandThroughputOverride =  ValueNone
+          ProvisionedThroughputOverride = ValueNone
+          ReplicaStatusPercentProgress = ValueNone
+          ReplicaInaccessibleDateTime = ValueNone
+          ReplicaStatus = ValueNone
+          ReplicaStatusDescription = ValueNone
+          ReplicaTableClassSummary = ValueNone }: ReplicaDescription
 
     let private toAttributeDefinitions attr =
         attr
@@ -149,12 +149,11 @@ module Local =
         |> List.sortBy (
             fstT
             >> fun x -> if x = databaseId then "" else x.regionId)
-        |> Seq.map (
-            mapSnd (
-                Table.indexes
-                >> _.Values
-                >> Seq.filter (Index.getName >> hasIndex)))
-        |> Seq.map (uncurry buildReplica)
+        |> Collection.mapSnd (
+            Table.indexes
+            >> _.Values
+            >> Seq.filter (Index.getName >> hasIndex))
+        |> Seq.map (fun struct (dbId, indexes) -> buildReplica dbId indexes)
         |> Array.ofSeq
 
     let tableDescription awsAccountId databaseId (cluster: Api.FSharp.GlobalDatabase voption) (table: TableDetails) status =
@@ -179,14 +178,14 @@ module Local =
             // https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GlobalTables.html
             if replicas.Length > 0 then "2019.11.21"  |> ValueSome else ValueNone
 
-          ArchivalSummary = Unchecked.defaultof<_>
-          BillingModeSummary = Unchecked.defaultof<_>
-          OnDemandThroughput = Unchecked.defaultof<_>
-          ProvisionedThroughput = Unchecked.defaultof<_>
-          RestoreSummary = Unchecked.defaultof<_>
-          SSEDescription = Unchecked.defaultof<_>
-          TableClassSummary = Unchecked.defaultof<_>
-          TableSizeBytes = Unchecked.defaultof<_> }: TableDescription
+          ArchivalSummary = ValueNone
+          BillingModeSummary = ValueNone
+          OnDemandThroughput = ValueNone
+          ProvisionedThroughput = ValueNone
+          RestoreSummary = ValueNone
+          SSEDescription = ValueNone
+          TableClassSummary = ValueNone
+          TableSizeBytes = ValueNone }: TableDescription
 
     let private fromKeySchema (xs: KeySchemaElement list) =
         let pk = xs |> Seq.filter (_.KeyType ??|> (_.Value >> (=) KeyType.HASH.Value) ??|? false) |> Collection.tryHead

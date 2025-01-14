@@ -64,9 +64,7 @@ module MultiClientOperations =
         let private execute operation database acc (struct (batchGetKey: Item.Batch.BatchItemKey, _) & inputs) =
 
             chooseDatabase batchGetKey.databaseId database
-            |> execute' operation
-            <| acc
-            <| inputs
+            |> fun db -> execute' operation db acc inputs
 
         let executeBatch operation initialState (database: Either<ApiDb, struct (GlobalDatabase * DatabaseId)>) (batchRequests: struct (Item.Batch.BatchItemKey * _) seq) =
             batchRequests
@@ -130,10 +128,10 @@ module MultiClientOperations =
                     | k, v -> v.keys |> Seq.map (fun keys -> struct (k, { v with keys = [|keys|] })))
 
             ResponseAggregator.executeBatch
-            <| (execute logger)
-            <| Settings.BatchItems.BatchGetItemMaxSizeBytes
-            <| database
-            <| requests
+                (execute logger)
+                Settings.BatchItems.BatchGetItemMaxSizeBytes
+                database
+                requests
             |> fun x ->
                 { notProcessed =
                       x.notProcessed
@@ -190,10 +188,10 @@ module MultiClientOperations =
                 |> MapUtils.toSeq
 
             ResponseAggregator.executeBatch
-            <| (execute logger)
-            <| Settings.BatchItems.BatchPutItemMaxSizeBytes
-            <| database
-            <| requests
+                (execute logger)
+                Settings.BatchItems.BatchPutItemMaxSizeBytes
+                database
+                requests
             |> _.notProcessed
             |> Map.map (fun _ -> List.collect id)
             |> fun x -> { notProcessed = x }: BatchWriteResponse

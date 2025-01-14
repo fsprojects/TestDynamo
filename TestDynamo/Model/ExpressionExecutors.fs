@@ -163,7 +163,7 @@ module Fetch =
 
             Map.empty
             |> Map.add (Index.partitionKeyName index) (Index.partitionKey item index)
-            |> flip (ValueOption.fold (flip <| fun struct (k, v) -> Map.add k v)) sk
+            |> flip (ValueOption.fold (fun map struct (k, v) -> Map.add k v map)) sk
 
     module private Validation =
 

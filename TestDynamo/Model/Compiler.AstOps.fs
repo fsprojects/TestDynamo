@@ -30,8 +30,9 @@ module Value =
     let private accessorErr3 = NonEmptyList.singleton "Invalid expression, expected form: x.y or x[123]" |> Error
     let accessorExpression: CodeGenSettings -> (AstNode -> CompilerOutput) -> ExpressionPartCompiler =
 
-        let rec expandAccessorPath acc = Collection.foldBack (folder |> curry) (Ok acc)
-        and folder = function
+        let rec expandAccessorPath acc = Collection.foldBack folder (Ok acc)
+        and folder s x =
+            match struct (s, x) with
             | struct (Error _ & e, _) -> e
             | Ok acc, AstNode.Accessor x -> x::acc |> Ok
             | Ok acc, AstNode.Synthetic (AccessorPath x) -> x@acc |> Ok

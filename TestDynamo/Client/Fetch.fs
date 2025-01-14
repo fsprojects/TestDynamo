@@ -46,9 +46,10 @@ let private comparisonOperator =
 let private buildKeyCondition' struct (struct (attrAlias, valName), struct (attrName, value)) =
     let attrValues =
         attributeValueList value
-        |> Seq.mapi (curry <| function
+        |> Seq.mapi (function
             | struct (0, x) -> struct (valName, x)
-            | i, x -> struct ($"{valName}_{i}", x))
+            | i, x -> struct ($"{valName}_{i}", x)
+            |> curry)
         |> List.ofSeq
 
     let exprString =

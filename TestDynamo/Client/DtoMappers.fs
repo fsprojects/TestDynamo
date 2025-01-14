@@ -137,7 +137,7 @@ module IsSet =
             tplDouble
             >> mapFst Expr.not
             >> mapSnd (flip Expr.assign (Expr.constant true))
-            >> uncurry Expr.ifThen)
+            >> fun struct (``if``, ``then``) -> Expr.ifThen ``if`` ``then``)
 
 module VOption =
 
@@ -480,14 +480,14 @@ module ToAttributeValue =
             struct ("M", typedefof<_ voption>.MakeGenericType([|typedefof<Map<_, _>>.MakeGenericType([|typeof<string>; eFrom.Type|])|]))
             struct ("BOOL", typeof<bool voption>)
         ]
-        |> Seq.map (mapFst (fun name ->
+        |> Collection.mapFst (fun name ->
             [ eFrom.Type.GetProperty(name, BindingFlags.Instance ||| BindingFlags.Public)
               eFrom.Type.GetProperty(name, BindingFlags.Instance ||| BindingFlags.NonPublic) ]
             |> Seq.filter ((<>) null)
             |> Seq.filter _.CanRead
             |> Collection.tryHead
-            |> Maybe.expectSomeErr "Expected property on type %A" struct (name, eFrom.Type)))
-        |> Seq.map (uncurry (propAccessor invokePropMap))
+            |> Maybe.expectSomeErr "Expected property on type %A" struct (name, eFrom.Type))
+        |> Seq.map (fun struct (prop, typeExpectation) -> propAccessor invokePropMap prop typeExpectation)
         |> flip Seq.append [isNullAccessor eFrom.Type]
         |> createInstance builderT
         |> Expr.constant
@@ -967,8 +967,8 @@ module ComplexObjectMapper =
     let private validatePropNames (t: Type) =
         let props =
             Array.append
-            <| t.GetProperties(BindingFlags.Instance ||| BindingFlags.Public)
-            <| t.GetProperties(BindingFlags.Instance ||| BindingFlags.NonPublic)
+                (t.GetProperties(BindingFlags.Instance ||| BindingFlags.Public))
+                (t.GetProperties(BindingFlags.Instance ||| BindingFlags.NonPublic))
             |> Seq.map _.Name
             |> Collection.groupBy _.ToLower()
             |> Collection.mapSnd List.ofSeq
@@ -1087,8 +1087,7 @@ module ComplexObjectMapper =
                     |> Either.map1Of2 (fun fromProp -> Expr.prop fromProp.Name eFrom |> tpl fromProp.Name)
                     |> Either.map2Of2 (tpl "")
                     |> Either.reduce
-                    |> uncurry tryInvokePropMap
-                    <| toParam.ParameterType
+                    |> fun struct (propName, expr) -> tryInvokePropMap propName expr toParam.ParameterType
                     ?|> (
                         fromProp
                         |> Either.ignore2

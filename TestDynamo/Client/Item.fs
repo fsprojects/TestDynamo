@@ -151,7 +151,7 @@ module Update =
                     struct (
                         Map.add x.name x.actualAttributeName names,
                         x.value
-                        ?|> (uncurry (flip3To1 Map.add values))
+                        ?|> fun struct (name, value) -> Map.add name value values
                         ?|? values)) struct (Map.empty, Map.empty)
                 |> tpl x.expression
                 |> ValueSome

@@ -105,10 +105,8 @@ type AttributeSet =
             Seq.map (function
                 | String x -> x
                 | x -> ClientError.clientError $"Set item {x} is not {AttributeType.String}") xs
-    static member contains =
-        function
-        | struct (value, As struct (_, set)) -> Set.contains value set
-        |> curry
+
+    static member contains value (As struct (_, set)) = Set.contains value set
 
     /// <summary>Returns none if union types do not match</summary>
     static member private trySetOperation op = function
@@ -323,11 +321,6 @@ and
     /// Values are "S", "N", "B", "BOOL", "M", "SS", "NS", "BS", "L", "NULL" 
     /// </summary>
     member this.AttributeType = this |> AttributeValue.getType |> toString
-
-    // member this.IsNull =
-    //     match this with
-    //     | Null -> true
-    //     | _ -> false
 
     member this.TryString([<Out>] value: byref<string>) =
         match this with
@@ -688,8 +681,8 @@ module ItemSize =
             else
                 truncated
                 |> double
-                // hack, add a tiny number so that (log10 9 = 1, log10 10 = 2)
-                |> (+) 0.00000001
+                // hack, add a tiny number (10^-10) so that (log10 9 = 1, log10 10 = 2)
+                |> (+) 0.0000000001
                 |> Math.Log10
                 |> Math.Ceiling
                 |> int
@@ -811,8 +804,8 @@ module Item =
                 match struct (Map.containsKey null item || Map.containsKey "" item, prop) with
                 | false, _ -> invalidNested
                 | true, name -> Collection.prepend $"Item has map or property attribute with null or empty name: \"{prop |> List.rev |> Str.join dot}\"" invalidNested
-            | (depth, prop), HashSet xs -> AttributeSet.asSet xs |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
-            | (depth, prop), AttributeList xs -> xs |> AttributeListType.asSeq |> Seq.collect (curry getAttrErrors (depth + 1, "[]"::prop))
+            | (depth, prop), HashSet xs -> AttributeSet.asSet xs |> Seq.collect (fun attr -> getAttrErrors ((depth + 1, "[]"::prop), attr))
+            | (depth, prop), AttributeList xs -> AttributeListType.asSeq xs |> Seq.collect (fun attr -> getAttrErrors ((depth + 1, "[]"::prop), attr))
             | _, Null -> Seq.empty
             | _, String _ -> Seq.empty
             | _, Number _ -> Seq.empty

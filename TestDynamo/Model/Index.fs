@@ -459,9 +459,10 @@ module Index =
     [<ExcludeFromCodeCoverage>]
     let inline private noResultToValidate struct (_, x) _ = struct ([], x)
     let private validateOptionalResultPrecedence loggerIndex result =
+        
         mapSnd ValueSome result
         |> uncurry Maybe.tpl
-        ?|> (validateResultPrecedence loggerIndex)
+        ?|> validateResultPrecedence loggerIndex
         |> ValueOption.defaultWith (noResultToValidate result)
 
     let put =

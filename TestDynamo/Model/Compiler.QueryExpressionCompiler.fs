@@ -132,11 +132,11 @@ module QueryExpressionCompiler =
             let substringAttr = getSubstring query.expressionParams.expressionAttrValues
 
             Partition.subset
-            <| ValueSome substringAttr
-            <| ValueNone
-            <| true
-            <| true
-            <| partition
+                (ValueSome substringAttr)
+                ValueNone
+                true
+                true
+                partition
             |> Seq.takeWhile (fun x ->
                 let str = itemValue x
                 startsWith struct (str, substringAttr))
@@ -248,7 +248,7 @@ module QueryExpressionCompiler =
                     >> ValueOption.defaultValue Seq.empty
 
                 queryKeys.partitionKey
-                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Query does not contain partition key condition")
+                ?|>? fun _ -> ClientError.clientError "Query does not contain partition key condition"
                 <| inputs
                 <| index
                 |> function

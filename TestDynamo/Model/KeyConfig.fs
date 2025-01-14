@@ -136,13 +136,14 @@ module KeyConfig =
 
     let asAttributeMap pk sk keyConfig =
         let pk = partitionKeyName keyConfig |> flip tpl pk
-        let sk = sortKeyName keyConfig |> flip tpl sk |> uncurry Maybe.tpl
+        let sk = sortKeyName keyConfig |> flip Maybe.tpl sk
 
         let map =
             uncurry Map.add pk Map.empty
             |> (
-                ValueOption.map (uncurry Map.add) sk
-                |> ValueOption.defaultValue id)
+                sk
+                ?|> uncurry Map.add
+                ?|? id)
 
         partitionKey map keyConfig |> ignoreTyped<AttributeValue>
         sortKey map keyConfig |> ignoreTyped<AttributeValue voption>

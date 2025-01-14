@@ -192,16 +192,16 @@ module Table =
             >> Maybe.expectSomeErr "Cannot find key attribute %A" pk
 
         let buildKeyConfig allAttributes pk sk =
-            KeyConfig.create
-            <| buildKeyAttr pk allAttributes
-            <| ValueOption.map (flip buildKeyAttr allAttributes) sk
-
-        fun name local (config: CreateIndexData) tableKeyCols allAttributes ->
+            sk
+            ?|> flip buildKeyAttr allAttributes
+            |> KeyConfig.create (buildKeyAttr pk allAttributes)
+            
+        fun name local (config: CreateIndexData) struct (tablePk, tableSk) allAttributes ->
             let struct (pk, sk) = config.keys
             let buildKeyConfig = buildKeyConfig allAttributes
 
             { keyConfig = buildKeyConfig pk sk
-              tableKeyConfig = uncurry buildKeyConfig tableKeyCols
+              tableKeyConfig = buildKeyConfig tablePk tableSk
               config = config
               tableName = fstT name
               indexName = sndT name
@@ -259,11 +259,11 @@ module Table =
 
         let primaryIndex =
             buildIndex
-            <| struct (name, ValueNone)
-            <| false
-            <| indexData
-            <| data.primaryIndex
-            <| data.attributes
+                struct (name, ValueNone)
+                false
+                indexData
+                data.primaryIndex
+                data.attributes
 
         let table =
             { info =

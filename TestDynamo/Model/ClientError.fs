@@ -20,7 +20,7 @@ let private amazonDynamoDBException =
     |> Collection.tryHead
     |> Maybe.expectSomeErr "Could not find type Amazon.DynamoDBv2.AmazonDynamoDBException%s" ""
 
-let private exn1 =
+let private buildException =
     let ctr = amazonDynamoDBException.GetConstructor([|typeof<string>|])
     
     Expr.lambda1 typeof<string> (Seq.singleton >> Expr.newObj ctr >> Expr.convert typeof<Exception>)
@@ -28,7 +28,7 @@ let private exn1 =
     |> Converters.fromFunc
     :?> string -> Exception
     
-let private exn2 =
+let private buildException2 =
     let ctr = amazonDynamoDBException.GetConstructor([|typeof<string>; typeof<Exception>|])
     
     let inputT = typeof<struct (string * Exception)>
@@ -44,8 +44,8 @@ let unit' = box ()
 let testDynamoException' msg inner data =
     let exn =
         match inner with
-        | ValueNone -> exn1 msg
-        | ValueSome e -> exn2 struct (msg, e)
+        | ValueNone -> buildException msg
+        | ValueSome e -> buildException2 struct (msg, e)
         
     exn.Data.Add(clientErrFlag', unit')
         

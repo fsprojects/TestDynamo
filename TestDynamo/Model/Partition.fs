@@ -191,15 +191,14 @@ module Partition =
                 |> WithoutSortKey
             |> tpl (ChangeResult.ofPut item' ValueNone)
 
-    let get =
-        function
+    let get key partition =
+        match struct (key, partition) with
         | struct (ValueNone, WithSortKey _) -> ClientError.clientError "Sort key required"
         | ValueSome _, WithoutSortKey _ -> ClientError.clientError "Sort key not required"
         | struct (ValueSome (sortKey: AttributeValue), WithSortKey struct (_, partition)) ->
             AvlTree.tryFind sortKey partition.data ?|> PartitionBlock.toSeq |> ValueOption.defaultValue Seq.empty
         | struct (ValueNone, WithoutSortKey partition) ->
             partition.data |> PartitionBlock.toSeq
-        |> curry
 
     let put =
         let itemsKeySelection = PartitionData.i3Of3 getRequiredSortKey
@@ -216,14 +215,12 @@ module Partition =
             |> flip AvlTree.tryFind data.data
             ?|> (
                 PartitionBlock.put data.info.sortKeysUnique item)
-            |> ValueOption.defaultWith (fun _ ->
-                PartitionBlock.create item
-                |> tpl ValueNone)
+            ?|>? (fun _ -> struct (ValueNone, PartitionBlock.create item))
+            |> mapFst (ChangeResult.ofPut item)
             |> mapSnd (
                 addOrReplace data
                 >> sndT
                 >> PartitionData.addData data)
-            |> mapFst (ChangeResult.ofPut item)
 
         let putWithoutSortKey data item =
             let item = asItem data.info.name data.info.projections data.info.keys item
@@ -260,11 +257,13 @@ module Partition =
         let itemKeySelection = PartitionData.i1Of3 getRequiredSortKey
 
         let removeFromPartitionItems struct (deleteId, item) =
+            let buildChangeResult =
+                deleteId
+                ?|>? IncrementingId.next
+                |> ChangeResult.ofDelete
+            
             PartitionBlock.removeByInternalId (Item.internalId item)
-            >> mapFst (
-                ValueOption.map (
-                    tpl (ValueOption.defaultWith IncrementingId.next deleteId)
-                    >> uncurry ChangeResult.ofDelete))
+            >> mapFst (ValueOption.map buildChangeResult)
 
         let inline nothingToRemove items _ = struct (ValueNone, items)
         let removeFromTree' items item key =
