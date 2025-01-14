@@ -65,7 +65,7 @@ public static class FeatureDescriptions
     {
         var backupExample = new 
         {
-            __description = "There is an example of how to implement backups [in the README](https://github.com/ShaneGH/TestDynamo#implement-backups-functionality)",
+            __description = "There is an example of how to implement backups [in the README](https://github.com/fsprojects/TestDynamo#implement-backups-functionality)",
             __omitChildren = true
         };
 

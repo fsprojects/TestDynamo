@@ -14,7 +14,7 @@
     <Title>TestDynamo.Serialization</Title>
     <PackageId>TestDynamo.Serialization</PackageId>
     <PackageTags>AWS Amazon DynamoDB In-Memory InMemory Testing FSharp</PackageTags>
-    <PackageProjectUrl>https://github.com/ShaneGH/TestDynamo</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/fsprojects/TestDynamo</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <IncludeSymbols>true</IncludeSymbols>

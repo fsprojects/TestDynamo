@@ -3,9 +3,9 @@
 An in-memory dynamodb client for automated testing
 
 [![Made with F#](https://img.shields.io/badge/Made%20with-FSharp-rgb(184,69,252).svg)](https://fsharp.org/)
-[![Build Status](https://github.com/ShaneGH/TestDynamo/actions/workflows/dotnet2.yml/badge.svg)](https://github.com/ShaneGH/TestDynamo/actions)
-[![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FShaneGH%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")](https://github.com/ShaneGH/TestDynamo/blob/main/tests/coverage.ps1)
-[![Github](https://img.shields.io/badge/Github-TestDynamo-black "Github")](https://github.com/ShaneGH/TestDynamo)
+[![Build Status](https://github.com/fsprojects/TestDynamo/actions/workflows/dotnet2.yml/badge.svg)](https://github.com/fsprojects/TestDynamo/actions)
+[![Code coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffsprojects%2FTestDynamo%2Frefs%2Fheads%2Fmain%2FautomatedBuildResults.json&query=%24.projects.TestDynamo.coverage&label=Code%20Coverage&color=green "Code coverage")](https://github.com/fsprojects/TestDynamo/blob/main/tests/coverage.ps1)
+[![Github](https://img.shields.io/badge/Github-TestDynamo-black "Github")](https://github.com/fsprojects/TestDynamo)
 [![NuGet](https://img.shields.io/badge/NuGet-TestDynamo-blue "NuGet")](https://www.nuget.org/packages/TestDynamo)
 [![NuGet](https://img.shields.io/badge/NuGet-TestDynamo.Serialization-blue "NuGet")](https://www.nuget.org/packages/TestDynamo.Serialization)
 [![NuGet](https://img.shields.io/badge/NuGet-TestDynamo.Lambda-blue "NuGet")](https://www.nuget.org/packages/TestDynamo.Lambda)
@@ -13,7 +13,7 @@ An in-memory dynamodb client for automated testing
 TestDynamo is a rewrite of dynamodb in dotnet designed for testing and debugging. 
 It implements a partial feature set of `IAmazonDynamoDb` to manage schemas and read and write items.
 
- * [Core features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md)
+ * [Core features](https://github.com/fsprojects/TestDynamo/blob/main/Features.md)
     * Table management (Create/Update/Delete table)
     * Index management (Create/Update/Delete index)
     * Item operations (Put/Delete/Update etc)
@@ -76,7 +76,7 @@ TestDynamo has a suite of features and components to model a dynamodb environmen
  * [`Api.GlobalDatabase`](#global-database) models an AWS account spread over multiple regions. It contains `Api.Database`s.
     * [Global databases](#global-database-cloning) can be cloned too
  * [`TestDynamoClient`](#testdynamoclient) is the entry point for linking a database to a `AmazonDynamoDBClient`.
-    * Check the [features](https://github.com/ShaneGH/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
+    * Check the [features](https://github.com/fsprojects/TestDynamo/blob/main/Features.md) for a full list of endpoints, request args and responses that are supported.
  * [`DatabaseSerializer`](#database-serializers) is a json serializer/deserializer for entire databases and global databases.
  * [Cloud Formation Templates](#cloud-formation-templates) can be consumed to to initialize databases and global databases
  * [Locking and atomic transactions](#locking-and-atomic-transactions)
@@ -215,7 +215,7 @@ public async Task TestSomething()
 
 Use the handy debug properties on `Api.Database` and `Api.GlobalDatabase` in your debugger of choice
 
-![https://raw.githubusercontent.com/ShaneGH/TestDynamo/refs/heads/main/Docs/DbDebugger.png](./Docs/DbDebugger.png "Debugger")
+![https://raw.githubusercontent.com/fsprojects/TestDynamo/refs/heads/main/Docs/DbDebugger.png](./Docs/DbDebugger.png "Debugger")
 
 ### Test Tools
 
