@@ -63,7 +63,7 @@ public async Task GetPersonById_WithValidId_ReturnsPerson()
 
 TestDynamo has a suite of features and components to model a dynamodb environment and simplify the process of writing tests.
 
- * Support for [DynamoDb versions](https://www.nuget.org/packages/AWSSDK.DynamoDBv2#versions-body-tab) >= and 3.5.0
+ * Support for [DynamoDb versions](https://www.nuget.org/packages/AWSSDK.DynamoDBv2#versions-body-tab) >= 3.5.0
  * [`Api.Database`](#database) contains tables from a single region.
     * [F# Support](#f-database) out of the box
     * [Full expression engine](#using-expressions) so you can test your queries, scans, projections and conditions
@@ -117,7 +117,7 @@ use client =
     |> buildBasicClient
 ```
 
-In general, functions and extension methods with in `camelCase` are targeted at F#, where as those is `PascalCase` are targeted at C#
+In general, functions and extension methods in `camelCase` are targeted at F#, where as those is `PascalCase` are targeted at C#
 
 ### Schema and Item Change
 
