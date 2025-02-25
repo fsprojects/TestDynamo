@@ -158,19 +158,18 @@ module ExpressionCompiler =
         static member reader x = x.asReader
 
     module private Build =
-        let private expandOpt = ValueOption.map AstNode.expand >> ValueOption.defaultValue []
-
+        
         let private compilePart = ExpressionPartCompiler.compile
         let rec private generateCode' (compiler: MutableContainer<ExpressionCompilers>): AstCompiler =
             function
-            | AstNode.Call ("size", args) -> compilePart (expandOpt args) compiler.value.size
-            | AstNode.Call ("contains", args) -> compilePart (expandOpt args) compiler.value.contains
-            | AstNode.Call ("begins_with", args) -> compilePart (expandOpt args) compiler.value.begins_with
-            | AstNode.Call ("list_append", args) -> compilePart (expandOpt args) compiler.value.list_append
-            | AstNode.Call ("if_not_exists", args) -> compilePart (expandOpt args) compiler.value.if_not_exists
-            | AstNode.Call ("attribute_type", args) -> compilePart (expandOpt args) compiler.value.attribute_type
-            | AstNode.Call ("attribute_exists", args) -> compilePart (expandOpt args) compiler.value.attribute_exists
-            | AstNode.Call ("attribute_not_exists", args) -> compilePart (expandOpt args) compiler.value.attribute_not_exists
+            | AstNode.Call ("size", args) -> compilePart (AstNode.expand args) compiler.value.size
+            | AstNode.Call ("contains", args) -> compilePart (AstNode.expand args) compiler.value.contains
+            | AstNode.Call ("begins_with", args) -> compilePart (AstNode.expand args) compiler.value.begins_with
+            | AstNode.Call ("list_append", args) -> compilePart (AstNode.expand args) compiler.value.list_append
+            | AstNode.Call ("if_not_exists", args) -> compilePart (AstNode.expand args) compiler.value.if_not_exists
+            | AstNode.Call ("attribute_type", args) -> compilePart (AstNode.expand args) compiler.value.attribute_type
+            | AstNode.Call ("attribute_exists", args) -> compilePart (AstNode.expand args) compiler.value.attribute_exists
+            | AstNode.Call ("attribute_not_exists", args) -> compilePart (AstNode.expand args) compiler.value.attribute_not_exists
             | AstNode.Call (name, _) -> compiler.value.invalidFunction name
             | AstNode.Update (Add, updates) -> compilePart (AstNode.expand updates) compiler.value.add
             | AstNode.Update (Delete, updates) -> compilePart (AstNode.expand updates) compiler.value.delete

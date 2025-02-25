@@ -4,6 +4,7 @@ namespace TestDynamo.Tests
 open System.Text.RegularExpressions
 open System.Threading.Tasks
 open Amazon.DynamoDBv2
+open Microsoft.Extensions.Logging
 open TestDynamo
 open Tests.ClientLoggerContainer
 open Tests.Items
@@ -22,7 +23,7 @@ type QueryCacheTests(output: ITestOutputHelper) =
 
         let execute (f: AmazonDynamoDBClient -> Task) =
             task {
-                use recorder = new TestLogger(output)
+                use recorder = new TestLogger(output, LogLevel.Debug)
                 use client = TestDynamoClientBuilder.Create(commonHost, recorder)
                 recorder.Record true
 

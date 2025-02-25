@@ -242,17 +242,18 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             let struct (pk, struct (sk, _)) = randomItem tab.hasSk random
 
             // act
+            let q = "TablePk < :p AND TableSk = :s" 
             let query =
-                QueryBuilder.empty (ValueSome random)
+                QueryBuilder.empty ValueNone
                 |> QueryBuilder.setTableName tab.name
-                |> QueryBuilder.setKeyConditionExpression "TablePk < :p AND TableSk = :s"
+                |> QueryBuilder.setKeyConditionExpression q
                 |> QueryBuilder.setExpressionAttrValues ":p" (String pk)
                 |> QueryBuilder.setExpressionAttrValues ":s" (Number sk)
                 |> QueryBuilder.queryRequest
 
             // assert
             let! e = Assert.ThrowsAnyAsync(fun () -> client.QueryAsync query)
-            assertError output "Invalid query TablePk < :p" e
+            assertError output $"""Error compiling query: "{q}""" e
         }
 
     [<Theory>]
@@ -410,7 +411,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
 
             // assert
             let! e = Assert.ThrowsAnyAsync(fun () -> client.QueryAsync query)
-            assertError output "Invalid query IndexPk < :p" e
+            assertError output "Invalid query \"IndexPk < :p\"" e
         }
 
     [<Theory>]
@@ -548,7 +549,7 @@ type QuerySyntaxTests(output: ITestOutputHelper) =
             let client = client.Client
 
             // arrange
-            let! tables = sharedTestData ValueNone // (ValueSome output)
+            let! tables = sharedTestData ValueNone
             let tab = Tables.get true true tables
 
             let struct (pk, items') =

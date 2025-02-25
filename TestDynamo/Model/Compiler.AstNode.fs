@@ -50,7 +50,7 @@ type SyntheticAst =
 and AstNode =
     | Accessor of AccessorType
     | ExpressionAttrValue of string
-    | Call of struct (string * AstNode voption)
+    | Call of struct (string * AstNode)
     | Between of struct (AstNode * struct (AstNode * AstNode))
     | BinaryOperator of struct (BinaryOpToken * struct(AstNode * AstNode))
     | UnaryOperator of struct (UnaryOpToken * AstNode)
@@ -65,8 +65,7 @@ and AstNode =
         | Accessor x -> x.ToString()
         | Synthetic x -> x.ToString()
         | ExpressionAttrValue x -> x
-        | Call (name, ValueNone) -> $"{name}()"
-        | Call (name, ValueSome node) -> $"{name}({node})"
+        | Call (name, node) -> $"{name}({node})"
         | Between (x, (low, high)) -> $"{x} BETWEEN {low} AND {high}"
         | BinaryOperator (Multi Comma, (l, r)) -> $"{l}, {r}"
         | BinaryOperator (token, (l, r)) -> $"{l} {token} {r}"
@@ -124,8 +123,8 @@ type ParserSettings =
 module AstNode =
 
     [<ExcludeFromCodeCoverage>]
-    let inline private addAcc struct (f, ast) acc = struct (f, acc, ast)  
-
+    let inline private addAcc struct (f, ast) acc = struct (f, acc, ast)
+    
     /// <summary>
     /// Apply function with an accumulator to each node in the tree
     /// If the function returns None, do not process any more children
@@ -138,7 +137,6 @@ module AstNode =
 
             // no children
             | f, (AstNode.EmptyParenthesis & head, depth)::tail, acc
-            | f, (AstNode.Call (_, ValueNone) & head, depth)::tail, acc
             | f, (AstNode.ExpressionAttrValue _ & head, depth)::tail, acc
             | f, (AstNode.Synthetic (AccessorPath _) & head, depth)::tail, acc
             | f, (AstNode.Accessor (AccessorType.ExpressionAttrName _) & head, depth)::tail, acc
@@ -150,7 +148,7 @@ module AstNode =
                 | ValueSome acc' -> find struct (f, tail, acc')
 
             // 1 child
-            | f, (AstNode.Call (_, ValueSome next) & head, depth)::tail, acc
+            | f, (AstNode.Call (_, next) & head, depth)::tail, acc
             | f, (AstNode.Update (_, next) & head, depth)::tail, acc
             | f, (AstNode.Synthetic (IndividualRemoveUpdate next) & head, depth)::tail, acc
             | f, (AstNode.Synthetic (Projections next) & head, depth)::tail, acc
@@ -206,12 +204,18 @@ module AstNode =
         | [] -> ValueNone
         | head::tail -> struct (head, tail) |> toCsv' |> ValueSome
 
-    let rec private expand' xs = 
-        Collection.foldBackL (fun s -> function
-            | BinaryOperator (Multi Comma, (l, r)) -> expand' [l] @ expand' [r] @ s
-            | x -> x::s) [] xs
+    let rec private expandIntoMutableList (list: MList<_>) xs =
+        for x in xs do
+            match x with
+            | BinaryOperator (Multi Comma, (l, r)) ->
+                expandIntoMutableList list [l]
+                expandIntoMutableList list [r]
+            | x -> list.Add(x)
 
     /// <summary>
     /// Recursively expand a csv node
     /// </summary>
-    let expand x = expand' [x]
+    let expand x =
+        let l = MList()
+        expandIntoMutableList l [x]
+        List.ofSeq l

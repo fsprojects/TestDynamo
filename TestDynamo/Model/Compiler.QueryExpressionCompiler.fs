@@ -166,10 +166,10 @@ module QueryExpressionCompiler =
             >> findKeyExpressions key
             |> setAliasedKey acc
 
-        | AstNode.Call (method, ValueSome (BinaryOperator (op, (AstNode.Accessor (AccessorType.ExpressionAttrName alias), rArg)))) ->
+        | AstNode.Call (method, BinaryOperator (op, (AstNode.Accessor (AccessorType.ExpressionAttrName alias), rArg))) ->
             MapUtils.tryFind alias
             >> ValueOption.defaultWith (fun _ -> ClientError.clientError $"Could not find expression attribute name {alias}")
-            >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl rArg >> tpl op >> BinaryOperator >> ValueSome >> tpl method >> AstNode.Call
+            >> AccessorType.Attribute >> AstNode.Accessor >> flip tpl rArg >> tpl op >> BinaryOperator >> tpl method >> AstNode.Call
             >> findKeyExpressions key
             |> setAliasedKey acc
 
@@ -197,7 +197,7 @@ module QueryExpressionCompiler =
             sortKeyBetween low high
             |> setSortKey acc
 
-        | AstNode.Call ("begins_with", ValueSome (BinaryOperator (Multi Comma, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue pl)))) when isSortKey key attr ->
+        | AstNode.Call ("begins_with", BinaryOperator (Multi Comma, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue pl))) when isSortKey key attr ->
 
             let sortKey =
                 KeyConfig.sortKeyName key
@@ -208,7 +208,7 @@ module QueryExpressionCompiler =
         | AstNode.BinaryOperator (Single Eq, (AstNode.ExpressionAttrValue _, AstNode.Accessor (AccessorType.Attribute attr)))
         | AstNode.BinaryOperator (Single Eq, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue _))
         | AstNode.Between (AstNode.Accessor (AccessorType.Attribute attr), (AstNode.ExpressionAttrValue _, AstNode.ExpressionAttrValue _))
-        | AstNode.Call ("begins_with", ValueSome (BinaryOperator (Multi Comma, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue _)))) ->
+        | AstNode.Call ("begins_with", BinaryOperator (Multi Comma, (AstNode.Accessor (AccessorType.Attribute attr), AstNode.ExpressionAttrValue _))) ->
             ClientError.clientError $"Invalid query {ast}. Found non key attribute {attr}"
 
         | AstNode.Synthetic (AccessorPath _)
@@ -225,7 +225,7 @@ module QueryExpressionCompiler =
         | AstNode.Update _
         | AstNode.Updates _
         | AstNode.Accessor _
-        | AstNode.BinaryOperator _ -> ClientError.clientError $"Invalid query {ast}"
+        | AstNode.BinaryOperator _ -> ClientError.clientError $"Invalid query \"{ast}\""
 
     let private defaultSortFilter (inputs: QueryParams) =
         let sk = inputs.expressionParams.lastEvaluatedKey ?>>= sndT

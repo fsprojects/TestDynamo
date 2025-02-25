@@ -1,8 +1,9 @@
 module rec TestDynamo.GeneratedCode.Dtos
 
-// ############################################################################
-// #################### Auto generated code, do not modify ####################
-// ############################################################################
+// ##################################################################################
+// ####################### Auto generated code, do not modify #######################
+// #### Build by running `dotnet run --project .\tools\Features\Features.csproj` ####
+// ##################################################################################
 
 open System
 open System.Diagnostics.CodeAnalysis
@@ -257,7 +258,7 @@ type Capacity =
       ReadCapacityUnits: Double voption
       WriteCapacityUnits: Double voption }
 
-[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.ChecksumValidationStatus", false, false)>]
+[<DynamodbType("Amazon.Runtime.ChecksumValidationStatus", false, false)>]
 type ChecksumValidationStatus =
     | NOT_VALIDATED = 0
     | PENDING_RESPONSE_READ = 1
@@ -352,7 +353,7 @@ type ContributorInsightsSummary =
       IndexName: String voption
       TableName: String voption }
 
-[<ExcludeFromCodeCoverage; DynamodbType("Amazon.Runtime.CoreChecksumAlgorithm", false, false)>]
+[<DynamodbType("Amazon.Runtime.CoreChecksumAlgorithm", false, false)>]
 type CoreChecksumAlgorithm =
     | NONE = 0
     | CRC32C = 1

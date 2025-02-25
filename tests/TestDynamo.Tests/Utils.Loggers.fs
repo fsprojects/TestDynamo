@@ -25,7 +25,7 @@ type SimpleLogger(output: ITestOutputHelper, level: LogLevel) =
 
     member this.Dispose() = ()
 
-    static member defaultLevel = LogLevel.Debug
+    static member defaultLevel = LogLevel.Information
 
     interface ITestLogger with
         member this.Dispose() = this.Dispose()

@@ -13,6 +13,7 @@ type AwsAccountId = string
 type KeyValuePair<'k, 'v> =  System.Collections.Generic.KeyValuePair<'k, 'v>
 type Dictionary<'k, 'v> =  System.Collections.Generic.Dictionary<'k, 'v>
 type MList<'a> =  System.Collections.Generic.List<'a>
+type MQueue<'a> =  System.Collections.Generic.Queue<'a>
 type IEnumerable<'a> =  System.Collections.Generic.IEnumerable<'a>
 type IEnumerator =  System.Collections.IEnumerator
 type IEnumerator<'a> =  System.Collections.Generic.IEnumerator<'a>
@@ -335,7 +336,6 @@ module SetUtils =
 
 [<RequireQualifiedAccess>]
 module Collection =
-    type MList<'a> = System.Collections.Generic.List<'a>
 
     [<Struct; IsReadOnly>]
     type MapCombination<'k> =
@@ -518,6 +518,18 @@ module Collection =
             match enm.MoveNext() with
             | true -> ValueSome enm.Current
             | false -> ValueNone
+
+    let rec tryLastL (xs: 'a list) =
+        match xs with
+        | [] -> ValueNone
+        | [x] -> ValueSome x
+        | _::tail -> tryLastL tail
+
+    let rec lastL (xs: 'a list) =
+        match xs with
+        | [] -> invalidOp "List cannot be empty"
+        | [x] -> x
+        | _::tail -> lastL tail
 
     /// <summary>
     /// Have your cake and eat it!
@@ -957,7 +969,6 @@ module Io =
         with
         | e -> fRecovery e |> ValueTask<'a>
 
-    type MList<'a> = System.Collections.Generic.List<'a>
     let private processTraverseResult = function
         | struct (err: MList<exn>, output: MList<'a>) when err.Count = 0 ->
             List.ofSeq output

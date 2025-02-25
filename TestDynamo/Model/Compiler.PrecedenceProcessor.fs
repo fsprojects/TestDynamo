@@ -12,7 +12,7 @@ open System.Runtime.CompilerServices
 module private NodePrecedence =
 
     [<Literal>]
-    let symbol = 0F
+    let nonFunctionSymbol = 0F
 
     // . is one step away from a symbol. Not mentioned in dynamodb spec
     [<Literal>]
@@ -20,7 +20,17 @@ module private NodePrecedence =
 
     // Parentheses (dynamodb spec places these in position 5)
     [<Literal>]
-    let parentheses = 0.2F
+    let closeParentheses = 0.2F
+
+    // Parentheses (dynamodb spec places these in position 5)
+    // Process close before open. This will have the effect of ignoring open
+    // entirely, and processing the inner most parenthesis block first
+    [<Literal>]
+    let openParentheses = 0.21F
+    
+    // Needs to be after parenthesis (args)
+    [<Literal>]
+    let functionSymbol = 0.25F
 
     // UPDATE expression verb
     // Not mentioned in dynamodb spec. Different syntax to anything else
@@ -95,34 +105,33 @@ module ProcessedTokenPointer =
         |> int
 
 [<Struct; IsReadOnly>]
-type MaybeProcessedToken<'processsed> =
-    private
-    | Processed of a: 'processsed
+type MaybeProcessedToken<'processed> =
+    | Processed of a: 'processed
     | Tkn of Token
 
 [<Struct; IsReadOnly>]
-type PrecedenceProcessorState<'processsed> =
-    { processed: ProcessedTokenPointer<'processsed> list
-      tokens: Token array
-      version: uint16 }
+type private PrecedenceProcessorState<'processed> =
+    { processed: ProcessedTokenPointer<'processed> list
+      tokens: Token array }
 
 /// <summary>
 /// A token processor
 /// </summary>
 [<Struct; IsReadOnly>]
-type PrecedenceProcessor<'processsed> =
+type PrecedenceProcessor<'processed> =
     private
-    | Pp of PrecedenceProcessorState<'processsed>
+    | Pp of PrecedenceProcessorState<'processed>
 
 module PrecedenceProcessor =
 
-    let create tokens = { processed = []; tokens = tokens; version = 0us } |> Pp
+    let create tokens = { processed = []; tokens = tokens } |> Pp
 
     let isUpdateFunctionVerb = UpdateExpressionVerb.tryParse >> ValueOption.isSome
 
-    let private prioritize = function
-        | Token.Text _ -> NodePrecedence.symbol
-        | Token.Space _ -> NodePrecedence.symbol
+    let private prioritize functionNames = function
+        | Token.Text x when Array.contains x.string functionNames -> NodePrecedence.functionSymbol
+        | Token.Text _ -> NodePrecedence.nonFunctionSymbol
+        | Token.Space _ -> NodePrecedence.nonFunctionSymbol
         | Token.BinaryOp (Single Eq, _)
         | Token.BinaryOp (Single Neq, _)
         | Token.BinaryOp (Single Lt, _)
@@ -138,15 +147,15 @@ module PrecedenceProcessor =
         | Token.BinaryOp (Single Or, _) -> NodePrecedence.``or``
         | Token.UnaryOp (Not, _) -> NodePrecedence.``not``
         | Token.Between _ -> NodePrecedence.between
-        | Token.Open _ -> NodePrecedence.parentheses
-        | Token.Close _ -> NodePrecedence.parentheses
-        | Token.ExpressionAttrValue _ -> NodePrecedence.symbol
-        | Token.ExpressionAttrName _ -> NodePrecedence.symbol
+        | Token.Open _ -> NodePrecedence.openParentheses
+        | Token.Close _ -> NodePrecedence.closeParentheses
+        | Token.ExpressionAttrValue _ -> NodePrecedence.nonFunctionSymbol
+        | Token.ExpressionAttrName _ -> NodePrecedence.nonFunctionSymbol
         | Token.SyntheticToken (UpdateExpressionLabel Set, _)
         | Token.SyntheticToken (UpdateExpressionLabel Remove, _) -> NodePrecedence.setOrRemoveUpdate
         | Token.SyntheticToken (UpdateExpressionLabel Add, _)
         | Token.SyntheticToken (UpdateExpressionLabel Delete, _) -> NodePrecedence.addOrDeleteUpdate
-        | Token.ListIndex _ -> NodePrecedence.symbol  // using same precedence as expr
+        | Token.ListIndex _ -> NodePrecedence.nonFunctionSymbol  // using same precedence as expr
         | Token.BinaryOp (Single WhiteSpace, _) ->
             assert false
             NodePrecedence.spaceOperator
@@ -154,7 +163,7 @@ module PrecedenceProcessor =
     /// <summary>
     /// Create a priority queue from this processor. Priority is based on precedence and index
     /// </summary>
-    let pQueue (Pp { tokens = tokens }) =
+    let pQueue functionNames (Pp { tokens = tokens }) =
         Seq.mapi (tpl >>> mapFst uint16) tokens
         |> Seq.sortBy (fun struct (i, t: Token) ->
             let i' =
@@ -163,11 +172,11 @@ module PrecedenceProcessor =
                 | Open _ -> UInt16.MaxValue - i
                 | _ -> i
 
-            struct (prioritize t, i'))
+            struct (prioritize functionNames t, i'))
         |> Seq.map fstT
 
     type private ForErrorsCache<'a>() =
-        static member forErrors = Logger.describable (fun (x: PrecedenceProcessorState<'a>) ->
+        static member private forErrors' (Pp x) =
             let unmergedAst = x.processed |> List.sortBy _.fromToken
             let unmerged =
                 unmergedAst
@@ -185,7 +194,15 @@ module PrecedenceProcessor =
                 |> Seq.mapi (sprintf " %d. %A")
                 |> Str.join "\n"
 
-            sprintf "Unmerged:\n%s\nUnmerged full:\n%s\nTokens:\n%s\n" unmerged unmergedFull tokens)
+            sprintf "Unmerged:\n%s\nUnmerged full:\n%s\nTokens:\n%s\n" unmerged unmergedFull tokens
+        
+        static member forErrors: _ -> Describable<PrecedenceProcessor<'a>> =
+            Logger.describable ForErrorsCache<'a>.forErrors'
+        
+        static member forErrorsWithUnProcessedTokens: _ -> Describable<struct (PrecedenceProcessor<'a> * int list)> =
+            Logger.describable (fun struct (x, tokens) ->
+                ForErrorsCache<'a>.forErrors' x
+                |> sprintf "Unprocessed: %A\n%s" tokens)
 
     let asSeq (Pp { processed = results }) = results |> Seq.sortWith ProcessedTokenPointer.compare
 
@@ -194,12 +211,51 @@ module PrecedenceProcessor =
     /// <summary>
     /// Assert that the processor is complete and return the completed result
     /// </summary>
-    let complete logger expression = function
-        | Pp { processed = [result] } -> result.node
-        | Pp { processed = [] } -> ClientError.clientError $"Error processing expression \"{expression}\"."
-        | Pp x ->
+    let completeMulti logger expression (Pp { processed = processed; tokens = tkn } & processor) =
+        
+        if tkn.Length = 0 then processed |> List.map _.node
+        else
+            
+        let processed =
+            processed
+            |> List.sortBy _.fromToken
+        
+        let processedFrom =
+            List.head processed
+            |> _.fromToken
+            |> int
+        
+        let processedTo =
+            Collection.lastL processed
+            |> _.toToken
+            |> int
+            
+        let unProcessed =
+            processed
+            |> Seq.windowed 2
+            |> Seq.collect (function
+                | [|l; r|] ->
+                    [int l.toToken + 1 .. int r.fromToken - 1]
+                | (* can't happen *) _ -> invalidOp "An unexpected error has occurred")
+            |> Collection.concat2 [0..processedFrom - 1]
+            |> flip Collection.concat2 [processedTo + 1 .. tkn.Length - 1]
+            |> List.ofSeq
+            
+        match unProcessed with
+        | [] -> processed |> List.map _.node
+        | xs ->
+            Logger.log2 "Error processing expression \"%s\"\nunmerged AST\n%O" expression (ForErrorsCache<_>.forErrorsWithUnProcessedTokens struct (processor, unProcessed)) logger
+            ClientError.clientError $"Error processing expression \"{expression}\"."        
 
-            Logger.debug1 "Error processing expression: unmerged AST\n%O" (ForErrorsCache<_>.forErrors x) logger
+    /// <summary>
+    /// Assert that the processor is complete and return the completed result
+    /// </summary>
+    let complete logger expression processor =
+        match completeMulti logger expression processor with
+        | [result] -> result
+        | [] -> ClientError.clientError $"Error processing expression \"{expression}\"."
+        | x ->
+            Logger.log1 "Error processing expression: unmerged AST\n%O" (ForErrorsCache<_>.forErrors processor) logger
             ClientError.clientError $"Error processing expression \"{expression}\"."
 
     let rec private isProcessed' from ``to`` = function
@@ -224,7 +280,7 @@ module PrecedenceProcessor =
 
                 // overlaps exactly
                 | head when head.fromToken = pointer.fromToken && head.toToken = pointer.toToken ->
-                    Logger.debug1 "Exactly overlapping elements %A" struct (head, pointer) logger
+                    Logger.log1 "Exactly overlapping elements %A" struct (head, pointer) logger
                     ClientError.clientError  $"Cannot parse expression"
 
                 // subsumes
@@ -232,7 +288,7 @@ module PrecedenceProcessor =
 
                 // everything else
                 | head  ->
-                    Logger.debug1 "Overlapping elements %A" struct (head, pointer) logger
+                    Logger.log1 "Overlapping elements %A" struct (head, pointer) logger
                     ClientError.clientError $"Cannot parse expression")
 
         let outOfRange tkn pointer =
@@ -241,14 +297,11 @@ module PrecedenceProcessor =
         fun logger pointer ->
             function
             | Pp { tokens = tkn } when outOfRange tkn pointer ->
-                Logger.debug1 "Ast node out of range %A" pointer logger
+                Logger.log1 "Ast node out of range %A" pointer logger
                 ClientError.clientError $"Cannot parse expression"
-            | Pp ({ processed = ast; tokens = tkn; version = version } & data) ->
+            | Pp ({ processed = ast; } & data) ->
                 let result = removeSubsumed struct (logger, pointer) ast
-                Pp { data with processed = pointer::result; version = version + 1us }
-
-    let compareVersions (Pp {version = v1}) (Pp {version = v2}) =
-        int v1 - int v2
+                Pp { data with processed = pointer::result }
 
     let private foldFindToken move  (start: uint16) filter s (Pp { tokens = ts }) =
         let mutable s' = s
@@ -320,11 +373,11 @@ module PrecedenceProcessor =
     /// </summary>
     let get logger i = 
         tryGet i >> ValueOption.defaultWith (fun _ ->
-            Logger.debug1 "Ast node out of range %i" i logger
+            Logger.log1 "Ast node out of range %i" i logger
             ClientError.clientError $"Cannot parse expression")
 
     /// <summary>
-    /// Process a sub collecton of tokens
+    /// Process a sub collection of tokens
     /// Given the start and end tokens and a processing function
     ///     create a new processor with the specified subset
     ///     pass the new processor into the processing function. This function can process as many nodes as possible
@@ -333,7 +386,7 @@ module PrecedenceProcessor =
     /// </summary>
     let subCollection =
         let createSub from ``to`` = function
-            | Pp ({ tokens = tk; processed = pointers; version = version } & data) ->
+            | Pp ({ tokens = tk; processed = pointers } & data) ->
                 let tokens =
                     Seq.skip (int from) tk
                     |> Seq.truncate (int (``to`` + 1us - from))
@@ -347,7 +400,7 @@ module PrecedenceProcessor =
                     |> Seq.map (fun x -> {x with fromToken = x.fromToken - from; toToken =  x.toToken - from })
                     |> List.ofSeq
 
-                Pp { tokens = tokens; processed = pointers; version = version + 1us }
+                Pp { tokens = tokens; processed = pointers }
 
         let mergeBack logger parent from ``to`` = function
             | Pp { processed = processed } ->
@@ -359,4 +412,4 @@ module PrecedenceProcessor =
 
         fun logger from ``to`` f collection ->
             createSub from ``to`` collection
-            |> (f >> Result.map (mergeBack logger collection from ``to``))
+            |> (f >> ValueOption.map (mergeBack logger collection from ``to``))

@@ -365,19 +365,23 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         }
 
     [<Theory>]
-    [<InlineData(1)>]
-    [<InlineData(2)>]
-    [<InlineData(3)>]
-    [<InlineData(4)>]
-    let ``Max filter size experiment`` ``parenthesis anchored at start`` =
+    [<InlineData(1, 1)>]
+    [<InlineData(2, 1)>]
+    [<InlineData(3, 1)>]
+    [<InlineData(4, 1)>]
+    [<InlineData(2, 10)>]
+    [<InlineData(3, 10)>]
+    let ``Max filter size experiment`` ``parenthesis anchored at start`` ``parenthesis count`` =
 
         task {
             // arrange
             // use output = new FileWriter("""C:\Dev\TestDynamo\out.log""")
-            use logger = new TestLogger(output, LogLevel.Critical)
+            use logger = new TestLogger(output, LogLevel.Warning)
             let client = buildClientFromLogger logger
             let! tables = sharedTestData ValueNone // (ValueSome output)
             let tab = Tables.get true true tables
+            let openP = [1..``parenthesis count``] |> Seq.map (asLazy "(") |> Str.join ""
+            let closeP = [1..``parenthesis count``] |> Seq.map (asLazy ")") |> Str.join ""
 
             let rec nestCenter = function
                 | []  -> invalidOp "empty"
@@ -389,7 +393,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                         |> Collection.partition (fun struct (i, _) -> i < lTail)
                         |> mapFst (List.map sndT)
                         |> mapSnd (List.map sndT)
-                    before@($"({x} AND {y})"::after) |> nestCenter
+                    before@($"{openP}{x} AND {y}{closeP}"::after) |> nestCenter
 
             let struct (pk, struct (sk, data)) = randomItem tab.hasSk random
             let folder =
@@ -397,14 +401,15 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 // no parenthesis
                 | 1 -> Str.join " OR "
                 // parenthesis anchored at start
-                | 2 -> Seq.fold (fun s x -> $"({s} OR {x})") "pX<>:p"
+                | 2 -> Seq.fold (fun s x -> $"{openP}{s} OR {x}{closeP}") "pX<>:p"
                 // parenthesis anchored at end
-                | 3 -> Seq.fold (fun s x -> $"({x} OR {s})") "pX<>:p"
+                | 3 -> Seq.fold (fun s x -> $"{openP}{x} OR {s}{closeP}") "pX<>:p"
                 // parenthesis anchored in center
                 | 4 -> List.ofSeq >> nestCenter 
                 | x -> invalidOp (x.ToString())
 
             let expr =
+                // [0..10]
                 [0..300]
                 |> Seq.map (asLazy "p<>:p")
                 |> folder
@@ -427,7 +432,9 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 // test for stack overflow
             with
             | e ->
-                assertError output "Maximum number of operators has been reached" e
+                flip (assertAtLeast1Error output) e
+                <| [ "Maximum number of operators has been reached"
+                     "Max expression size is 4KB" ]
         }
 
     [<Theory>]
@@ -437,7 +444,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         task {
             // arrange
             // this test has a lot of logging. Turn of tracing
-            use logger = new TestLogger(output, LogLevel.Information)
+            use logger = new TestLogger(output, LogLevel.Warning)
             let client = buildClientFromLogger (logger)
 
             let! tables = sharedTestData ValueNone // (ValueSome output)
@@ -842,7 +849,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
         }
 
     [<Fact>]
-    let ``Filter, "." with LHS is function call, throws`` () =
+    let ``Filter, '.' with LHS is function call, throws`` () =
 
         task {
             // arrange - make sure tables are added to common host
@@ -1778,7 +1785,7 @@ type FilterSyntaxTests(output: ITestOutputHelper) =
                 QueryBuilder.empty (ValueSome random)
                 |> QueryBuilder.setTableName tab.name
                 |> if ``on index`` then QueryBuilder.setIndexName "TheIndex" else id
-                |> QueryBuilder.setFilterExpression "TableSk BETWEEN :p1 AND :p2"
+                |> QueryBuilder.setFilterExpression "TableSk BETWEEN :p1 AND :p2 AND TableSk >= :p1"
                 |> QueryBuilder.setExpressionAttrValues ":p1" target1
                 |> QueryBuilder.setExpressionAttrValues ":p2" target2
                 |> QueryBuilder.scanRequest

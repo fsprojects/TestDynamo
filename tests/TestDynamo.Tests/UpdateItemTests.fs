@@ -179,11 +179,11 @@ type UpdateItemTests(output: ITestOutputHelper) =
         task {
             use client = buildClient output
             let client = client.Client
-
+    
             // arrange
             let pk = $"{uniqueId()}"
             let sk = $"{uniqueId()}"
-
+    
             let req =
                 ItemBuilder.empty
                 |> ItemBuilder.withAttribute "TablePk" "N" pk
@@ -191,10 +191,10 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> ItemBuilder.withAttribute "RemoveMe" "S" "rem me"
                 |> ItemBuilder.withAttribute "AddMe" "N" "5"
                 |> ItemBuilder.withAttribute "DeleteMe" "SS" "[\"X\"]"
-
+    
             let! updateBase = put req client
             let xVal = AttributeValue.String "1234"
-
+    
             // act
             // assert
             let! e = 
@@ -202,8 +202,8 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setUpdateExpression $"SET {verb} = :set"
                 |> QueryBuilder.setExpressionAttrValues $":set" xVal
                 |> flip updateExpectErrorAndAssertNotModified client
-
-            assertError output "SET expression must have at least 1 clause" e
+    
+            assertError output "Error compiling expression" e
         }
 
     [<Fact>]
@@ -359,7 +359,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.String "1234")
                 |> flip updateExpectErrorAndAssertNotModified client
 
-            assertError output "is not a valid upate expression" e
+            assertError output "Invalid update expression" e
         }
 
     [<Theory>]

@@ -109,9 +109,10 @@ public static class ClassGeneration
 
         var header = string.Join("\n", new List<string>
         {
-            "// ############################################################################",
-            "// #################### Auto generated code, do not modify ####################",
-            "// ############################################################################",
+            "// ##################################################################################",
+            "// ####################### Auto generated code, do not modify #######################",
+            @"// #### Build by running `dotnet run --project .\tools\Features\Features.csproj` ####",
+            "// ##################################################################################",
             "",
             "open System",
             "open System.Diagnostics.CodeAnalysis",
@@ -203,7 +204,7 @@ public static class ClassGeneration
 
         var stringBuilder1 = new List<string>
         {
-            $"[<ExcludeFromCodeCoverage; DynamodbType(\"{t.FullName}\", false, false)>]",
+            $"[<DynamodbType(\"{t.FullName}\", false, false)>]",
             $"type {TypeName(t)} ="
         };
 

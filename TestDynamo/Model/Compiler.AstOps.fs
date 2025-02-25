@@ -620,7 +620,7 @@ module Updates =
 
         let private asSynthetic = function
             | AstNode.BinaryOperator (Single WhiteSpace, (l, r) & lr) -> IndividualAddUpdate lr |> Ok
-            | _ -> invalid1
+            | x -> invalid1
 
         let compiler =
             AggregatedUpdate.compiler (ValueSome Add) asSynthetic
@@ -631,7 +631,7 @@ module Updates =
             function
             | ResolvedPath path & x when ValidatedPath.length path = 1 -> Resolved x |> Ok
             | ResolvedPath _ & x -> notARootAttribute
-            | _ -> invalid2
+            | x -> invalid2
 
         let private validateRhs = function
             | ResolvedPath _
