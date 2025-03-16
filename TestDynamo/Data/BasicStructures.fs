@@ -1,5 +1,6 @@
 namespace TestDynamo.Data.BasicStructures
 
+open System
 open TestDynamo.Utils
 open System.Runtime.CompilerServices
 
@@ -30,3 +31,35 @@ module NonEmptyList =
         | xs -> struct (head xs, ValueNone)
 
     let concat (L xs) (L ys) = xs @ ys |> L
+    
+[<IsReadOnly; Struct;>]
+type SortedList<'a> =
+    private | Sl of 'a list
+    
+module SortedList =
+    
+    let create (vals: _ seq) =
+        Seq.sort vals
+        |> List.ofSeq
+        |> Sl
+
+    type SortedListCache<'a> =
+        static member empty: SortedList<'a> = Sl []
+        
+    let empty<'a> = SortedListCache<'a>.empty
+    
+    let rec private add' (c: IComparer<_>) i value = function
+        | [] -> struct ([value], i)
+        | head::_ & vs when c.Compare(value, head) < 0 -> value::vs, i
+        | _::tail -> add' c (i + 1) value tail
+        
+    let add value (Sl vs) =
+        let c = System.Collections.Generic.Comparer<'a>.Default
+        match add' c 0 value vs with
+        | vs', 0 -> Sl vs'
+        | vs', 1 -> (List.head vs)::vs' |> Sl
+        | vs', i ->
+            Seq.truncate i vs
+            |> flip Collection.concat2 vs'
+            |> List.ofSeq
+            |> Sl
