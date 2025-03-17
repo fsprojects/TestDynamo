@@ -151,7 +151,7 @@ module ExpressionCompiler =
     [<Struct; IsReadOnly>]
     type CompiledExpression =
         { asWriter: Item -> Map<string,AttributeValue> -> WriterResult
-          asReader: ExpressionFn }
+          asReader: ExpressionFnX }
 
         with
         static member writer x = x.asWriter

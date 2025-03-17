@@ -62,6 +62,7 @@
     <Compile Include="Model\Compiler.AstNode.fs" />
     <Compile Include="Model\Compiler.Parser.fs" />
     <Compile Include="Model\Compiler.Validator.fs" />
+    <Compile Include="Model\Compiler.ExpressionFn.fs" />
     <Compile Include="Model\Compiler.ExpressionPartCompiler.fs" />
     <Compile Include="Model\Compiler.GetOps.fs" />
     <Compile Include="Model\Compiler.MutateOps.fs" />

@@ -170,7 +170,8 @@ module Filters =
             compileAst
             buildFilterCompiler
 
-    let private booleanAnswer = function
+    // TODO: throw?
+    let private booleanAnswer = ExpressionFnX.throwResult >> function
         | ValueSome (Boolean x) -> x
         | ValueNone
         | ValueSome _ -> false

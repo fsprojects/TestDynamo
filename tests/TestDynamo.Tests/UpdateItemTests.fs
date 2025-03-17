@@ -1702,7 +1702,7 @@ type UpdateItemTests(output: ITestOutputHelper) =
                 |> QueryBuilder.setExpressionAttrValues ":x" (AttributeValue.Number 55M)
                 |> flip updateExpectErrorAndAssertNotModified client
 
-            assertError output "Both operands of a + operation must be numbers" e
+            assertError output "Both operands of an arithmetic operation must be numbers" e
         }
 
     [<Theory>]

@@ -186,6 +186,7 @@ module Accessor =
             |> HashMap
             |> tpl t
             |> getter'
+            |> ExpressionFnX.resultOk
 
         let validatePath =
             Validator.validatePath settings
@@ -197,7 +198,8 @@ module Accessor =
                 |> MaybeLazyResult.execute t.filterParams
                 |> throw
 
-            setter' (t, (value, HashMap state |> ValueSome))
+            // TODO: can I remove throw to accumulate errors??
+            setter' (t, (ExpressionFnX.throwResult value, HashMap state |> ValueSome))
             ?|> expectHashMap
             |> ValueOption.defaultValue state
             |> flip tpl path

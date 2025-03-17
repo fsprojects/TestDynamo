@@ -4,10 +4,12 @@
 [<RequireQualifiedAccess>]
 module TestDynamo.Model.Compiler.AstOps
 
+open Microsoft.FSharp.Core
 open TestDynamo.Data.Monads
 open TestDynamo.Data.BasicStructures
 open TestDynamo.Model
 open TestDynamo.Model.Compiler
+open TestDynamo.Model.Compiler.ExpressionFnXOps
 open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open TestDynamo.Model.Compiler.Lexer
@@ -82,7 +84,7 @@ module Value =
             | AstNode.Updates _
             | AstNode.ExpressionAttrValue _ -> accessorErr2 |> MaybeLazyResult.fromResult
 
-        let rec compileFromAccessorTypes' = function
+        let rec compileFromAccessorTypes': struct (ExpressionFnX voption * AccessorType list) -> ExpressionFnX voption = function
             | struct (x, []) -> x
             | root, AccessorType.RawAttribute attr::tail
             | root, AccessorType.Attribute attr::tail ->
@@ -101,7 +103,7 @@ module Value =
                 |> flip tpl tail
                 |> compileFromAccessorTypes'
 
-        let compileFromAccessorTypes =
+        let compileFromAccessorTypes: AccessorType list -> ExpressionFnX =
             curry compileFromAccessorTypes' ValueNone
             >> ValueOption.defaultValue GetOps.rootItem
 
@@ -113,7 +115,7 @@ module Value =
             >> mapSnd compileFromAccessorTypes
             >> uncurry Writer.create
 
-        let doNothing = Writer.retn (asLazy ValueNone) |> asLazy
+        let doNothing = Writer.retn ExpressionFnX.noneFn |> asLazy
         let buildReaderWriter =
             function
             | AstNode.Synthetic (AccessorPath p) -> flip buildWriter' p
@@ -179,19 +181,13 @@ module BinaryOps =
             then valid
             else invalid
 
-        let err = $"Both operands of a {name} operation must be numbers"
-        let arithmetic args itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-            | struct (ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _)) -> op args itemData
-            | _ -> ClientError.clientError err
-
         ExpressionPartCompiler.build2
             name
             Ok
             noValidator
             noValidator
             validator
-            arithmetic
+            op
             settings
 
     let private statelessBooleanOp name = statelessBinaryOp true (BooleanLogic name |> Resolved) name
@@ -422,21 +418,13 @@ module Call =
             | Projection
             | UpdatePlaceholder _ -> err
 
-        let argValueValidator lr itemData =
-            match lr |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-            | ValueNone, ValueNone
-            | ValueSome (AttributeList _), ValueNone
-            | ValueNone, ValueSome (AttributeList _)
-            | ValueSome (AttributeList _), ValueSome (AttributeList _) -> GetOps.Functions.list_append lr itemData
-            | _ -> ClientError.clientError "Arguments to list_append function must be lists"
-
         ExpressionPartCompiler.build2
             name
             Ok
             validateArg
             validateArg
             ok
-            argValueValidator
+            GetOps.Functions.list_append
 
     let attribute_type =
         let name = "attribute_type"
@@ -492,7 +480,7 @@ module Updates =
         let private describe = UpdatePlaceholder >> Resolved >> Ok >> asLazy
 
         let private combine =
-            let getNothing = ValueNone |> asLazy |> asLazy
+            let getNothing = ExpressionFnX.noneFn |> asLazy
 
             Writer.traverse
             >> Writer.map getNothing
@@ -515,7 +503,7 @@ module Updates =
         let private describe = UpdatePlaceholder ValueNone |> Resolved |> Ok |> asLazy
 
         let private combine =
-            let getNothing = ValueNone |> asLazy |> asLazy
+            let getNothing = ExpressionFnX.noneFn |> asLazy
 
             Writer.traverse
             >> Writer.map getNothing
@@ -536,8 +524,8 @@ module Updates =
 
         let private describe = UpdatePlaceholder (ValueSome Set) |> Resolved |> Ok |> asLazy
 
-        let private returnNothing1 = flip Writer.create (asLazy ValueNone)
-        let private returnNothing2 = Writer.retn (asLazy ValueNone)
+        let private returnNothing1 = flip Writer.create ExpressionFnX.noneFn
+        let private returnNothing2 = Writer.retn ExpressionFnX.noneFn
 
         let private asSynthetic = function
             | AstNode.BinaryOperator (Single Eq, (l, r) & lr) -> IndividualSetUpdate lr |> Ok
@@ -574,9 +562,8 @@ module Updates =
         let private invalid = "Expected REMOVE expression in the form REMOVE x, x.y, z[1]" |> NonEmptyList.singleton
         let private invalid1 = invalid |> Error
 
-        let private returnNothing1 = asLazy ValueNone
-        let private returnNothing2 = flip Writer.create (asLazy ValueNone)
-        let private returnNothing3 = Writer.retn (asLazy ValueNone)
+        let private returnNothing1 = flip Writer.create ExpressionFnX.noneFn
+        let private returnNothing2 = Writer.retn ExpressionFnX.noneFn
         let private asSynthetic = IndividualRemoveUpdate >> Ok
 
         let compiler =
@@ -591,12 +578,12 @@ module Updates =
         let private execute (arg: ExpressionReaderWriter): ExpressionReaderWriter =
             match Writer.execute arg with
             | [mutation], _ ->
-                { mutation with valueGetter = returnNothing1 }
-                |> returnNothing2
+                { mutation with valueGetter = ExpressionFnX.noneFn }
+                |> returnNothing1
             | _ ->
                 // validation should prevent this case
                 assert false
-                returnNothing3
+                returnNothing2
 
         let clauseCompiler =
             ExpressionPartCompiler.build1WithWriter
@@ -615,8 +602,8 @@ module Updates =
 
         let private describe = (ValueSome Add) |> UpdatePlaceholder |> Resolved |> Ok |> asLazy
 
-        let private returnNothing1 = flip Writer.create (asLazy ValueNone)
-        let private returnNothing2 = Writer.retn (asLazy ValueNone)
+        let private returnNothing1 = flip Writer.create ExpressionFnX.noneFn
+        let private returnNothing2 = Writer.retn ExpressionFnX.noneFn
 
         let private asSynthetic = function
             | AstNode.BinaryOperator (Single WhiteSpace, (l, r) & lr) -> IndividualAddUpdate lr |> Ok
@@ -644,22 +631,29 @@ module Updates =
             | Projection
             | UpdatePlaceholder _ -> invalid2
 
-        let return0 = AttributeValue.Number 0M |> ValueSome |> asLazy
+        let return0 = AttributeValue.Number 0M |> ExpressionFnX.retn
+        
+        let private allowNone =
+            ExpressionFnX.map Either1
+            >> ExpressionFnX.defaultValue (Either2 ()) 
 
-        let private mutate (struct (_, arg1) & args) itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-            // special case for add a numer to nothing
-            | ValueNone, ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add struct (return0, arg1) itemData
-            | ValueNone, _
-            | _, ValueNone -> ClientError.clientError "Invalid ADD update expression. Attribute has no value"
-            | ValueSome (AttributeValue.Number _), ValueSome (AttributeValue.Number _) -> GetOps.Arithmetic.add args itemData
-            | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
-                GetOps.HashSets.union args itemData
-                ?|> ValueSome
-                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Invalid ADD update expression. Sets contain two different types")
-            | _ -> ClientError.clientError "Invalid ADD update expression. ADD is for sets and numbers only"
+        let private mutateErr = ExpressionFnX.errFn "ADD is for sets and numbers only"
+        let private mutate (struct (_, arg1) & args) =
+            
+            mapFst allowNone args
+            |> mapSnd allowNone
+            |> ExpressionFnX.tpl
+            &?>>= function
+                // special case for add a number to nothing
+                | Either2 _, Either1 (AttributeValue.Number _) -> GetOps.Arithmetic.add struct (return0, arg1)
+                | Either2 _, _
+                | _, Either2 _ -> ClientError.clientError "Invalid ADD update expression. Attribute has no value"
+                | Either1 (AttributeValue.HashSet _), Either1 _ -> GetOps.HashSets.union args
+                | _, Either1 (AttributeValue.Number _) -> GetOps.Arithmetic.add args
+                | _ -> mutateErr
+            |> ExpressionFnX.prependError "Invalid ADD update expression"
 
-        let private execute args: ExpressionReaderWriter =
+        let private execute (args: struct (ExpressionReaderWriter * ExpressionReaderWriter)): ExpressionReaderWriter =
 
             match args |> mapFst Writer.execute |> mapSnd Writer.execute with
             | ([mutation], getter1), (_, getter2) ->
@@ -689,8 +683,8 @@ module Updates =
 
         let private describe = (ValueSome Delete) |> UpdatePlaceholder |> Resolved |> Ok |> asLazy
 
-        let private returnNothing1 = flip Writer.create (asLazy ValueNone)
-        let private returnNothing2 = Writer.retn (asLazy ValueNone)
+        let private returnNothing1 = flip Writer.create ExpressionFnX.noneFn
+        let private returnNothing2 = Writer.retn ExpressionFnX.noneFn
 
         let private asSynthetic = function
             | AstNode.BinaryOperator (Single WhiteSpace, (l, r) & lr) -> IndividualDeleteUpdate lr |> Ok
@@ -719,15 +713,19 @@ module Updates =
             | Projection
             | UpdatePlaceholder _ -> invalid2
 
-        let private mutate args itemData =
-            match args |> mapFst (apply itemData) |> mapSnd (apply itemData) with
-            | ValueNone, _
-            | _, ValueNone -> ClientError.clientError "Invalid DELETE update expression. Attribute has no value"
-            | ValueSome (AttributeValue.HashSet _), ValueSome (AttributeValue.HashSet _) ->
-                GetOps.HashSets.xOr args itemData
-                |> ValueOption.defaultWith (fun _ -> ClientError.clientError "Invalid DELETE update expression. Sets contain two different types")
-            | s1, s2 ->
-                ClientError.clientError $"Invalid DELETE update expression. DELETE is for sets only {s1} {s2}"
+        let private tryDeleteNone =
+            ExpressionFnX.errFn "Attribute has no value"
+            |> ExpressionFnX.defaultFn
+        let private mutate: struct (ExpressionFnX * ExpressionFnX) -> ExpressionFnX<AttributeValue> =
+            mapFst tryDeleteNone
+            >> mapSnd tryDeleteNone
+            // TODO: XOR seems weird now. Will the result set contain items
+            >> GetOps.HashSets.xOr
+            // TODO: is this the correct way to delete the set entirely?
+            &?>=> (
+                ValueOption.map ExpressionFnX.retn
+                >> ValueOption.defaultValue ExpressionFnX.noneFn)
+            >> ExpressionFnX.prependError "Invalid DELETE update expression"
 
         let private execute args: ExpressionReaderWriter =
 
@@ -780,7 +778,7 @@ module Projections =
 
     let private describe = ResolvedDescription.Projection |> Resolved |> Ok |> asLazy
 
-    let private returnNothing = ValueNone |> asLazy |> asLazy
+    let private returnNothing = ExpressionFnX.noneFn |> asLazy
 
     let projectionExpression =
         ExpressionPartCompiler.buildStar

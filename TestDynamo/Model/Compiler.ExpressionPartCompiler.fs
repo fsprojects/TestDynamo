@@ -10,13 +10,6 @@ open TestDynamo.Utils
 open TestDynamo.Data.Monads.Operators
 open System.Runtime.CompilerServices
 
-[<Struct; IsReadOnly>]
-type ItemData =
-    { item: Item
-      filterParams: FilterTools }
-    with
-    static member getItem {item=item} = item
-
 type ExpressionAttributeName = string
 type AttributeName = string
 
@@ -39,12 +32,11 @@ module ProjectionTools =
 
 type ItemMutationState = Map<string, AttributeValue>
 
-type MutatedAttributeValue = AttributeValue
-
 [<Struct; IsReadOnly>]
 type ItemMutation =
-    { valueGetter: ProjectionTools -> MutatedAttributeValue voption
-      mutation: struct (ProjectionTools * MutatedAttributeValue voption) -> State<ItemMutationState, ValidatedPath list> }
+    { valueGetter: ExpressionFnX
+      // messy, is this possible - mutation: ExpressionFnResult -> State<ItemMutationState, ValidatedPath list>   
+      mutation: struct (ProjectionTools * ExpressionFnResult) -> State<ItemMutationState, ValidatedPath list> }
 
 module ItemMutation =
     let create valueGetter mutation = { mutation = mutation; valueGetter = valueGetter }
@@ -59,8 +51,7 @@ module ItemMutation =
         |> item.mutation
         |> State.map (maybePrependL pathAcc)
 
-type ExpressionFn = ItemData -> AttributeValue voption
-type ExpressionReaderWriter = Writer<ItemMutation, ExpressionFn>
+type ExpressionReaderWriter = Writer<ItemMutation, ExpressionFnX>
 type CompilerResult = (struct (ExpressionReaderWriter * ValidationResult))
 type CompilerOutput = Result<CompilerResult, NonEmptyList<string>>
 type private ArgumentIndex = int
@@ -98,7 +89,7 @@ module ExpressionPartCompiler =
 
     let buildErr = Err
 
-    let private opToExpressionFn: (ItemData -> AttributeValue voption) -> ExpressionReaderWriter = Writer.retn
+    let private opToExpressionFn: ExpressionFnX -> ExpressionReaderWriter = Writer.retn
 
     let build0 name argPreProcessor buildDescription expression settings compiler =
         { argPreProcessor = argPreProcessor
